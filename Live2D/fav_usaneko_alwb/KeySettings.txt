@@ -1,0 +1,38 @@
+●vtubestudio設定
+
+Tab　＋　左Ctrl　キーバインドリセット
+
+tab　+　1キー　衣装切り替え
+
+左shift　＋　1キー　照れ
+左shift　＋　2キー　おこ
+左shift　＋　3キー　ふぇぇ
+左shift　＋　4キー　青ざめ
+左shift　＋　5キー　目ハイライトonoff
+左shift　＋　6キー　ウインク右
+左shift　＋　7キー　ウインク左
+左shift　＋　8キー　＞＜目
+左shift　＋　9キー　〇〇目
+左shift　＋　0キー　ジト目
+左shift　＋　qキー　ぺろり
+左shift　＋　wキー　猫口
+左shift　＋　eキー　おっ？
+左shift　＋　rキー　くっころ
+左shift　＋　tキー　むすっ
+左shift　＋　yキー　ごにょごにょ
+左shift　＋　uキー　Zzz...
+左shift　＋　iキー　笑顔目（まばたき）
+
+左shift　＋　Aキー  fx_ハート
+左shift　＋　Sキー  fx_青ざめ
+左shift　＋　Dキー  fx_♪
+左shift　＋　Fキー  fx_汗（固定
+左shift　＋　Gキー  fx_（動く
+左shift　＋　Hキー  fx_驚き
+左shift　＋　Jキー  fx_？
+左shift　＋　Kキー  fx_！
+左shift　＋　Lキー  fx_ぐるぐる
+左shift　＋　Zキー  fx_ピコピコ
+左shift　＋　Xキー  fx_キラキラ
+左shift　＋　Cキー  fx_zzz
+左shift　＋　Vキー  fx_怒り

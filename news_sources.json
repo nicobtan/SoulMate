@@ -1,0 +1,18 @@
+{
+    "tech": [
+        "https://zenn.dev/feed",
+        "https://gigazine.net/news/rss_2.0/",
+        "https://www.gizmodo.jp/index.xml"
+    ],
+    "science": [
+        "https://nazology.net/feed",
+        "https://sorae.info/feed"
+    ],
+    "general": [
+        "https://news.yahoo.co.jp/rss/topics/top.xml",
+        "https://www3.nhk.or.jp/rss/news/cat0.xml"
+    ],
+    "entertainment": [
+        "https://news.yahoo.co.jp/rss/topics/entertainment.xml"
+    ]
+}

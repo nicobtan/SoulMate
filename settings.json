@@ -1,0 +1,19 @@
+{
+    "api_key": "AIzaSyCB2Pdp4hGkpLm4Ja2qpgOFJYVPaNiGE_U",
+    "model": "gemini-2.5-flash-lite",
+    "background_opacity": 0,
+    "font_size": 10,
+    "current_persona_id": "default",
+    "personas": {
+        "default": {
+            "name": "SoulMate",
+            "system_instruction": "You are a helpful and cute AI assistant."
+        }
+    },
+    "current_persona_file": "default.yaml",
+    "voice_type": "ja-JP-Neural2-B",
+    "bg_opacity": 38,
+    "model_name": "gemini-2.5-flash-lite",
+    "window_x": 666,
+    "window_y": 522
+}

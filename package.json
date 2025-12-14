@@ -1,0 +1,21 @@
+{
+  "name": "soulmate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc && copy src\\index.html dist\\index.html && copy src\\settings.html dist\\settings.html && xcopy images dist\\images /S /I /Y && xcopy Live2D dist\\models /S /I /Y",
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "pixi-live2d-display": "^0.4.0",
+    "pixi.js": "^7.4.3"
+  }
+}
