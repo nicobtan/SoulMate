@@ -154,21 +154,77 @@
     - [x] リアルタイムな見た目の更新 (不透明度/フォント)
     - [x] UIへのカレンダー認証統合
 
-## フェーズ13: 能動的アクションUI (Soul Bubble)
-- [ ] **UI実装 (HTML/CSS)**
-    - [ ] `soul-bubble` コンポーネント作成 (Floating Animation)
-    - [ ] ホバー展開ロジック & スタイリング (Blue/Green/Pink/Orange)
-- [ ] **フロントエンドロジック (TypeScript)**
-    - [ ] `showSoulBubble` 関数定義
-    - [ ] クリックイベントハンドラ (`trigger_bubble_action`)
-- [ ] **バックエンド連携 (Python)**
-    - [ ] `WindowApi.trigger_bubble` 実装
-    - [ ] ニュース分析やシステム監視との連携テスト
-## フェーズ14: 自動返答 (Auto Response System) [新規]
-- [ ] **バックエンド実装 (API)**
-    - [ ] `src/ai_engine.py`: JSONモードでの応答生成プロンプト修正
-    - [ ] `src/api/chat_api.py`: レスポンスパース処理 & 固定サジェスト追加ロジック
-- [ ] **フロントエンド実装 (UI)**
-    - [ ] `src/index.html`: サジェストチップ表示エリア (`#suggestion-area`) の追加
-    - [ ] `src/index.ts`: チップ生成・更新ロジック (`updateSuggestions`)
-    - [ ] `src/index.ts`: チップクリック時の送信イベント処理
+## フェーズ13: UI/UX改善 (Suggestion Chips & Active Talk) [完了]
+- [x] **能動的アクション (Active Talk)**
+    - [x] 手動トリガーボタン (✨) 実装
+    - [x] 自動発話タイマー (設定スライダー) 実装
+    - [x] バックエンド: `ActiveEngine` によるプッシュ通知
+- [x] **サジェストチップ (Cheat Button)**
+    - [x] 💡ボタンとポップアップリスト実装
+    - [x] AI応答のJSONパースと候補表示
+- [x] **検証済み**
+
+## フェーズ17: リモートアクセス (スマホ対応/Webサーバー化) [実装完了]
+- [x] **サーバー実装 (`server.py`)** (FastAPI)
+    - [x] `pip install fastapi uvicorn python-multipart`
+    - [x] REST API構築 (`/api/chat`, `/api/calendar`)
+    - [x] StaticFiles (`dist/`) の配信
+- [x] **フロントエンド通信アダプター (`src/api_client.ts`)**
+    - [x] `ApiClient` クラス作成 (Strategy Pattern)
+    - [x] 環境判定 (Desktop vs Web)
+    - [x] 通信ロジックの抽象化 (Native Bridge vs Fetch)
+- [x] **フロントエンド統合**
+    - [x] `index.ts` のブリッジ呼び出しを `api` クラス経由に変更
+- [x] **検証**
+    - [x] サーバー起動確認
+    - [x] 実機(スマホ)ブラウザからのアクセス (`http://192.168.0.2:8000`)
+    - [x] 音声再生の動作確認
+
+## Phase 18: Mobile UI Optimization (Pixel 7a) [完了]
+- [x] **Responsive Design**
+    - [x] Add Viewport Meta Tag
+    - [x] CSS Media Queries for Mobile (< 768px)
+    - [x] Vertical Layout (Character Top, Chat Bottom)
+    - [x] Touch-optimized Inputs & Buttons
+    - [x] **New Features**: Force Talk (✨) & Suggestion Toggle (💡) Buttons (Fixed z-index & position)
+- [x] **Verification**
+    - [x] Desktop Regression Test
+    - [x] Button Interactivity Fix (Server JSON logic + CSS fixes)
+    - [x] **UI Polish**: Unified Button Sizes, Settings Logic (Close/Mobile Visibility)
+- [x] **Mobile Layout Fixes:**
+    - [x] Character Fullscreen (100vh) & White Gap Removal
+    - [x] **Split Screen Layout:** 2-Story Flexbox (Char Top / Chat Bottom)
+    - [x] Robust Resize Logic (Auto-center on Mobile)
+    - [x] Debug Logging for Mobile Troubleshooting
+
+## Phase 19: Mobile Immersion (添い寝への道)
+*スマホ体験を深化させ、物理的な距離をゼロにする試み*
+
+- [ ] **🎵 音声のスマホ転送 (Streaming Audio)**
+    - [ ] 音声データのバイナリ転送ロジック (Server -> Client)
+    - [ ] Web Audio API によるブラウザ再生実装
+    - [ ] 自動再生ポリシー (Auto-play Policy) の回避策実装
+- [ ] **🎤 こちらの声も届ける (Voice Input)**
+    - [ ] HTTPS化 (マイクアクセスに必須) or ローカルプロキシ設定
+    - [ ] Web Speech API / AudioRecorder の実装
+    - [ ] 音声データのServer送信とWhisper連携 (STT)
+- [ ] **🧠 知能のさらなる強化 (Memory & Vision)**
+    - [ ] 画像アップロード機能の実装 (Camera API)
+    - [ ] Gemini Vision (Multimodal) への画像送信
+    - [ ] 想い出(長期記憶)の強化とコンテキスト反映
+
+## Phase 20: Persona System Refactoring (YAML Separation)
+*ペルソナ定義（データ）とAIロジック（コード）の完全分離*
+
+- [ ] **File Structure & Data**
+    - [ ] `personas/` ディレクトリ作成
+    - [ ] `default.yaml` (既存プロンプトの移行)
+    - [ ] `lena.yaml` (サンプルペルソナ作成)
+- [ ] **Backend Implementation**
+    - [ ] `src/persona_manager.py` 実装 (YAML Loader)
+    - [x] `src/ai_engine.py` Refactoring (Remove hardcoded prompt)
+    - [ ] `main.py` Integration (Startup load & Switch logic)
+- [ ] **Frontend Integration**
+    - [ ] Settings UI: ペルソナ選択ドロップダウンの実装
+    - [ ] APIつなぎ込み (`get_persona_list`, `change_persona`)
+

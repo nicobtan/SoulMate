@@ -76,17 +76,16 @@
 
         /* --- UI Elements (Phase 7.5) --- */
 
-        /* 1. Chat Toggle Button (Green Circle, Bottom-Right above Debug) */
+        /* 1. Chat Toggle Button (Green, Mid-Right) */
         #chat-toggle-btn {
             position: absolute;
-            bottom: 70px;
-            /* Above Debug Button (25px + 30px height + 15px gap) */
-            right: 15px;
-            /* Inside frame */
+            bottom: 80px;
+            /* Stack Middle */
+            right: 20px;
+            /* Aligned */
             width: 50px;
             height: 50px;
             background: rgba(40, 167, 69, 0.8);
-            /* Green */
             border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 50%;
             color: white;
@@ -175,19 +174,28 @@
         /* 4. Debug Button (Yellow, Bottom-Right) */
         #debug-btn {
             position: absolute;
-            bottom: 25px;
-            right: 25px;
-            width: 30px;
-            height: 30px;
+            bottom: 20px;
+            /* Stack Bottom */
+            right: 20px;
+            /* Aligned */
+            width: 50px;
+            /* Unified Size */
+            height: 50px;
+            /* Unified Size */
             background: rgba(255, 255, 0, 0.2);
-            border: 1px solid rgba(255, 255, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            /* Unified Border */
             border-radius: 50%;
             color: #ff0;
-            font-size: 14px;
+            font-size: 24px;
+            /* Unified Font */
             display: flex;
             justify-content: center;
             align-items: center;
             transition: all 0.3s;
+            z-index: 5000;
+            /* Unified Z */
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.2);
         }
 
         #debug-btn:hover {
@@ -328,26 +336,30 @@
         }
 
         /* Suggestion UI (Vertical Popup) */
+        /* Suggestion UI (Now inside Input Area for Desktop) */
         #suggestion-toggle-btn {
-            position: absolute;
-            bottom: 90px;
-            right: 15px;
-            width: 35px;
-            height: 35px;
+            /* Position relative in flex container */
+            position: relative;
+            bottom: auto;
+            right: auto;
+            width: 30px;
+            height: 30px;
+            margin-right: 8px;
+            /* Gap to input */
+
             background: rgba(255, 235, 59, 0.2);
-            /* Yellow tint */
             border: 1px solid rgba(255, 235, 59, 0.5);
             border-radius: 50%;
             color: #ffe082;
-            font-size: 18px;
+            font-size: 16px;
             cursor: pointer;
             z-index: 2000;
             display: none;
-            /* Hidden by default if empty */
+            /* JS toggles flex */
             align-items: center;
             justify-content: center;
             transition: all 0.3s ease;
-            backdrop-filter: blur(4px);
+            flex-shrink: 0;
         }
 
         #suggestion-toggle-btn:hover {
@@ -503,18 +515,20 @@
         /* Force Talk Button (Sparkle, Above Toggle) */
         #force-talk-btn {
             position: absolute;
-            bottom: 130px;
-            /* Above Chat Toggle (70 + 50 + 10) */
-            right: 15px;
-            width: 40px;
-            /* Slightly smaller than chat toggle */
-            height: 40px;
+            bottom: 140px;
+            /* Stack Top */
+            right: 20px;
+            /* Aligned */
+            width: 50px;
+            /* Unified Size */
+            height: 50px;
+            /* Unified Size */
             background: rgba(255, 105, 180, 0.8);
-            /* HotPink */
             border: 2px solid rgba(255, 255, 255, 0.5);
             border-radius: 50%;
             color: white;
-            font-size: 20px;
+            font-size: 24px;
+            /* Unified Font */
             cursor: pointer;
             z-index: 5000;
             display: flex;
@@ -678,6 +692,478 @@
             display: flex;
             align-items: center;
         }
+
+        /* --- Mobile Optimization (Phase 18) --- */
+        /* Strict Mobile Mode: Only active when .mobile-mode class is present (Added via JS) */
+
+        /* 1. 全体レイアウト: 縦並びのFlexボックスにする */
+        .mobile-mode #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            /* モバイル用高さ補正 */
+            background-color: #1a1a1a;
+            overflow: hidden;
+        }
+
+        /* 2. キャラクターエリア: "残りスペース全部" (flex: 1) を使う */
+        /* これで自動的に画面の上半分(約60-65%)を占有します */
+        .mobile-mode #character-area {
+            position: relative;
+            /* absoluteをやめる */
+            top: auto;
+            left: auto;
+            width: 100vw;
+            height: auto;
+            /* 高さはflexにお任せ */
+            flex: 1;
+            /* 残りの空間を全部埋める */
+            z-index: 10;
+            background: transparent;
+            pointer-events: none;
+            /* キャラへのタッチは透過 */
+            order: 1;
+            /* 上 */
+        }
+
+        /* キャンバス設定 */
+        .mobile-mode #character-area canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+            /* object-position は JSで制御するので指定なしでOK */
+            transform: none !important;
+            /* 前回の補正を削除 */
+        }
+
+        /* 3. チャットパネル: 下部に固定の高さを確保 */
+        .mobile-mode #right-panel {
+            position: relative;
+            /* absoluteをやめる */
+            width: 100vw;
+            height: 40vh;
+            /* 画面の下40%をチャット用に確保 */
+            z-index: 50;
+            margin: 0;
+            opacity: 1 !important;
+            background: transparent;
+            flex-shrink: 0;
+            /* 縮まないようにする */
+            order: 2;
+            /* 下 */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .mobile-mode #right-panel.open {
+            width: 100vw;
+        }
+
+        /* Overlays: Top Positioning for Visibility */
+
+        /* Clock: Top Left */
+        .mobile-mode #clock-display {
+            z-index: 2000;
+            top: 40px;
+            left: 20px;
+            bottom: auto;
+            /* Reset */
+            border-left: 5px solid #ff4444;
+            /* Thicker accent */
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Status: Below Clock */
+        .mobile-mode #status-bar {
+            z-index: 2000;
+            top: 90px;
+            left: 20px;
+            bottom: auto;
+            transform: none;
+            /* Remove centering */
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Debug Btn: Top Right */
+        .mobile-mode #debug-btn {
+            z-index: 2000;
+            top: 40px;
+            right: 20px;
+            bottom: auto;
+        }
+
+        /* Suggestion Popup */
+        /* Suggestion Popup */
+        .mobile-mode #suggestion-popup {
+            bottom: 90px;
+            right: 15px;
+            width: auto;
+            max-width: 80vw;
+            max-height: 50vh;
+            overflow-y: auto;
+            z-index: 9999;
+            /* Max Z-index */
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            display: none;
+            /* hidden by default */
+            flex-direction: column;
+        }
+
+        /* Buttons */
+        .mobile-mode #chat-toggle-btn {
+            display: none;
+        }
+
+        .mobile-mode #force-talk-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            position: fixed;
+            bottom: 140px;
+            /* Stack Position adjusted */
+            right: 20px;
+            /* Aligned */
+            z-index: 9999 !important;
+            pointer-events: auto;
+            background: rgba(255, 105, 180, 0.9);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* Mobile Settings Button */
+        .mobile-mode #mobile-settings-btn {
+            display: flex !important;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            font-size: 24px;
+            z-index: 3000;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            color: #ddd;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+        }
+
+        .mobile-mode #suggestion-toggle-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            position: fixed;
+            bottom: 80px;
+            /* Stacked below Pink */
+            right: 20px;
+            /* Aligned */
+            z-index: 9999 !important;
+            pointer-events: auto;
+            background: rgba(255, 215, 0, 0.9);
+            border-radius: 50%;
+            display: flex;
+            /* Flex override for mobile fixed pos */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+
+            /* Reset Desktop Props */
+            margin-right: 0;
+            border: none;
+            color: #333;
+            /* Dark icon for gold bg */
+        }
+
+
+
+        /* Mobile Settings Button */
+        .mobile-mode #mobile-settings-btn {
+            z-index: 3000;
+        }
+
+        /* Chat UI Styling */
+        .mobile-mode #chat-log-area {
+            border-radius: 20px 20px 0 0;
+            border: none;
+            background: rgba(0, 0, 0, 0.8);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .mobile-mode #input-area {
+            border-radius: 0;
+            border: none;
+            background: rgba(0, 0, 0, 0.9);
+            padding-bottom: 15px;
+            /* iOS Home Bar spacing */
+        }
+    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* --- Mobile Optimization (Phase 18.5 - Override) --- */
+        /* Strict Mobile Mode: Only active when .mobile-mode class is present (Added via JS) */
+
+        /* Full screen layout */
+        .mobile-mode #app-container {
+            display: flex;
+            /* Ensure flex */
+            flex-direction: column;
+            justify-content: flex-end;
+            /* Chat at bottom */
+            height: 100vh;
+            height: 100dvh;
+            /* Dynamic Height */
+            overflow: hidden;
+            position: relative;
+            background-color: #1a1a1a;
+            /* Phase 18.6 Fix: Prevent white flash */
+        }
+
+        /* Character: Positioned at Top, anchored to top */
+        .mobile-mode #character-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 65vh;
+            /* 65% height to show body */
+            z-index: 10;
+            background: transparent;
+            pointer-events: none;
+        }
+
+        /* Canvas: Focus on Head/Upper Body */
+        .mobile-mode #character-area canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+            object-position: top center;
+            /* Focus on Head */
+            transform: none;
+            /* Reset transform */
+        }
+
+        /* Chat Panel: Bottom Sheet */
+        .mobile-mode #right-panel {
+            width: 100vw;
+            height: 35vh;
+            /* Reduced slightly */
+            z-index: 50;
+            /* Above Character */
+            position: relative;
+            /* In flow */
+            margin: 0;
+            opacity: 1 !important;
+        }
+
+        .mobile-mode #right-panel.open {
+            width: 100vw;
+        }
+
+        /* Make sure Input Area is visible and not cut off */
+        .mobile-mode #input-area {
+            padding-bottom: max(15px, env(safe-area-inset-bottom));
+        }
+
+        /* Overlays: Compact Top Positioning */
+        .mobile-mode #clock-display {
+            z-index: 2000;
+            top: 10px;
+            /* Higher */
+            left: 10px;
+            bottom: auto;
+            /* Reset */
+            border-left: 5px solid #ff4444;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .mobile-mode #status-bar {
+            z-index: 2000;
+            top: 55px;
+            /* Compact stack */
+            left: 10px;
+            bottom: auto;
+            transform: none;
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Debug Btn (Hammer) */
+        .mobile-mode #debug-btn {
+            z-index: 2000;
+            top: 10px;
+            right: 10px;
+            bottom: auto;
+        }
+
+        /* Settings Btn (Gear) - Mobile Only */
+        .mobile-mode #mobile-settings-btn {
+            display: flex !important;
+            position: absolute;
+            top: 10px;
+            right: 50px;
+            /* Left of Debug */
+            width: 30px;
+            height: 30px;
+            background: rgba(100, 100, 100, 0.5);
+            border-radius: 50%;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        /* 1. キャラクターエリアを画面全体 (100vh) に広げる */
+        .mobile-mode #character-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            /* 65vh から 100vh に変更！これで隙間が消えます */
+            z-index: 10;
+            background: transparent;
+            pointer-events: none;
+        }
+
+        /* 2. キャンバスの無理な位置ずらし (transform) を削除 */
+        .mobile-mode #character-area canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+            /* transform: translateY(-20%);  <-- これを削除！ */
+            /* object-position は JS側で制御するので削除してもOK */
+        }
+
+        /* 3. チャットパネルはそのまま (Z-indexが高いのでキャラの上に重なる) */
+        .mobile-mode #right-panel {
+            width: 100vw;
+            height: 35vh;
+            z-index: 50;
+            /* キャラ(10)より手前 */
+            position: relative;
+            margin: 0;
+            opacity: 1 !important;
+            background: transparent;
+            /* 背景透明を確認 */
+        }
+
+        /* Full Screen Log Panel */
+        .mobile-mode #left-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 3000;
+            margin: 0;
+            border-radius: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .mobile-mode #left-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Suggestion Popup */
+        /* Suggestion Popup */
+        .mobile-mode #suggestion-popup {
+            position: fixed;
+            /* FIXED POSITION IS CRITICAL */
+            bottom: 37vh;
+            right: 10px;
+            width: 85vw;
+            max-width: 350px;
+            z-index: 10000 !important;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            /* Spacing between chips */
+        }
+
+        .mobile-mode .suggestion-chip {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #eee;
+            padding: 12px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .mobile-mode .suggestion-chip:active {
+            background: rgba(255, 215, 0, 0.3);
+            border-color: #ffd700;
+        }
+
+        /* Buttons */
+        .mobile-mode #chat-toggle-btn {
+            display: none;
+        }
+
+        .mobile-mode #force-talk-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 28px;
+            position: fixed;
+            /* Fixed to screen */
+            bottom: 37vh;
+            /* Just above chat panel */
+            right: 20px;
+            z-index: 9999 !important;
+            pointer-events: auto;
+        }
+
+        /* Prevent Chat Log from expanding infinitely */
+        .mobile-mode #chat-log-area {
+            height: calc(100% - 90px);
+            /* Subtract input area height */
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            /* Ensure it doesn't cover input */
+        }
+
+        .mobile-mode #right-panel {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            /* Align input to bottom */
+        }
+
+        .mobile-mode #input-area {
+            flex-shrink: 0;
+            /* Input stays fixed size */
+        }
     </style>
 </head>
 
@@ -703,6 +1189,11 @@
         <!-- Frame A: Character Area (Fixed 500x500) -->
         <div id="character-area" class="pywebview-drag-region">
             <!-- Phase 7.5 Elements -->
+
+            <!-- Mobile Settings Button (Added in Phase 18.5) -->
+            <button id="mobile-settings-btn" title="Settings"
+                onclick="document.getElementById('settings-modal').style.display='block'"
+                style="display:none;">⚙️</button>
 
             <!-- Force Talk (Sparkle) -->
             <button id="force-talk-btn" title="話しかけて！ (Talk to me!)">✨</button>
@@ -741,12 +1232,14 @@
             <!-- Flex logic keeps layout clean. -->
 
             <!-- Suggestion UI -->
-            <button id="suggestion-toggle-btn" title="ヒントを表示">💡</button>
+            <!-- Suggestion UI -->
             <div id="suggestion-popup">
                 <!-- Chips injected here -->
             </div>
 
             <div id="input-area">
+                <!-- Suggestion Toggle (Moved here) -->
+                <button id="suggestion-toggle-btn" title="ヒントを表示">💡</button>
                 <textarea id="chat-input" placeholder="メッセージを入力... (Shift+Enterで改行)"></textarea>
                 <button id="send-button" title="送信">➤</button>
             </div>
@@ -791,6 +1284,7 @@
                 <label style="display:block; margin-bottom:5px; font-size:12px; color:white;">Model</label>
                 <select id="model-select"
                     style="width: 100%; padding: 6px; border-radius: 4px; border: 1px solid #555; background: #333; color: white;">
+                    <option value="gemini-2.5-flash-lite" selected>Gemini 2.5 Flash Lite (Fast)</option>
                     <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                     <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                 </select>
@@ -812,10 +1306,9 @@
                 (Save)</button>
             <button id="settings-save-btn" style="display:none"></button>
             <!-- Fallback/Backup ID if TS logic is weird -->
-            <!-- We fixed TS logic to look for 'save-btn' in settings window, but here used 'settings-save-btn'. 
-                Wait, settings.html uses 'save-btn'. This is index.html Modal. 
-                Existing JS logic handles this? I'll leave as is for now and check TS. -->
+            <!-- We fixed TS logic to look for 'save-btn' in settings window, but here used 'settings-save-btn'. -->
             <button id="settings-close-btn" class="no-drag"
+                onclick="document.getElementById('settings-modal').style.display='none'"
                 style="background:#666; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">閉じる</button>
         </div>
     </div>

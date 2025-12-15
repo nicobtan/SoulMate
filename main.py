@@ -27,10 +27,10 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin):
         super().__init__() # Initialize BaseApiMixin attributes
         
         # 1. Core & Services Initialization
-        self.config_manager = ConfigManager()
-        self.ai_engine = AIEngine()
-        self.persona_manager = PersonaManager()
-        self.memory_manager = MemoryManager()
+        self._config_manager = ConfigManager()
+        self._ai_engine = AIEngine()
+        self._persona_manager = PersonaManager()
+        self._memory_manager = MemoryManager()
         
         # TTS Engine
         cred_path = os.path.join(base_dir, 'google-credentials.json')
@@ -46,19 +46,19 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin):
             self.tts_engine = None
 
         # Active Engine
-        self.active_engine = ActiveEngine(self.ai_engine, self.push_message_callback)
-        self.active_engine.configure(self.config_manager.get_all())
+        self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback)
+        self.active_engine.configure(self._config_manager.get_all())
         
         # Apply Initial Config
-        settings = self.config_manager.get_all()
+        settings = self._config_manager.get_all()
         # _configure_ai is defined in SettingsApiMixin
         self._configure_ai(settings)
 
         # Calendar Manager & Auto-Auth
-        self.calendar_manager = CalendarManager()
+        self._calendar_manager = CalendarManager()
         def auto_auth():
-            self.calendar_manager.authenticate() 
-            print(f"[System] Auto-Auth Result: {self.calendar_manager.is_authenticated}")
+            self._calendar_manager.authenticate() 
+            print(f"[System] Auto-Auth Result: {self._calendar_manager.is_authenticated}")
         threading.Thread(target=auto_auth, daemon=True).start()
 
     def set_window(self, window):
@@ -89,7 +89,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin):
             # Speak it
             out_path = None
             if self.tts_engine:
-                 voice = self.config_manager.get('voice_type', 'ja-JP-Neural2-B')
+                 voice = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
                  # Helper to clean text
                  import re
                  # Remove simple URLs
@@ -114,8 +114,8 @@ def create_app():
     
     # Load Position from Config
     # default to None (centers window)
-    x = api.config_manager.get('window_x', None)
-    y = api.config_manager.get('window_y', None)
+    x = api._config_manager.get('window_x', None)
+    y = api._config_manager.get('window_y', None)
     
     window = webview.create_window(
         'SoulMate AI', 

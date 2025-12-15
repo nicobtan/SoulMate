@@ -10,7 +10,8 @@
             --bg-color: #2b2b2b;
             --text-color: #e0e0e0;
             --accent-color: #4a90e2;
-            # Blue accent --sidebar-color: #1e1e1e;
+            /* Blue accent */
+            --sidebar-color: #1e1e1e;
             --border-color: #444;
         }
 
@@ -366,7 +367,9 @@
 
     <!-- Footer Actions -->
     <div class="footer-actions">
-        <button class="btn btn-secondary" onclick="window.close()">キャンセル</button>
+        <!-- Try API close first, then window close -->
+        <button class="btn btn-secondary"
+            onclick="window.pywebview.api.close_settings().catch(() => window.close())">閉じる</button>
         <button class="btn btn-primary" onclick="saveSettings()">保存して適用</button>
     </div>
 
@@ -388,6 +391,7 @@
             try {
                 // Fetch Settings from Python
                 currentSettings = await window.pywebview.api.get_settings();
+                const personaList = await window.pywebview.api.get_persona_list();
 
                 // Populate Fields
                 document.getElementById('font-size').value = currentSettings.font_size || 13;
@@ -410,6 +414,22 @@
                     voiceSelect.appendChild(opt);
                 });
                 if (currentSettings.voice_type) voiceSelect.value = currentSettings.voice_type;
+
+                // Load Personas
+                const personaSelect = document.getElementById('persona-select');
+                personaSelect.innerHTML = "";
+                if (personaList) {
+                    personaList.forEach(pId => {
+                        let opt = document.createElement('option');
+                        opt.value = pId;
+                        opt.innerText = pId; // ID as Name for now
+                        personaSelect.appendChild(opt);
+                    });
+                }
+                // Set Current selection
+                const currentP = currentSettings.current_persona_id || 'default';
+                personaSelect.value = currentP;
+
 
                 // Active Interval
                 const activeInt = currentSettings.active_talk_interval || 0;
@@ -439,9 +459,16 @@
                 // Add others
             };
 
+            const selectedPersona = document.getElementById('persona-select').value;
+
             try {
                 // Save to Python
                 await window.pywebview.api.save_settings(newSettings);
+
+                // Change Persona
+                if (selectedPersona) {
+                    await window.pywebview.api.change_persona(selectedPersona);
+                }
 
                 // Notify Main Window (Python side handles generic notify? Or we assume Python updates main window?)
                 // Actually save_settings in python updates config. 

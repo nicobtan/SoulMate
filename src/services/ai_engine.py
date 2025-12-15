@@ -16,38 +16,59 @@ class AIEngine:
         self.history = []
         self.system_instruction = "You are a helpful AI assistant."
 
-    def configure(self, api_key, model_name="gemini-2.5-flash-lite", system_instruction=None, profile_data=None):
+    def configure(self, api_key, model_name="gemini-2.5-flash-lite", system_instruction=None):
         """Configures the AI Engine with new settings."""
         self.api_key = api_key
         self.model_name = model_name
         
-        # Priority: Profile Data > Explicit Instruction > Default
-        if profile_data:
-            self.system_instruction = self._construct_system_instruction(profile_data)
-        elif system_instruction:
+        if system_instruction:
             self.system_instruction = system_instruction
         
         if self.api_key:
             try:
                 genai.configure(api_key=self.api_key)
-                # Reset chat session when config changes
                 self.chat_session = None 
                 logging.info(f"AIEngine configured with model: {self.model_name}")
             except Exception as e:
                 logging.error(f"Failed to configure Gemini API: {e}")
+
+    def set_system_prompt(self, prompt_text):
+        """Updates the system prompt and resets the session."""
+        logging.info("Updating System Prompt from Persona.")
+        self.system_instruction = prompt_text
+        # Reset chat session to apply new system instruction
+        self.chat_session = None
+        self.history = []
 
     def generate_response(self, message, context=None):
         """Generates a JSON response for the given message, or raw text if Action."""
         if not self.api_key:
             return "設定画面でGoogle Gemini APIキーを設定してください。"
 
+
         try:
             # Initialize Chat Session if needed
             if self.chat_session is None:
+                response_schema = {
+                    "type": "OBJECT",
+                    "properties": {
+                        "response": {"type": "STRING"},
+                        "emotion": {"type": "STRING"},
+                        "suggestions": {
+                            "type": "ARRAY",
+                            "items": {"type": "STRING"}
+                        }
+                    },
+                    "required": ["response", "suggestions"]
+                }
+                
                 model = genai.GenerativeModel(
                     model_name=self.model_name,
                     system_instruction=self.system_instruction,
-                    generation_config={"response_mime_type": "application/json"}
+                    generation_config={
+                        "response_mime_type": "application/json", 
+                        "response_schema": response_schema
+                    }
                 )
                 self.chat_session = model.start_chat(history=self.history)
 
@@ -69,23 +90,44 @@ class AIEngine:
 JSON Output Required! 
 Key "suggestions": Provide 2-3 short, natural Japanese response options for the USER to say next.
 """
-            # Send Message
-            response = self.chat_session.send_message(full_message)
-            raw_text = response.text
+            # Send Message (Attempt 1: JSON Mode)
+            try:
+                response = self.chat_session.send_message(full_message)
+                raw_text = response.text
+                logging.info(f"raw_text from Gemini: {raw_text}")
+            except Exception as e:
+                logging.warn(f"Gemini Gen1 Error: {e}")
+                raw_text = ""
+            
+            # Attempt 2: Fallback to Text Mode if empty
+            if not raw_text.strip():
+                logging.warn("Empty response from JSON Mode. Retrying with Text Mode...")
+                try:
+                     # Override config for this call
+                     response = self.chat_session.send_message(
+                         full_message + "\n(Please respond in plain JSON format.)",
+                         generation_config={"response_mime_type": "text/plain"}
+                     )
+                     raw_text = response.text
+                     logging.info(f"raw_text from Gemini (Fallback): {raw_text}")
+                except Exception as e:
+                     logging.error(f"Gemini Gen2 Error: {e}")
             
             # --- Parsing Logic ---
             try:
+                # Cleanup markdown code blocks if present (common in Text Mode)
+                clean_text = raw_text.strip()
+                if clean_text.startswith("```json"):
+                    clean_text = clean_text[7:]
+                if clean_text.startswith("```"):
+                     clean_text = clean_text[3:]
+                if clean_text.endswith("```"):
+                     clean_text = clean_text[:-3]
+                
                 # 1. Try passing as JSON directly
-                data = json.loads(raw_text)
+                data = json.loads(clean_text)
                 return data 
-                # Expected: {'response': '...', 'emotion': '...', 'suggestions': [...]}
             except json.JSONDecodeError:
-                # 2. Fallback: Check for Action Command or Plain Text
-                # If it's an action command, it might not be JSON if the model ignored instructions
-                # But we set response_mime_type=application/json, so it SHOULD be JSON.
-                # However, if we need to support pure text Actions, we might need to be careful.
-                # Let's assume the model is smart enough to put [ACTION] inside "response" key 
-                # OR we accept that Action Commands might come as raw text if the model hallucinates.
                 logging.warn(f"JSON Decode Failed. Raw: {raw_text}")
                 return {"response": raw_text, "emotion": "neutral", "suggestions": []}
 
@@ -101,10 +143,26 @@ Key "suggestions": Provide 2-3 short, natural Japanese response options for the 
         try:
             # Initialize Chat Session if needed
             if self.chat_session is None:
+                response_schema = {
+                    "type": "OBJECT",
+                    "properties": {
+                        "response": {"type": "STRING"},
+                        "emotion": {"type": "STRING"},
+                        "suggestions": {
+                            "type": "ARRAY",
+                            "items": {"type": "STRING"}
+                        }
+                    },
+                    "required": ["response", "suggestions"]
+                }
+                
                 model = genai.GenerativeModel(
                     model_name=self.model_name,
                     system_instruction=self.system_instruction,
-                    generation_config={"response_mime_type": "application/json"}
+                    generation_config={
+                        "response_mime_type": "application/json", 
+                        "response_schema": response_schema
+                    }
                 )
                 self.chat_session = model.start_chat(history=self.history)
 
@@ -131,12 +189,39 @@ Key "suggestions": Provide 2-3 short, natural Japanese response options for the 
 出力は標準のJSONフォーマット必須です。
 """
             # Send (Simulation)
-            response = self.chat_session.send_message(full_message)
-            raw_text = response.text
-             
-            # Parsing (Duplicate logic for safety)
+            # Send (Simulation)
             try:
-                data = json.loads(raw_text)
+                response = self.chat_session.send_message(full_message)
+                raw_text = response.text
+                logging.info(f"raw_text (Proactive) from Gemini: {raw_text}")
+            except Exception as e:
+                logging.warn(f"Proactive Gen1 Error: {e}")
+                raw_text = ""
+
+            # Attempt 2: Fallback
+            if not raw_text.strip():
+                 logging.warn("Empty response from (Proactive). Retrying with Text Mode...")
+                 try:
+                     response = self.chat_session.send_message(
+                         full_message + "\n(Please respond in plain JSON format.)",
+                         generation_config={"response_mime_type": "text/plain"}
+                     )
+                     raw_text = response.text
+                     logging.info(f"raw_text (Proactive Fallback): {raw_text}")
+                 except Exception as e:
+                     logging.error(f"Proactive Gen2 Error: {e}")
+
+            # Parsing
+            try:
+                clean_text = raw_text.strip()
+                if clean_text.startswith("```json"):
+                    clean_text = clean_text[7:]
+                if clean_text.startswith("```"):
+                     clean_text = clean_text[3:]
+                if clean_text.endswith("```"):
+                     clean_text = clean_text[:-3]
+
+                data = json.loads(clean_text)
                 return data 
             except json.JSONDecodeError:
                 logging.warn(f"JSON Decode Failed (Proactive). Raw: {raw_text}")
@@ -163,54 +248,4 @@ Key "suggestions": Provide 2-3 short, natural Japanese response options for the 
              logging.error(f"Raw Generation Error: {e}")
              return None
 
-    def _construct_system_instruction(self, profile):
-        """Constructs the system instruction from the profile data, appending STRICT rules."""
-        
-        # Basic constraints from profile
-        constraints = profile.get('output_constraints', {})
-        constraints_str = "{\n"
-        for k, v in constraints.items():
-            constraints_str += f"    {k}: {v};\n"
-        constraints_str += "  }"
 
-        # Base Persona
-        base_prompt = f"""
-You are the AI persona defined below. Act specifically according to this interface.
-
-```typescript
-interface SoulMateProfile {{
-  name: {profile.get('name', 'SoulMate')};
-  role: {profile.get('role', 'AI Assistant')};
-  tone: {profile.get('tone', 'Helpful')};
-  speech_style: {profile.get('speech_style', 'Polite')};
-  output_constraints: {constraints_str};
-  user_relationship: {profile.get('user_relationship', 'User')};
-}}
-```
-"""
-        # STRICT RULES (Appended at the end to ensure priority)
-        strict_rules = """
-**CRITICAL INSTRUCTIONS (Override all others):**
-1. You MUST output a valid JSON object.
-2. Structure:
-   {
-     "response": "String. Your spoken response to the user.",
-     "emotion": "String. Emotion tag (e.g., 'happy', 'sad', 'angry', 'surprise', 'love').",
-     "suggestions": ["String. Option 1", "String. Option 2", "String. Option 3"]
-   }
-3. Emojis are FORBIDDEN in "response".
-4. Keep "response" short (1-2 sentences) generally, unless asked for details.
-5. "suggestions" should be 2-3 short, natural Japanese phrases for the USER to say next.
-
-**[CALENDAR/SCHEDULE/ACTION RULES]**
-IF the user asks to "Open Calendar", "Add Event", etc.:
-   -> Set "response" to the EXACT ACTION COMMAND.
-   -> Example: { "response": "[ACTION:OPEN_CALENDAR]", "emotion": "neutral", "suggestions": [] }
-
-   -> [ACTION:OPEN_CALENDAR]
-   -> [ACTION:ADD_EVENT|Summary|YYYY-MM-DD HH:MM]
-
-IF the user asks about "Next week's schedule" or similar (fetching info):
-   -> Just answer naturally based on the [Context] provided.
-"""
-        return base_prompt + strict_rules

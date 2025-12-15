@@ -29,7 +29,7 @@ class WindowApiMixin(BaseApiMixin):
         # src/api/window_api.py -> src/api -> src -> root -> dist/settings.html
         settings_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'dist', 'settings.html'))
         
-        webview.create_window(
+        self.settings_window = webview.create_window(
             'SoulMate Settings', 
             url=settings_path,
             js_api=self, # Share API instance
@@ -38,6 +38,12 @@ class WindowApiMixin(BaseApiMixin):
             resizable=False,
             on_top=True
         )
+
+    def close_settings(self):
+        """Closes the settings window if open."""
+        if hasattr(self, 'settings_window') and self.settings_window:
+            self.settings_window.destroy()
+            self.settings_window = None
     
     def close_app(self):
         self.close_window()

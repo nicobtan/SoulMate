@@ -1,4 +1,6 @@
+/// <reference path="./types.d.ts" />
 export { }; // Ensure this file is treated as a module
+import { api } from './api_client.js';
 
 import { Live2DModel } from 'pixi-live2d-display';
 
@@ -9,31 +11,36 @@ if (userAgent.indexOf('Edg') === -1) {
     console.warn('Warning: Not using Edge Chromium? Transparency might fail.');
 }
 
-declare global {
-    var PIXI: any;
-}
+// Layout Mode Detection (Phase 18 Refactor)
+function detectLayoutMode() {
+    const isMobileUA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isSmallScreen = window.innerWidth <= 768;
 
-// --- Type Definitions for Globals ---
-declare global {
-    interface Window {
-        pywebview?: {
-            api: {
-                close_window: () => void;
-                resize_window: (width: number, height: number) => void;
-                move_window: (x: number, y: number) => void;
-                get_window_pos: () => Promise<{ x: number, y: number }>;
-                open_settings: () => void;
-                get_settings: () => Promise<any>;
-                save_settings: (settings: any) => Promise<any>;
-                chat: (message: string) => Promise<any>;
-                get_personas: () => Promise<string[]>;
-                get_url_metadata: (url: string) => Promise<{ title: string, image: string | null }>;
-                suggest_reply: () => Promise<string>;
-                force_talk: () => Promise<any>;
-            };
-        };
+    // Strict Mobile Mode: Must be Mobile Device AND Small Screen
+    // This prevents Desktop (Small Window) from triggering Mobile Mode.
+    if (isMobileUA && isSmallScreen) {
+        if (!document.body.classList.contains('mobile-mode')) {
+            document.body.classList.add('mobile-mode');
+            console.log("Switched to MOBILE LAYOUT");
+            // @ts-ignore
+            if (typeof window.resizeModel === 'function') window.resizeModel();
+        }
+    } else {
+        if (document.body.classList.contains('mobile-mode')) {
+            document.body.classList.remove('mobile-mode');
+            console.log("Switched to DESKTOP LAYOUT");
+            // @ts-ignore
+            if (typeof window.resizeModel === 'function') window.resizeModel();
+        }
     }
 }
+
+// Initial Check
+window.addEventListener('DOMContentLoaded', detectLayoutMode);
+// Dynamic Check (Orientation change, resize on mobile)
+window.addEventListener('resize', detectLayoutMode);
+
+// Types moved to types.d.ts
 
 // Global reference to Model for LipSync
 let live2dModel: any = null;
@@ -174,9 +181,46 @@ if (chatSendBtn) {
 }
 
 // Force Talk Logic
-if (forceTalkBtn) {
-    forceTalkBtn.addEventListener('click', () => triggerForceTalk());
+// Helper for Mobile Debugging
+function logToServer(msg: string) {
+    if (!window.pywebview) { // Only needed for web/mobile mode
+        fetch('/api/debug_log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg })
+        }).catch(e => console.error("Log failed", e));
+    }
 }
+
+// Force Talk Logic
+// Force Talk Logic
+if (forceTalkBtn) {
+    const trigger = (e: Event) => {
+        e.preventDefault();
+        logToServer("Force Talk Button Pressed (Event: " + e.type + ")");
+        triggerForceTalk();
+    };
+    forceTalkBtn.addEventListener('click', trigger);
+    forceTalkBtn.addEventListener('touchstart', trigger, { passive: false });
+    logToServer("Force Talk Button Logic Initialized");
+} else {
+    logToServer("ERROR: Force Talk Button element not found at init");
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    // Re-check in case script ran too early
+    const btn = document.getElementById('force-talk-btn');
+    if (btn && !forceTalkBtn) {
+        logToServer("Force Talk Button found on DOMContentLoaded (Late Init)");
+        const trigger = (e: Event) => {
+            e.preventDefault();
+            logToServer("Force Talk Button Pressed (Late Event: " + e.type + ")");
+            triggerForceTalk();
+        };
+        btn.addEventListener('click', trigger);
+        btn.addEventListener('touchstart', trigger, { passive: false });
+    }
+});
 
 async function triggerForceTalk() {
     // 0. Resume Audio
@@ -193,40 +237,36 @@ async function triggerForceTalk() {
     updateStatus("Thinking...", true);
 
     // 2. Call Backend
-    if (window.pywebview && window.pywebview.api) {
-        try {
-            const response = await window.pywebview.api.force_talk();
+    // Use API Client (Adapts to Desktop/Web)
+    try {
+        const response = await api.force_talk();
 
-            removeLog(thinkingId);
-            updateStatus("Active", true);
-
-            // Handle Response
-            let text = "";
-            let audio = null;
-            let suggestions: string[] = [];
-
-            if (typeof response === 'string') {
-                text = response;
-            } else {
-                text = response.text;
-                audio = response.audio;
-                suggestions = response.suggestions || [];
-            }
-
-            // Output
-            processAIResponse(text, audio);
-
-            // Update Suggestions
-            updateSuggestions(suggestions);
-
-        } catch (err: any) {
-            removeLog(thinkingId);
-            addLog('Error: ' + err.message, 'ai');
-            updateStatus("Error", false);
-        }
-    } else {
         removeLog(thinkingId);
-        addLog('Debug: Force Talk Triggered (No Backend)', 'ai');
+        updateStatus("Active", true);
+
+        // Handle Response
+        let text = "";
+        let audio = null;
+        let suggestions: string[] = [];
+
+        if (typeof response === 'string') {
+            text = response;
+        } else {
+            text = response.text;
+            audio = response.audio;
+            suggestions = response.suggestions || [];
+        }
+
+        // Output
+        processAIResponse(text, audio);
+
+        // Update Suggestions
+        updateSuggestions(suggestions);
+
+    } catch (err: any) {
+        removeLog(thinkingId);
+        addLog('Error: ' + err.message, 'ai');
+        updateStatus("Error", false);
     }
 }
 
@@ -268,10 +308,15 @@ function updateSuggestions(suggestions: string[]) {
 
 // Toggle Logic
 if (suggestionToggleBtn && suggestionPopup) {
-    suggestionToggleBtn.addEventListener('click', () => {
+    const toggle = (e: Event) => {
+        e.preventDefault();
+        logToServer("Suggestion Toggle Pressed (Event: " + e.type + ")");
         const isVisible = suggestionPopup.style.display === 'flex';
         suggestionPopup.style.display = isVisible ? 'none' : 'flex';
-    });
+        logToServer("Suggestion Popup State: " + (isVisible ? 'Hidden' : 'Shown'));
+    };
+    suggestionToggleBtn.addEventListener('click', toggle);
+    suggestionToggleBtn.addEventListener('touchstart', toggle, { passive: false });
 }
 
 if (chatInput) {
@@ -374,41 +419,35 @@ async function sendMessage() {
     updateStatus("Thinking...", true);
 
     // 3. Call Backend
-    if (window.pywebview && window.pywebview.api) {
-        try {
-            const response = await window.pywebview.api.chat(message);
-            // Remove Thinking
-            removeLog(thinkingId);
-            updateStatus("Active", true);
-
-            // Handle Response
-            let text = "";
-            let audio = null;
-            let suggestions: string[] = [];
-
-            if (typeof response === 'string') {
-                text = response;
-            } else {
-                text = response.text;
-                audio = response.audio;
-                suggestions = response.suggestions || [];
-            }
-
-            // Output
-            processAIResponse(text, audio);
-
-            // Update Suggestions
-            updateSuggestions(suggestions);
-
-        } catch (err: any) {
-            removeLog(thinkingId);
-            addLog('Error: ' + err.message, 'ai');
-            updateStatus("Error", false);
-        }
-    } else {
+    try {
+        const response = await api.chat(message);
+        // Remove Thinking
         removeLog(thinkingId);
-        addLog('Error: Backend not connected.', 'ai');
-        updateStatus("Offline", false);
+        updateStatus("Active", true);
+
+        // Handle Response
+        let text = "";
+        let audio = null;
+        let suggestions: string[] = [];
+
+        if (typeof response === 'string') {
+            text = response;
+        } else {
+            text = response.text;
+            audio = response.audio;
+            suggestions = response.suggestions || [];
+        }
+
+        // Output
+        processAIResponse(text, audio);
+
+        // Update Suggestions
+        updateSuggestions(suggestions);
+
+    } catch (err: any) {
+        removeLog(thinkingId);
+        addLog('Error: ' + err.message, 'ai');
+        updateStatus("Error", false);
     }
 }
 
@@ -514,33 +553,54 @@ if (closeButton) {
 // No longer fetching input/range elements here as they are in settings window
 
 // --- Settings Logic ---
-// Load basic settings for appearance (Font/Opacity)
+// --- Settings Logic ---
+// Load basic settings for appearance (Font/Opacity) and Persona
 async function loadSettings() {
-    if (window.pywebview && window.pywebview.api) {
-        try {
-            const settings = await window.pywebview.api.get_settings();
-            if (bgOpacityRange) updateBackgroundOpacity(settings.background_opacity || 0);
+    try {
+        const settings = await api.get_settings();
 
-            // Apply opacity directly if helper or range is missing (though range exists in DOM?)
-            // Actually ranges are missing from index.html now, so we need to just apply styles.
-            const opacity = (settings.background_opacity || 0) / 100 * 0.4;
-            const characterAreaBg = document.getElementById('character-area');
-            if (characterAreaBg) {
-                if (settings.background_opacity === 0) {
-                    characterAreaBg.style.backgroundColor = 'transparent';
-                } else {
-                    characterAreaBg.style.backgroundColor = `rgba(255, 255, 255, ${opacity.toFixed(2)})`;
-                }
-            }
-
-            if (settings.font_size) {
-                document.documentElement.style.setProperty('--chat-font-size', settings.font_size + 'px');
-            }
-        } catch (err) {
-            console.error("Failed to load settings:", err);
+        // 1. Background Opacity
+        if (bgOpacityRange) {
+            bgOpacityRange.value = settings.background_opacity || 0;
+            updateBackgroundOpacity(settings.background_opacity || 0);
+        } else {
+            updateBackgroundOpacity(settings.background_opacity || 0);
         }
+
+        // 2. Font Size
+        if (settings.font_size) {
+            if (fontSizeRange) fontSizeRange.value = settings.font_size;
+            if (fontSizeValue) fontSizeValue.innerText = settings.font_size + 'px';
+            document.documentElement.style.setProperty('--chat-font-size', settings.font_size + 'px');
+        }
+
+        // 3. API Key & Model
+        const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+        const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+        if (apiKeyInput) apiKeyInput.value = settings.api_key || '';
+        if (modelSelect && settings.model_name) modelSelect.value = settings.model_name;
+
+        // 4. Persona (New)
+        const personaSelect = document.getElementById('persona-select') as HTMLSelectElement;
+        if (personaSelect) {
+            const personas = await api.getPersonas();
+            personaSelect.innerHTML = "";
+            personas.forEach((pId: string) => {
+                const opt = document.createElement('option');
+                opt.value = pId;
+                opt.innerText = pId;
+                personaSelect.appendChild(opt);
+            });
+            // Set current
+            const currentP = settings.current_persona_id || 'default';
+            personaSelect.value = currentP;
+        }
+
+    } catch (err) {
+        console.error("Failed to load settings:", err);
     }
 }
+window.addEventListener('DOMContentLoaded', loadSettings);
 window.addEventListener('pywebviewready', loadSettings);
 
 // Open Settings Window
@@ -552,13 +612,44 @@ if (settingsButton) {
     });
 }
 
+// Mobile Settings Save Logic
+const settingsSaveBtn = document.getElementById('settings-save-btn');
+if (settingsSaveBtn) {
+    settingsSaveBtn.addEventListener('click', async () => {
+        const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+        const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+        const personaSelect = document.getElementById('persona-select') as HTMLSelectElement;
+
+        const newSettings: any = {
+            font_size: fontSizeRange ? parseInt(fontSizeRange.value) : 13,
+            background_opacity: bgOpacityRange ? parseInt(bgOpacityRange.value) : 0,
+            api_key: apiKeyInput ? apiKeyInput.value : undefined,
+            model_name: modelSelect ? modelSelect.value : undefined
+        };
+
+        try {
+            await api.save_settings(newSettings);
+
+            // Handle Persona Change
+            if (personaSelect) {
+                await api.changePersona(personaSelect.value);
+            }
+
+            alert("Settings Saved!");
+            if (settingsModal) settingsModal.style.display = 'none';
+        } catch (e: any) {
+            alert("Save Failed: " + e.message);
+        }
+    });
+}
+
 // Prevent drag when clicking on settings modal (Stop EasyDrag)
 if (settingsModal) {
     settingsModal.addEventListener('mousedown', (e) => {
         e.stopPropagation();
     });
     // Also stop propagation for children inputs to be safe
-    const inputs = settingsModal.querySelectorAll('input, button');
+    const inputs = settingsModal.querySelectorAll('input, button, select');
     inputs.forEach(el => {
         el.addEventListener('mousedown', (e) => e.stopPropagation());
     });
@@ -806,6 +897,11 @@ if (appContainer) {
 (async function () {
     try {
         console.log('Initializing PixiJS...');
+        fetch('/api/debug_log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: "Init: Starting PixiJS Init..." })
+        }).catch(e => { });
 
         if (typeof PIXI === 'undefined') {
             throw new Error('PIXI is not loaded. Check script tags.');
@@ -822,12 +918,94 @@ if (appContainer) {
             backgroundAlpha: 0,
         });
 
+        fetch('/api/debug_log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: "Init: PIXI App Created" })
+        }).catch(e => { });
+
         // Insert Canvas INSIDE the character area (behind button)
         const canvas = app.view as HTMLCanvasElement;
         characterArea.appendChild(canvas);
 
         // Ensure menu is top
         if (menu) menu.style.zIndex = "4000";
+
+        // ★MOVED: Define resizeModel early to avoid ReferenceError
+        const resizeModel = () => {
+            // Need model to be accessible? Yes, via closure 'model' variable which is defined LATER... 
+            // WAIT. 'model' is defined later (line 902).
+            // If I move this up, I cannot close over 'model' const yet.
+            // I must use 'live2dModel' (let var) or window.live2d_model.
+            // Or change 'const model' to 'let model' at top scope.
+
+            // Let's use 'window.live2d_model' or 'live2dModel' variable which is 'let' at top level?
+            // Line 42: let live2dModel: any = null;
+            // Let's rely on 'live2dModel' global variable.
+
+            const model = live2dModel; // Use global ref
+            if (!model) return;
+
+            const frameW = characterArea.clientWidth;
+            const frameH = characterArea.clientHeight;
+
+            // Debug Log to Server
+            const debugMsg = `Resize: Frame=${frameW}x${frameH}, Mode=${document.body.classList.contains('mobile-mode') ? 'Mobile' : 'Desktop'}`;
+            console.log(debugMsg);
+
+            fetch('/api/debug_log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: debugMsg })
+            }).catch(() => { });
+
+            // Force PIXI to match container size in pixels (Critical for mobile)
+            if (app && app.renderer) {
+                app.renderer.resize(frameW, frameH);
+                app.view.style.width = frameW + "px";
+                app.view.style.height = frameH + "px";
+            }
+
+            // Recalculate Scale using Logic Height (Stable)
+            const internalHeight = model.internalModel.height;
+            const targetScale = (frameH * 2.2) / internalHeight;
+
+            // Debug Calc
+            const debugText = `ResizeCalc: FrameH=${frameH}, InternalH=${internalHeight}, TargetScale=${targetScale.toFixed(4)}`;
+            console.log(debugText);
+
+            model.scale.set(targetScale);
+
+            // 1. 中央揃え (X軸)
+            model.x = (frameW / 2) - (model.width / 2);
+
+            // 2. スマホかPCかで高さを変える (Y軸)
+            if (document.body.classList.contains('mobile-mode')) {
+                // スマホモード: 
+                // エリア自体が「画面上半分」になったので、
+                // そのエリアの「真ん中より少し下」くらいに顔が来ると丁度いいです
+
+                // frameH が「上半分の高さ」になっています
+                // モデルの基準点にもよりますが、0.2〜0.3 くらいがバランス良いはず
+                // → 初期表示で埋もれるとのことなので、ガッツリ上げます (マイナス指定)
+                model.y = -frameH * 0.1;
+            } else {
+                // PCモード: 元の計算式
+                model.y = (frameH * 0.4) - (model.height * 0.15);
+            }
+
+            const status = `ModelState: X=${model.x.toFixed(1)}, Y=${model.y.toFixed(1)}, Scale=${targetScale.toFixed(3)}`;
+            console.log(status);
+            fetch('/api/debug_log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: status })
+            }).catch(() => { });
+        };
+
+        // Expose for external calls (e.g. Layout change)
+        // @ts-ignore
+        window.resizeModel = resizeModel;
 
         // Check/Load Live2DModel
         let ModelClass = (window as any).Live2DModel;
@@ -844,13 +1022,36 @@ if (appContainer) {
 
         const modelPath = 'models/fav_usaneko_alwb/fav_usaneko_alwb.model3.json';
         console.log('Loading model from:', modelPath);
+        fetch('/api/debug_log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: `Init: Loading Model from ${modelPath}` })
+        }).catch(e => { });
 
         const model = await ModelClass.from(modelPath);
 
+        fetch('/api/debug_log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: "Init: Model Loaded Successfully" })
+        }).catch(e => { });
+
         app.stage.addChild(model);
+
+        fetch('/api/debug_log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: "Init: Model Added to Stage" })
+        }).catch(e => { });
 
         // Expose model to global scope for LipSync
         live2dModel = model;
+        // @ts-ignore
+        window.live2d_model = model; // For global access (resize)
+
+        // Initial Resize
+        // @ts-ignore
+        if (typeof resizeModel === 'function') resizeModel();
 
         // Initial Layout (500x500 Fixed Frame)
         const frameW = characterArea.clientWidth; // 500
@@ -866,7 +1067,19 @@ if (appContainer) {
         model.x = (frameW / 2) - (model.width / 2);
 
         // Y: Move down drastically to center face.
+        // Y: Move down drastically to center face.
         model.y = (frameH * 0.4) - (model.height * 0.15); // Adjust Y to bring face down to view
+
+        // ★追加: 画面リサイズ時にモデル位置を再計算する関数
+
+
+        // リサイズイベントに登録
+        window.addEventListener('resize', () => {
+            setTimeout(resizeModel, 100);
+        });
+
+        // 初回実行
+        resizeModel();
 
         // --- Zoom Control ---
         window.addEventListener('wheel', (e) => {
@@ -951,3 +1164,118 @@ function startIdleMotion(model: any) {
 
     requestAnimationFrame(updateIdle);
 }
+
+
+
+
+
+// Mobile Settings Button Logic (added Phase 18.5)
+window.addEventListener('DOMContentLoaded', () => {
+    const mobileSettingsBtn = document.getElementById('mobile-settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsCloseBtn = document.getElementById('settings-close-btn');
+
+    if (mobileSettingsBtn && settingsModal) {
+        mobileSettingsBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'block';
+        });
+    }
+
+    if (settingsCloseBtn && settingsModal) {
+        settingsCloseBtn.addEventListener('click', () => {
+            settingsModal.style.display = 'none';
+        });
+    }
+});
+
+// Settings Sync Logic (Phase 18.7)
+window.addEventListener('DOMContentLoaded', async () => {
+    // Only verify/sync if not in Desktop mode (or always? Desktop usually loads from local file anyway?)
+    // Desktop PyWebview usually injects values or we might want to sync UI there too if not done.
+    // Existing code might not populate Settings Modal on load?
+    // Let's populate it.
+
+    try {
+        const settings = await api.get_settings();
+        if (settings) {
+            console.log("Syncing Settings:", settings);
+
+            // API Key
+            const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+            if (apiKeyInput && settings.api_key) {
+                apiKeyInput.value = settings.api_key;
+            }
+
+            // Model
+            const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+            // Note: HTML id might be 'setting-model' or 'model-select'. 
+            // In index.html it was 'model-select' in my previous view (lines 1095).
+            // But I also saw 'setting-model' in target content replace.
+            // Let's try both or check. 'model-select' was in the large HTML block.
+            if (modelSelect && settings.model_name) {
+                // Try to match value.
+                modelSelect.value = settings.model_name;
+                // If value doesn't exist (e.g. custom), might default.
+            }
+
+            // Font Size (If available in settings)
+            if (settings.font_size) {
+                const range = document.getElementById('font-size-range') as HTMLInputElement;
+                const label = document.getElementById('font-size-value');
+                if (range) range.value = String(settings.font_size);
+                if (label) label.innerText = settings.font_size + 'px';
+                document.documentElement.style.setProperty('--chat-font-size', settings.font_size + 'px');
+            }
+
+            // Opacity
+            if (settings.background_opacity !== undefined) {
+                const range = document.getElementById('bg-opacity-range') as HTMLInputElement;
+                const label = document.getElementById('bg-opacity-value');
+                if (range) range.value = String(settings.background_opacity);
+                if (label) label.innerText = settings.background_opacity + '%';
+                // Apply opacity logic presumably exists elsewhere or we trigger input event?
+                // Let's manually trigger change if needed, or just set style if we know it.
+                // Assuming existing event listeners handle 'input'. 
+                // We might need to dispatch event.
+                if (range) range.dispatchEvent(new Event('input'));
+            }
+        }
+    } catch (e) {
+        console.error("Settings Sync Error:", e);
+    }
+    // Settings Save Logic (Mobile/Web)
+    const settingsSaveBtn = document.getElementById('settings-save-btn');
+    if (settingsSaveBtn) {
+        settingsSaveBtn.addEventListener('click', async () => {
+            const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+            const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+
+            // Note: Font Size and Opacity inputs are checked inside 'input' events but we should save them too.
+            // We need to grab them.
+            const fontSizeRange = document.getElementById('font-size-range') as HTMLInputElement;
+            const bgOpacityRange = document.getElementById('bg-opacity-range') as HTMLInputElement;
+
+            const settings: any = {};
+
+            if (apiKeyInput) settings.api_key = apiKeyInput.value.trim();
+            if (modelSelect) settings.model_name = modelSelect.value;
+            if (fontSizeRange) settings.font_size = parseInt(fontSizeRange.value);
+            if (bgOpacityRange) settings.background_opacity = parseInt(bgOpacityRange.value);
+
+            console.log("Saving settings:", settings);
+
+            try {
+                await api.save_settings(settings);
+                alert("設定を保存しました。");
+
+                // Close Modal
+                const settingsModal = document.getElementById('settings-modal');
+                if (settingsModal) settingsModal.style.display = 'none';
+
+            } catch (e) {
+                console.error("Save failed:", e);
+                alert("保存に失敗しました。");
+            }
+        });
+    }
+});

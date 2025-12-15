@@ -1,27 +1,7 @@
+/// <reference path="./types.d.ts" />
 // settings.ts
 // Logic for the standalone settings window
 export { }; // Treat as module
-
-declare global {
-    interface Window {
-        pywebview?: {
-            api: {
-                close_window: () => void;
-                resize_window: (width: number, height: number) => void;
-                move_window: (x: number, y: number) => void;
-                get_window_pos: () => Promise<{ x: number, y: number }>;
-                open_settings: () => void;
-                get_settings: () => Promise<any>;
-                save_settings: (settings: any) => Promise<any>;
-                chat: (message: string) => Promise<any>;
-                get_personas: () => Promise<string[]>;
-                get_url_metadata: (url: string) => Promise<{ title: string, image: string | null }>;
-                suggest_reply: () => Promise<string>;
-                force_talk: () => Promise<any>;
-            };
-        };
-    }
-}
 
 const fontSizeRange = document.getElementById('font-size-range') as HTMLInputElement;
 const fontSizeValue = document.getElementById('font-size-value');

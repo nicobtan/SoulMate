@@ -7,8 +7,8 @@ from .base import BaseApiMixin
 class ChatApiMixin(BaseApiMixin):
     
     def verify_api_key(self, api_key):
-        if self.ai_engine:
-            return self.ai_engine.configure(api_key) is not None
+        if self._ai_engine:
+            return self._ai_engine.configure(api_key) is not None
         return False
 
     def chat(self, message):
@@ -22,8 +22,8 @@ class ChatApiMixin(BaseApiMixin):
 
         # Retrieve Context (RAG)
         context = ""
-        if self.memory_manager:
-            context = self.memory_manager.retrieve_context(message)
+        if self._memory_manager:
+            context = self._memory_manager.retrieve_context(message)
             
         # Active Topic Context
         if self.active_engine and getattr(self.active_engine, 'current_active_topic', None):
@@ -33,12 +33,12 @@ class ChatApiMixin(BaseApiMixin):
         trigger_keywords = ["予定", "スケジュール", "カレンダー", "schedule", "calendar"]
         is_calendar_intent = any(k in message.lower() for k in trigger_keywords)
         
-        if is_calendar_intent and self.calendar_manager:
+        if is_calendar_intent and self._calendar_manager:
             self.log_to_debug("Calendar Intent Detected", 'info')
             
             # Fetch events if authenticated
-            if self.calendar_manager.is_authenticated:
-                events = self.calendar_manager.get_upcoming_events(max_results=20)
+            if self._calendar_manager.is_authenticated:
+                events = self._calendar_manager.get_upcoming_events(max_results=20)
                 events_str = "\n".join(events)
                 calendar_context = f"\n[System Data: User's Upcoming Schedule]\n{events_str}\n"
                 context += calendar_context
@@ -54,15 +54,15 @@ class ChatApiMixin(BaseApiMixin):
                            else:
                                self.log_to_debug(msg, type)
 
-                      threading.Thread(target=self.calendar_manager.authenticate, args=(auth_callback,), daemon=True).start()
+                      threading.Thread(target=self._calendar_manager.authenticate, args=(auth_callback,), daemon=True).start()
 
         # Generate Response
         response_text = ""
         suggestions_list = []
         emotion = None
         
-        if self.ai_engine:
-            raw_result = self.ai_engine.generate_response(message, context=context)
+        if self._ai_engine:
+            raw_result = self._ai_engine.generate_response(message, context=context)
             
             # Check if JSON dict or String
             if isinstance(raw_result, dict):
@@ -92,11 +92,11 @@ class ChatApiMixin(BaseApiMixin):
             self.log_to_debug("Action Detected: ADD_EVENT", 'warn')
             try:
                 match = re.search(r"\[ACTION:ADD_EVENT\|(.*?)\|(.*?)\]", response_text)
-                if match and self.calendar_manager:
+                if match and self._calendar_manager:
                     summary = match.group(1)
                     start_time = match.group(2)
                     self.log_to_debug(f"Adding Event: {summary} at {start_time}", 'info')
-                    result_msg = self.calendar_manager.add_event(summary, start_time)
+                    result_msg = self._calendar_manager.add_event(summary, start_time)
                     response_text = result_msg 
                 else:
                     response_text = "コマンドの形式が正しくありませんでした。"
@@ -105,15 +105,15 @@ class ChatApiMixin(BaseApiMixin):
                 response_text = f"予定の追加に失敗しました: {e}"
 
         # Logic to Memory
-        if self.memory_manager and self.config_manager:
-            current_persona = self.config_manager.get('current_persona_file', 'default')
-            self.memory_manager.log_interaction(message, response_text, current_persona)
+        if self._memory_manager and self._config_manager:
+            current_persona = self._config_manager.get('current_persona_file', 'default')
+            self._memory_manager.log_interaction(message, response_text, current_persona)
         
         # TTS
         audio_path = None
-        if self.tts_engine and self.config_manager:
-            voice_name = self.config_manager.get('voice_type', 'ja-JP-Neural2-B')
-            base_dir = self.config_manager.base_dir
+        if self.tts_engine and self._config_manager:
+            voice_name = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
+            base_dir = self._config_manager.base_dir
             tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
             # Try to filter out [ACTION] tags if remaining
             tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
@@ -158,9 +158,9 @@ class ChatApiMixin(BaseApiMixin):
         emotion = None
         audio_path = None
         
-        if self.ai_engine:
+        if self._ai_engine:
             # Call Proactive Generation
-            raw_result = self.ai_engine.generate_proactive_message()
+            raw_result = self._ai_engine.generate_proactive_message()
             
             # Use same processing logic as Chat (Simplified Copy)
             if isinstance(raw_result, dict):
@@ -175,14 +175,14 @@ class ChatApiMixin(BaseApiMixin):
             response_text = "AI Engine is not initialized."
 
         # Memory Log (System Trigger)
-        if self.memory_manager and self.config_manager:
-            current_persona = self.config_manager.get('current_persona_file', 'default')
-            self.memory_manager.log_interaction("[System:ForceTalk]", response_text, current_persona)
+        if self._memory_manager and self._config_manager:
+            current_persona = self._config_manager.get('current_persona_file', 'default')
+            self._memory_manager.log_interaction("[System:ForceTalk]", response_text, current_persona)
             
         # TTS
-        if self.tts_engine and self.config_manager:
-            voice_name = self.config_manager.get('voice_type', 'ja-JP-Neural2-B')
-            base_dir = self.config_manager.base_dir
+        if self.tts_engine and self._config_manager:
+            voice_name = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
+            base_dir = self._config_manager.base_dir
             tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
             tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
             
@@ -204,16 +204,16 @@ class ChatApiMixin(BaseApiMixin):
 
     def suggest_reply(self):
         """Generates a suggested user reply based on history."""
-        if not self.ai_engine:
+        if not self._ai_engine:
             return ""
             
         # Get recent history
-        # We access self.ai_engine.history directly (list of Contents - roles: user, model)
+        # We access self._ai_engine.history directly (list of Contents - roles: user, model)
         # We construct a text log
         history_text = ""
         try:
              # Limit to last 6 turns
-             recent = self.ai_engine.history[-6:]
+             recent = self._ai_engine.history[-6:]
              for msg in recent:
                  role = "USER" if msg.role == "user" else "AI"
                  text = msg.parts[0].text if msg.parts else ""
@@ -228,7 +228,7 @@ Conversatoin History:
 Task: Suggest a short (10-30 chars), natural Japanese response for the USER to say next to keep the conversation going or ask for more details.
 Output ONLY the suggested text.
 """
-        suggestion = self.ai_engine.generate_content(prompt)
+        suggestion = self._ai_engine.generate_content(prompt)
         # Clean up
         if suggestion:
              suggestion = suggestion.strip().replace("「", "").replace("」", "").replace('"', "")
