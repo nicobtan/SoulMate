@@ -125,13 +125,20 @@
   opacity: 1;
 }
 
-Interface Logic (JS <-> Python)
-1. Python側 (Backend): AIが能動的アクションを決定した際、JS関数を呼び出す。
+### Interface Logic (JS <-> Python)
+1. **Python側 (Backend)**: `BubbleService` が `get_smart_bubble()` を呼び出し、パケットを生成する。
+   - **Time Awareness**: 現在時刻、曜日、季節（土曜の朝、金曜の夜など）を判定。
+   - **Personalization**: `UserManager` からユーザーの興味を取得し、ニュース話題を混在させる。
+   - **Action Binding**: `action_id` に対してコンテキスト（メタデータ）を保持する。
 
-Python
-
+```python
 # カテゴリ: topics, テキスト: "Python 3.13が出たわよ"
-window.evaluate_js(f"showSoulBubble('topics', 'Python 3.13が出たわよ', 'ACTION_ID_123')")
+packet = bubble_service.get_smart_bubble()
+window.evaluate_js(f"showSoulBubble('{packet['category']}', '{packet['text']}', '{packet['action_id']}')")
+```
+
+2. **JavaScript側 (Frontend)**: 受け取ったパケットを表示する。
+
 2. JavaScript側 (Frontend):
 
 TypeScript

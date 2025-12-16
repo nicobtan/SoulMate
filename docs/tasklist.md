@@ -213,18 +213,200 @@
     - [ ] Gemini Vision (Multimodal) への画像送信
     - [ ] 想い出(長期記憶)の強化とコンテキスト反映
 
-## Phase 20: Persona System Refactoring (YAML Separation)
+## Phase 20: Persona System Refactoring (YAML Separation) [完了]
 *ペルソナ定義（データ）とAIロジック（コード）の完全分離*
 
-- [ ] **File Structure & Data**
-    - [ ] `personas/` ディレクトリ作成
-    - [ ] `default.yaml` (既存プロンプトの移行)
-    - [ ] `lena.yaml` (サンプルペルソナ作成)
-- [ ] **Backend Implementation**
-    - [ ] `src/persona_manager.py` 実装 (YAML Loader)
+- [x] **File Structure & Data**
+    - [x] `personas/` ディレクトリ作成
+    - [x] `default.yaml` (既存プロンプトの移行)
+    - [x] `lena.yaml` (サンプルペルソナ作成)
+- [x] **Backend Implementation**
+    - [x] `src/persona_manager.py` 実装 (YAML Loader)
     - [x] `src/ai_engine.py` Refactoring (Remove hardcoded prompt)
-    - [ ] `main.py` Integration (Startup load & Switch logic)
-- [ ] **Frontend Integration**
-    - [ ] Settings UI: ペルソナ選択ドロップダウンの実装
-    - [ ] APIつなぎ込み (`get_persona_list`, `change_persona`)
+    - [x] `main.py` Integration (Startup load & Switch logic)
+    - [x] API Endpoints Implementation (`/api/personas`, `/api/persona/change`)
+- [x] **Frontend Integration**
+    - [x] Settings UI: ペルソナ選択ドロップダウンの実装
+    - [x] APIつなぎ込み (`get_persona_list`, `change_persona`)
+
+## Phase 21: v0.2.0 Stability Fixes (Mobile & Desktop) [完了]
+- [x] **Mobile UI Fixes**
+    - [x] Split Screen Layout (2-Story): キャラ(上) + チャット(下)
+    - [x] Character Resume/Resize Logic (oscillation fix)
+    - [x] Button Layout & Spacing
+- [x] **Desktop Fixes**
+    - [x] Settings Window `RecursionError` fix (API property hiding)
+    - [x] `get_persona_list` API method mismatch fix
+    - [x] Character Zoom/Resize Stability fix (`internalModel.height` usage)
+
+
+## Phase 22: Soul Bubble System Implementation
+- [x] **Frontend Implementation**
+    - [x] Add `#soul-bubble` DOM elements to `src/index.html`
+    - [x] Implement CSS animations (Floating, Hover)
+    - [x] Create `src/soul_bubble.ts` logic class
+    - [x] Integrate with `src/index.ts`
+- [x] **Backend Implementation**
+    - [x] Create `src/api/bubble_api.py` (Actions)
+    - [x] Create `src/services/bubble_service.py` (Logic support)
+    - [x] Integrate into `main.py`
+- [x] **Verification**
+    - [x] Test Floating Animation (Auto-inject on startup)
+    - [x] Test Hover Interaction (Expand/Preview)
+    - [x] Test Click Action (Trigger Python API)
+
+## Phase 23: Multiple Bubbles & Advanced Interaction
+- [x] **Frontend Refactor**
+    - [x] `src/index.html`: Replace single bubble with `#soul-bubble-container`
+    - [x] `src/soul_bubble.ts`: Refactor to `SoulBubbleManager`
+    - [x] Implement Click-to-Expand Interaction
+    - [x] CSS: Multiple bubble stacking logic
+- [x] **Backend Update**
+    - [x] `main.py`: Test spawning multiple bubbles
+
+## Phase 24: Soul Bubble Refinements (話題同期とデザイン) [完了]
+- [x] **話題同期機能 (Topic Coordination)**
+    - [x] `src/services/bubble_service.py`: 実際のニュースや話題に基づいてバブルのテキストとアクションIDを生成する。
+    - [x] **Smart Force Talk Implementation** (Added): `force_talk` uses `user_profile.yaml`.
+    - [x] クリック時にその話題についての会話が始まるようにする。 (Completed in Phase 30)
+- [x] **デザインの洗練 (Design Polish)**
+    - [x] **アイコンデザイン**: テキストアイコンを適切なSVGまたは画像アイコンに置き換える。 (Basic Implementation Done)
+    - [x] **アニメーション**: 浮遊や出現・消失の動きを微調整する。 (Verified)
+
+## Phase 25: ユーザープロファイル連携 (Context Injection)
+- [x] **データ構造 (Data Structure)**
+    - [x] `user_profile.yaml` の作成 (ユーザー対応済み)
+    - [x] YAML解析用の `src/services/user_manager.py` を作成
+- [x] **バックエンド統合 (Backend Integration)**
+    - [x] `UserManager` を `server.py` と `main.py` に統合
+    - [x] プロファイルデータを `system_prompt` に注入
+- [x] **検証 (Verification)**
+    - [x] AIがユーザープロファイル（仕事、趣味）に言及するか会話テストを行う
+
+## Phase 26: ユーザープロファイル編集UI (Settings Integration)
+- [x] **バックエンド実装 (API)**
+    - [x] `src/services/user_manager.py`: YAML読み書きメソッド (`get_raw_yaml`, `save_raw_yaml`) の追加
+    - [x] `src/api/user_api.py`: フロントエンド向けAPI Mixinの作成
+    - [x] `main.py` & `server.py`: API Mixinの統合
+- [x] **フロントエンド実装 (UI)**
+    - [x] `src/settings.html`: 「User」タブの追加
+    - [x] YAML編集用テキストエリアと保存ボタンの実装
+    - [x] バリデーション（YAML構文チェック）
+- [x] **検証**
+    - [x] 設定画面からプロファイルを変更し、即座にAIの反応が変わるか確認
+
+## Phase 27: UI Polishing (操作性とデザインの改善)
+- [x] **ドラッグ操作の制限 (Window Drag)**
+    - [x] 画面全体 (`body`) のドラッグを無効化し、テキスト選択を可能にする。
+    - [x] `#character-area` のみをドラッグ可能にする。
+- [x] **Soul Bubble 調整**
+    - [x] **位置**: 全体的に表示位置を上に上げる。
+    - [x] **スタイル**: アイコンサイズを縮小し、非展開時のセンタリング（gapの除去）を行う。
+
+## Phase 28: Stability & Bug Fixes (安定性向上とバグ修正)
+- [x] **UI Interaction Fixes**
+    - [x] システムログパネルのテキスト選択・コピーを許可 (`user-select: text`)
+    - [x] Settings UIのHTML構造エラー修正 (タブレイアウト崩れ解消)
+- [x] **System Stability**
+    - [x] 設定読み込みのRace Condition修正 (`pywebviewready` 待機)
+- [x] **AI Context Logic**
+    - [x] 時間帯（Morning/Daytime/Night）を明示的にコンテキスト注入し、挨拶の食い違いを解消
+
+## Phase 29: Grounding Implementation (Google検索連携) [完了]
+- [x] **Library Update**
+    - [x] `pip install google-genai` (New SDK)
+- [x] **Data & Backend**
+    - [x] `search_topics.yaml` & `InterestManager` の作成
+    - [x] `src/api/settings_api.py` に読み書きAPIを追加
+- [x] **AI Engine Update**
+    - [x] `src/services/ai_engine.py` で `tools=[{'google_search': {}}]` を有効化
+- [x] **Settings UI**
+    - [x] `src/settings.html` に検索トピック編集エリアを追加
+- [x] **Flow Integration**
+    - [x] `force_talk` (main.py) でトピックを選択し、検索指示プロンプトを生成する実装
+
+## Phase 30: Smart Context & Bubble Intelligence [完了]
+- [x] **Bubble Logic Refactoring**
+    - [x] `BubbleService` をリファクタリングし、ランダムではなくコンテキスト認識型に変更
+    - [x] **時間帯認識 (Time Awareness)**: Morning/Daytime/Evening/Night/Midnight の判定ロジック
+    - [x] **カレンダー認識**: 曜日（月曜/金曜/週末）と季節（春夏秋冬）の認識
+- [x] **Personalization Injection**
+    - [x] `UserManager` と連携し、ユーザーの興味（`user_profile.yaml`）をバルーン話題に反映
+- [x] **Action Grounding**
+    - [x] バルーンクリック時に、その話題についてGoogle検索を行うようAIに指示する機能
+
+## Phase 31: Project Structure & Memory Foundation [完了]
+- [x] **Project Structure Optimization**
+    - [x] Create `settings/` directory for config separation.
+    - [x] Move `config.json`, `user_profile.yaml`, `personas/` to `settings/`.
+    - [x] Update paths in `ConfigManager`, `UserManager`, `PersonaManager`, `TTSEngine`.
+- [x] **Long-term Memory Foundation**
+    - [x] Create `memory/` directory and `learned_facts.yaml`.
+    - [x] Implement `MemoryService` with logic to extract/save facts and combine contexts.
+    - [x] Integrate Memory context into `server.py` System Prompt.
+
+## Phase 32: Soul Bubble Drag & Drop (Refinements) [完了]
+- [x] **Frontend Implementation**
+    - [x] Add `#trash-zone` to `index.html` (Hidden by default)
+    - [x] Update `SoulBubble` (TS) to handle Drag & Drop events
+    - [x] Implement spring-back logic (Cancel dismissal)
+    - [x] Implement drop-to-delete logic (API Trigger)
+- [x] **Visuals**
+    - [x] Dragging visual feedback (Scale, Z-Index)
+    - [x] Trash Zone fade-in/out
+    - [x] Discovery Bubble Styling (Purple)
+- [x] **Verification**
+    - [x] Test dragging bubbles
+    - [x] Test dismissal on drop
+    - [x] Verify auto-refill logic after dismissal
+
+## Phase 33: Chat History UI [新規] [完了]
+- [x] **Backend Implementation**
+    - [x] `src/api/chat_api.py`: Implement `get_history(limit)` in Mixin.
+    - [x] `server.py`: Add `/api/history` endpoint.
+    - [x] `src/api_client.ts`: Implement `get_history` bridge.
+- [x] **Frontend Implementation**
+    - [x] `src/index.html`: Add History Button (📖) to System Panel (Bottom-Left).
+    - [x] `src/index.html`: Refactor Left Panel to support History Mode.
+    - [x] `src/index.ts`: Implement Panel Toggle Logic (Debug <-> History).
+- [x] **Verification**
+    - [x] Toggle Panel -> Verify logs loaded from JSONL.
+    - [x] Switch between Debug/History modes.
+    - [x] Verify styling (Systematic Design).
+    - [x] Verify styling (Systematic Design).
+
+## Phase 34: Audio Player Control (Stop/Speed) [新規] [完了]
+- [x] **Service Implementation**
+    - [x] `src/services/audio_manager.ts`: Singleton AudioManager with Stop/Speed logic.
+- [x] **UI Implementation**
+    - [x] `src/index.html`: Add `#audio-player` (Review Stop/Speed buttons).
+    - [x] `src/index.html`: CSS for Mini Player (Float above input).
+- [x] **Logic Integration**
+    - [x] `src/index.ts`: Integrate `AudioManager` with `playAudioWithLipSync`.
+    - [x] `src/index.ts`: Bind UI events (Stop, Speed Toggle).
+- [x] **Verification**
+    - [x] Play long audio -> Stop -> Confirm silence & lip stop.
+    - [x] Play audio -> Change Speed -> Confirm rate change.
+
+## Phase 35: Session Restore (Resume Conversation) [On Hold]
+- [x] **Backend Implementation**
+    - [x] `src/services/history_manager.py`: Create logic to read `chat_history.jsonl` (Limit 30).
+    - [x] `server.py`: Add `/api/history/restore` endpoint.
+- [x] **Frontend Implementation**
+    - [x] `src/api_client.ts`: Add `restore_history()` method.
+    - [x] `src/index.ts`: Call `restore_history()` on logic init.
+    - [x] `src/index.ts`: Render logs without TTS triggers.
+    - [x] `src/index.ts`: Add `--- Last Session ---` divider.
+- [x] **Debugging & Desktop Fixes**
+    - [x] `main.py`: Add `restore_history` and `debug_log`.
+    - [x] `src/index.ts`: Wait for `pywebviewready` event.
+    - [x] `src/services/history_manager.py`: Fix path resolution (Desktop).
+- [x] **Enhancement: Manual Refresh**
+    - [x] `index.html`: Add Context Menu structure.
+    - [x] `index.ts`: Implement Right-Click Logic.
+    - [x] Fix: Separate menus for Character (Settings/Exit) and Log (Restore).
+    - [x] Fix: Resolve `temp_history` error in backend.
+    - [x] Debug: Added JSON dump logging for restore data validation.
+    - [x] Refactor: `HistoryManager` now uses `memory/` dir with `logs/` fallback and fixed parsing logic.
+    - [x] Fix: Implemented aggressive JSON cleanup in `server.py` to remove markdown leakage.
 

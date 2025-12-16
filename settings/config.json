@@ -2,7 +2,7 @@
     "api_key": "AIzaSyCB2Pdp4hGkpLm4Ja2qpgOFJYVPaNiGE_U",
     "model": "gemini-2.5-flash-lite",
     "background_opacity": 0,
-    "font_size": 10,
+    "font_size": 12,
     "current_persona_id": "lena",
     "personas": {
         "default": {
@@ -12,9 +12,10 @@
     },
     "current_persona_file": "default.yaml",
     "voice_type": "ja-JP-Standard-A",
-    "bg_opacity": 38,
+    "bg_opacity": 81,
     "model_name": "gemini-2.5-flash-lite",
     "window_x": 666,
     "window_y": 522,
-    "active_talk_interval": 5
+    "active_talk_interval": 5,
+    "max_balloons": 5
 }

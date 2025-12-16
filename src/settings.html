@@ -211,6 +211,7 @@
                 style="font-size:10px; color:#666;">v0.2</span></div>
         <button class="tab-btn active" onclick="showTab('general')">⚙️ 基本設定</button>
         <button class="tab-btn" onclick="showTab('ai')">🧠 AI & Persona</button>
+        <button class="tab-btn" onclick="showTab('user')">👤 User Profile</button>
         <button class="tab-btn" onclick="showTab('voice')">🔊 Voice & Sound</button>
         <button class="tab-btn" onclick="showTab('integrations')">🔗 Integrations</button>
     </div>
@@ -249,120 +250,157 @@
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
                     <input type="checkbox" id="start-on-boot" disabled> PC起動時に実行 (Not implemented)
                 </label>
-                <div style="margin-top:10px;">
-                    <button class="btn btn-secondary" onclick="saveWindowPosition()">現在の位置を保存</button>
-                    <span id="pos-result" style="font-size:11px; margin-left:10px; color:#aaa;"></span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab: AI -->
-        <div id="ai" class="tab-pane">
-            <h2>AI & Persona</h2>
-
-            <div class="form-group">
-                <label>Google Gemini API Key</label>
-                <input type="password" id="api-key" placeholder="AI-xxxxxxxxxxxxxxxxxxx">
-                <button class="btn btn-secondary" style="margin-top:5px; font-size:10px;"
-                    onclick="alert('TODO: Validate Key')">接続テスト</button>
             </div>
 
             <div class="form-group">
-                <label>使用モデル (Model)</label>
-                <select id="model-select">
-                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Recommended)</option>
-                    <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
-                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Performance)</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>ペルソナ (Persona)</label>
-                <select id="persona-select">
-                    <option value="default">Default SoulMate</option>
-                    <!-- Loading dynamically -->
-                </select>
-                <div class="helper-text">性格や口調を変更します。</div>
-            </div>
-
-            <div class="form-group">
-                <label>能動的発話頻度 (Active Talk Interval)</label>
+                <label>最大バルーン数 (Max Balloons)</label>
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <input type="range" id="active-interval" min="0" max="120" step="5" value="0"
-                        oninput="updateActiveIntervalParam(this.value)">
-                    <span id="active-val" style="width: 80px;">OFF</span>
+                    <input type="number" id="max-balloons" min="1" max="5" value="3" style="width: 60px;">
+                    <span style="font-size:11px; color:#888;">推奨: 3</span>
                 </div>
-                <div class="helper-text">0=無効。分単位で指定（例: 60分毎に発話）。</div>
             </div>
+            <div style="margin-top:10px;">
+                <button class="btn btn-secondary" onclick="saveWindowPosition()">現在の位置を保存</button>
+                <span id="pos-result" style="font-size:11px; margin-left:10px; color:#aaa;"></span>
+            </div>
+        </div>
+    </div>
 
-            <div class="form-group">
-                <label>Creativity (Temperature)</label>
-                <input type="range" min="0" max="10" value="7" style="width:50%;">
-                <div class="helper-text">高いほど創造的、低いほど論理的になります。</div>
+    <!-- Tab: AI -->
+    <div id="ai" class="tab-pane">
+        <h2>AI & Persona</h2>
+
+        <div class="form-group">
+            <label>Google Gemini API Key</label>
+            <input type="password" id="api-key" placeholder="AI-xxxxxxxxxxxxxxxxxxx">
+            <button class="btn btn-secondary" style="margin-top:5px; font-size:10px;"
+                onclick="alert('TODO: Validate Key')">接続テスト</button>
+        </div>
+
+        <div class="form-group">
+            <label>使用モデル (Model)</label>
+            <select id="model-select">
+                <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (Recommended for Grounding)</option>
+                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>ペルソナ (Persona)</label>
+            <select id="persona-select">
+                <option value="default">Default SoulMate</option>
+                <!-- Loading dynamically -->
+            </select>
+            <div class="helper-text">性格や口調を変更します。</div>
+        </div>
+
+        <div class="form-group">
+            <label>能動的発話頻度 (Active Talk Interval)</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <input type="range" id="active-interval" min="0" max="120" step="5" value="0"
+                    oninput="updateActiveIntervalParam(this.value)">
+                <span id="active-val" style="width: 80px;">OFF</span>
+            </div>
+            <div class="helper-text">0=無効。分単位で指定（例: 60分毎に発話）。</div>
+        </div>
+
+        <div class="form-group">
+            <label>Creativity (Temperature)</label>
+            <input type="range" min="0" max="10" value="7" style="width:50%;">
+            <div class="helper-text">高いほど創造的、低いほど論理的になります。</div>
+        </div>
+    </div>
+
+
+    <!-- Tab: User Profile -->
+    <div id="user" class="tab-pane">
+        <h2>User Profile</h2>
+        <div class="helper-text" style="margin-bottom:15px;">
+            あなたの情報を入力してください。AIはこの情報を参考にして会話をします。<br>
+            YAML形式 (Key: Value) で記述します。
+        </div>
+
+        <div class="form-group" style="height: calc(100vh - 200px); display:flex; flex-direction:column;">
+            <label>user_profile.yaml</label>
+            <textarea id="user-yaml"
+                style="flex:1; font-family: 'Consolas', monospace; font-size:12px; line-height:1.4; resize:none;"></textarea>
+        </div>
+    </div>
+
+    <!-- Tab: Voice -->
+    <div id="voice" class="tab-pane">
+        <h2>Voice & Sound</h2>
+
+        <div class="form-group">
+            <label>音声合成エンジン (TTS Provider)</label>
+            <select disabled>
+                <option selected>Google Cloud TTS</option>
+                <option>VOICEVOX (Future)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>声質 (Voice Type)</label>
+            <select id="voice-select">
+                <!-- Loaded dynamically -->
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>話す速度 (Speed)</label>
+            <input type="range" min="0.5" max="2.0" step="0.1" value="1.1">
+        </div>
+
+        <div class="form-group">
+            <label>声の高さ (Pitch)</label>
+            <input type="range" min="-10" max="10" step="1" value="2">
+        </div>
+    </div>
+
+    <!-- Tab: Integrations -->
+    <div id="integrations" class="tab-pane">
+        <h2>Integrations</h2>
+
+        <!-- Calendar -->
+        <div style="background:#333; padding:15px; border-radius:5px; margin-bottom:15px; border:1px solid #444;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:bold; font-size:14px;">📅 Google Calendar</div>
+                    <div class="helper-text">予定の確認・追加が可能になります。</div>
+                </div>
+                <span id="calendar-status" class="status-badge status-disconnected">Not Connected</span>
+            </div>
+            <div style="margin-top:10px;">
+                <button class="btn btn-primary" onclick="connectCalendar()">連携する (Connect)</button>
+                <button class="btn btn-danger" onclick="disconnectCalendar()">解除</button>
             </div>
         </div>
 
-        <!-- Tab: Voice -->
-        <div id="voice" class="tab-pane">
-            <h2>Voice & Sound</h2>
-
-            <div class="form-group">
-                <label>音声合成エンジン (TTS Provider)</label>
-                <select disabled>
-                    <option selected>Google Cloud TTS</option>
-                    <option>VOICEVOX (Future)</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>声質 (Voice Type)</label>
-                <select id="voice-select">
-                    <!-- Loaded dynamically -->
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>話す速度 (Speed)</label>
-                <input type="range" min="0.5" max="2.0" step="0.1" value="1.1">
-            </div>
-
-            <div class="form-group">
-                <label>声の高さ (Pitch)</label>
-                <input type="range" min="-10" max="10" step="1" value="2">
-            </div>
+        <!-- RSS/News -->
+        <div style="background:#333; padding:15px; border-radius:5px; margin-bottom:15px; border:1px solid #444;">
+            <div style="font-weight:bold; font-size:14px;">📰 News Sources (RSS)</div>
+            <div class="helper-text">興味のあるニュースサイトのURLを登録します。</div>
+            <textarea rows="3" placeholder="https://news.yahoo.co.jp/rss/topics/it.xml&#10;https://zenn.dev/feed"
+                style="margin-top:10px;"></textarea>
         </div>
 
-        <!-- Tab: Integrations -->
-        <div id="integrations" class="tab-pane">
-            <h2>Integrations</h2>
-
-            <!-- Calendar -->
-            <div style="background:#333; padding:15px; border-radius:5px; margin-bottom:15px; border:1px solid #444;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <div style="font-weight:bold; font-size:14px;">📅 Google Calendar</div>
-                        <div class="helper-text">予定の確認・追加が可能になります。</div>
-                    </div>
-                    <span id="calendar-status" class="status-badge status-disconnected">Not Connected</span>
-                </div>
-                <div style="margin-top:10px;">
-                    <button class="btn btn-primary" onclick="connectCalendar()">連携する (Connect)</button>
-                    <button class="btn btn-danger" onclick="disconnectCalendar()">解除</button>
-                </div>
+        <!-- Google Search Topics (Grounding) -->
+        <div style="background:#333; padding:15px; border-radius:5px; margin-bottom:15px; border:1px solid #444;">
+            <div style="font-weight:bold; font-size:14px;">🔍 Search Topics (Grounding)</div>
+            <div class="helper-text">
+                「話して/Force Talk」ボタンを押した時に、AIに検索させたいキーワードを登録します。<br>
+                (1行に1つのトピック)
             </div>
-
-            <!-- RSS/News -->
-            <div style="background:#333; padding:15px; border-radius:5px; margin-bottom:15px; border:1px solid #444;">
-                <div style="font-weight:bold; font-size:14px;">📰 News Sources (RSS)</div>
-                <div class="helper-text">興味のあるニュースサイトのURLを登録します。</div>
-                <textarea rows="3" placeholder="https://news.yahoo.co.jp/rss/topics/it.xml&#10;https://zenn.dev/feed"
-                    style="margin-top:10px;"></textarea>
-            </div>
-
+            <textarea id="search-topics" rows="5" placeholder="Python News&#10;Google Gemini Updates&#10;Arknights"
+                style="margin-top:10px; font-family: 'Consolas', monospace;"></textarea>
         </div>
 
-        <!-- Spacing for footer -->
-        <div style="height: 60px;"></div>
+    </div>
+
+    <!-- Spacing for footer -->
+    <div style="height: 60px;"></div>
     </div>
 
     <!-- Footer Actions -->
@@ -399,6 +437,8 @@
 
                 document.getElementById('bg-opacity').value = currentSettings.bg_opacity || 0;
                 document.getElementById('op-val').innerText = (currentSettings.bg_opacity || 0) + '%';
+
+                document.getElementById('max-balloons').value = currentSettings.max_balloons || 3;
 
                 document.getElementById('api-key').value = currentSettings.api_key || '';
                 if (currentSettings.model_name) document.getElementById('model-select').value = currentSettings.model_name;
@@ -441,6 +481,20 @@
                 const isAuth = await window.pywebview.api.get_calendar_status();
                 updateCalendarStatus(isAuth);
 
+                // Load User Profile
+                const userRes = await window.pywebview.api.get_user_profile();
+                if (userRes.status === 'success') {
+                    document.getElementById('user-yaml').value = userRes.data;
+                } else {
+                    console.error("Failed to load profile:", userRes.message);
+                }
+
+                // Load Search Topics
+                const topicsRes = await window.pywebview.api.get_search_topics();
+                if (topicsRes) {
+                    document.getElementById('search-topics').value = topicsRes;
+                }
+
             } catch (e) {
                 console.error("Failed to load settings:", e);
                 alert("設定の読み込みに失敗しました: " + e);
@@ -456,10 +510,13 @@
                 model_name: document.getElementById('model-select').value,
                 voice_type: document.getElementById('voice-select').value,
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
+                active_talk_interval: parseInt(document.getElementById('active-interval').value),
+                max_balloons: parseInt(document.getElementById('max-balloons').value),
                 // Add others
             };
 
             const selectedPersona = document.getElementById('persona-select').value;
+            const searchTopics = document.getElementById('search-topics').value;
 
             try {
                 // Save to Python
@@ -469,6 +526,9 @@
                 if (selectedPersona) {
                     await window.pywebview.api.change_persona(selectedPersona);
                 }
+
+                // Save Search Topics
+                await window.pywebview.api.save_search_topics(searchTopics);
 
                 // Notify Main Window (Python side handles generic notify? Or we assume Python updates main window?)
                 // Actually save_settings in python updates config. 
@@ -480,6 +540,17 @@
                 // window.close(); // Optional
             } catch (e) {
                 alert("保存失敗: " + e);
+            }
+
+            // Save User Profile
+            const yamlContent = document.getElementById('user-yaml').value;
+            try {
+                const res = await window.pywebview.api.save_user_profile(yamlContent);
+                if (res.status !== 'success') {
+                    alert("プロファイルの保存に失敗: " + res.message);
+                }
+            } catch (e) {
+                console.error("Save profile error:", e);
             }
         }
 

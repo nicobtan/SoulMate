@@ -2,7 +2,9 @@ import os
 import threading
 import webbrowser
 import re
+import json
 from .base import BaseApiMixin
+from .json_helper import _extract_json_from_text
 
 class ChatApiMixin(BaseApiMixin):
     
@@ -67,12 +69,28 @@ class ChatApiMixin(BaseApiMixin):
             # Check if JSON dict or String
             if isinstance(raw_result, dict):
                 response_text = raw_result.get("response", "")
-                emotion = raw_result.get("emotion") # Can pass to frontend if needed
+                emotion = raw_result.get("emotion") 
                 suggestions_list = raw_result.get("suggestions", [])
                 self.log_to_debug(f"AI JSON: {response_text} (Emo: {emotion})", 'info')
             else:
-                response_text = raw_result
-                self.log_to_debug(f"AI Text: {response_text}", 'info')
+                # String response - Try robust extraction
+                extracted_data = _extract_json_from_text(raw_result)
+                
+                if extracted_data and "response" in extracted_data:
+                    # Extraction Success
+                    response_text = extracted_data.get("response", "")
+                    emotion = extracted_data.get("emotion")
+                    suggestions_list = extracted_data.get("suggestions", [])
+                    self.log_to_debug(f"AI JSON (Extracted): {response_text}", 'info')
+                else:
+                    # Extraction Failed - Fallback logic
+                    # If text contains '{', it might be broken JSON. Split and take pre-JSON part.
+                    if '{' in raw_result:
+                        response_text = raw_result.split('{')[0].strip()
+                        self.log_to_debug(f"AI Text (Fallback Split): {response_text}", 'warn')
+                    else:
+                        response_text = raw_result
+                        self.log_to_debug(f"AI Text: {response_text}", 'info')
         else:
             response_text = "AI Engine is not initialized."
         
@@ -117,6 +135,8 @@ class ChatApiMixin(BaseApiMixin):
             tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
             # Try to filter out [ACTION] tags if remaining
             tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
+            # Filter out asterisks (*) used for emphasis/actions
+            tts_text = tts_text.replace('*', '')
             
             if tts_text.strip():
                 audio_path = self.tts_engine.generate_voice(
@@ -169,8 +189,23 @@ class ChatApiMixin(BaseApiMixin):
                 suggestions_list = raw_result.get("suggestions", [])
                 self.log_to_debug(f"AI Proactive JSON: {response_text}", 'info')
             else:
-                response_text = raw_result
-                self.log_to_debug(f"AI Proactive Text: {response_text}", 'info')
+                # String response - Try robust extraction
+                extracted_data = _extract_json_from_text(raw_result)
+                
+                if extracted_data and "response" in extracted_data:
+                    # Extraction Success
+                    response_text = extracted_data.get("response", "")
+                    emotion = extracted_data.get("emotion")
+                    suggestions_list = extracted_data.get("suggestions", [])
+                    self.log_to_debug(f"AI Proactive JSON (Extracted): {response_text}", 'info')
+                else:
+                    # Extraction Failed - Fallback logic
+                    if '{' in raw_result:
+                        response_text = raw_result.split('{')[0].strip()
+                        self.log_to_debug(f"AI Proactive Text (Fallback Split): {response_text}", 'warn')
+                    else:
+                        response_text = raw_result
+                        self.log_to_debug(f"AI Proactive Text: {response_text}", 'info')
         else:
             response_text = "AI Engine is not initialized."
 
@@ -185,6 +220,8 @@ class ChatApiMixin(BaseApiMixin):
             base_dir = self._config_manager.base_dir
             tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
             tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
+            # Filter out asterisks (*) used for emphasis/actions
+            tts_text = tts_text.replace('*', '')
             
             if tts_text.strip():
                 audio_path = self.tts_engine.generate_voice(
@@ -233,3 +270,9 @@ Output ONLY the suggested text.
         if suggestion:
              suggestion = suggestion.strip().replace("「", "").replace("」", "").replace('"', "")
         return suggestion or "もっと詳しく教えて"
+
+    def get_history(self, limit=50):
+        """Retrieves chat history via MemoryManager."""
+        if self._memory_manager:
+            return self._memory_manager.get_recent_history(limit=limit)
+        return []

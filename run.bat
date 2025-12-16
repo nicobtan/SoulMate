@@ -10,6 +10,14 @@ if not exist %PYTHON_EXE% (
     exit /b 1
 )
 
+echo Building frontend...
+call npm run build
+if %errorlevel% neq 0 (
+    echo Build failed.
+    pause
+    exit /b 1
+)
+
 %PYTHON_EXE% main.py
 
 echo.

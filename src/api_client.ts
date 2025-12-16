@@ -154,6 +154,53 @@ export class ApiClient {
             }
         }
     }
+
+    // --- Soul Bubble ---
+    async trigger_bubble_action(actionId: string): Promise<any> {
+        if (this.desktopApi) {
+            return await this.desktopApi.trigger_bubble_action(actionId);
+        } else {
+            console.warn("Soul Bubble not supported in Web Mode yet (or implement endpoint)");
+            return { status: "ignored" }; // Fallback
+        }
+    }
+
+    async dismiss_bubble(actionId: string): Promise<any> {
+        if (this.desktopApi && this.desktopApi.dismiss_bubble) {
+            return await this.desktopApi.dismiss_bubble(actionId);
+        }
+        return { status: "ignored" };
+    }
+
+    // --- History ---
+    async get_history(limit: number = 50): Promise<any[]> {
+        if (this.desktopApi && this.desktopApi.get_history) {
+            return await this.desktopApi.get_history(limit);
+        } else {
+            try {
+                const res = await fetch(`/api/history?limit=${limit}`);
+                if (res.ok) return await res.json();
+            } catch (e) {
+                console.error("Failed to fetch history:", e);
+            }
+            return [];
+        }
+        return [];
+    }
+
+    async restore_history(): Promise<any[]> {
+        if (this.desktopApi && this.desktopApi.restore_history) {
+            return await this.desktopApi.restore_history();
+        } else {
+            try {
+                const res = await fetch('/api/history/restore');
+                if (res.ok) return await res.json();
+            } catch (e) {
+                console.error("Failed to restore history:", e);
+            }
+            return [];
+        }
+    }
 }
 
 export const api = new ApiClient();

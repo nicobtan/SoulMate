@@ -6,7 +6,7 @@ class ConfigManager:
     """
     Manages application settings and persistence to settings.json.
     """
-    def __init__(self, filename='settings.json'):
+    def __init__(self, filename='settings/config.json'):
         # Determine the base path (handle creating in the correct directory)
         if hasattr(sys, '_MEIPASS'):
             self.base_dir = os.path.dirname(sys.executable)
@@ -27,6 +27,7 @@ class ConfigManager:
             "model": "gemini-1.5-flash",
             "background_opacity": 0,
             "font_size": 13,
+            "max_balloons": 3,
             "current_persona_id": "default",
             "personas": {
                 "default": {

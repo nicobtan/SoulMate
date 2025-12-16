@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PersonaManager:
-    def __init__(self, persona_dir="personas"):
+    def __init__(self, persona_dir="settings/personas"):
         # Handle path resolution (exe vs script)
         if hasattr(os, '_MEIPASS'):
             import sys

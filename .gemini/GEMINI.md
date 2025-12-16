@@ -38,7 +38,9 @@
 
 # Report
 実装や仕様、アイデアの更新がある場合
+implementationやtaskは日本語でお願いします
 @tasklist.mdと@implementation_plan.mdを更新してください。
+
 
 
 (回答)

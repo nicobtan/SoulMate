@@ -3,6 +3,7 @@ export { }; // Ensure this file is treated as a module
 import { api } from './api_client.js';
 
 import { Live2DModel } from 'pixi-live2d-display';
+import { SoulBubbleManager } from './soul_bubble.js';
 
 // Debug: Check Renderer
 const userAgent = navigator.userAgent;
@@ -43,86 +44,125 @@ window.addEventListener('resize', detectLayoutMode);
 // Types moved to types.d.ts
 
 // Global reference to Model for LipSync
+import { AudioManager } from './services/audio_manager.js';
+
+// Global reference to Model for LipSync
 let live2dModel: any = null;
 let audioCtx: AudioContext | null = null;
+let analyser: AnalyserNode | null = null;
+let mediaSource: MediaElementAudioSourceNode | null = null;
+
 const suggestionToggleBtn = document.getElementById('suggestion-toggle-btn');
 const suggestionPopup = document.getElementById('suggestion-popup');
 
-// --- Lip Sync Logic ---
-function playAudioWithLipSync(url: string) {
-    if (!live2dModel) {
-        new Audio(url).play();
-        return;
+// Audio Player UI
+const audioPlayer = document.getElementById('audio-player');
+const audioStopBtn = document.getElementById('audio-stop-btn');
+const audioSpeedBtn = document.getElementById('audio-speed-btn');
+
+// Initialize AudioManager
+const audioManager = AudioManager.getInstance();
+
+// Bind UI Events
+if (audioStopBtn) {
+    audioStopBtn.addEventListener('click', () => audioManager.stop());
+}
+
+if (audioSpeedBtn) {
+    audioSpeedBtn.addEventListener('click', () => {
+        audioManager.toggleSpeed();
+    });
+}
+
+// Subscribe to State Changes
+audioManager.onPlayStateChange = (isPlaying) => {
+    if (audioPlayer) {
+        if (isPlaying) {
+            audioPlayer.classList.add('visible');
+            audioPlayer.style.display = 'flex';
+        } else {
+            audioPlayer.classList.remove('visible');
+            setTimeout(() => {
+                if (!audioPlayer.classList.contains('visible')) {
+                    audioPlayer.style.display = 'none';
+                }
+            }, 300); // Wait for fade out
+        }
     }
+};
 
-    const audio = new Audio(url);
-    audio.crossOrigin = "anonymous";
+audioManager.onSpeedChange = (speed) => {
+    if (audioSpeedBtn) {
+        audioSpeedBtn.innerText = `x${speed.toFixed(1)}`;
+    }
+};
 
+
+// --- Lip Sync Logic (Refactored for Singleton Audio) ---
+function playAudioWithLipSync(url: string) {
+    // 1. Setup AudioContext if needed
     if (!audioCtx) {
         // @ts-ignore
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-
     if (audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
 
-    const source = audioCtx.createMediaElementSource(audio);
-    const analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 512;
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    // 2. Setup Analyser Node ONCE for the singleton audio element
+    // Crucial: createMediaElementSource can only be called once per element.
+    if (!mediaSource) {
+        mediaSource = audioCtx.createMediaElementSource(audioManager.audio);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 512;
+        mediaSource.connect(analyser);
+        analyser.connect(audioCtx.destination);
+    }
 
-    audio.play().catch((e: any) => console.error("Audio play failed:", e));
+    // 3. Play via Manager
+    audioManager.play(url);
+
+    // 4. Lip Sync Loop
+    if (!analyser) return; // Should not happen
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-
-    let currentMouthY = 0; // Current smoothed value
+    let currentMouthY = 0;
 
     const updateLip = () => {
-        if (audio.paused || audio.ended) {
-            if (live2dModel && live2dModel.internalModel && live2dModel.internalModel.coreModel) {
-                // Smoothly close? Nah, just snap to 0 for end is fine, or fast decay.
-                // Let's snap to 0 to ensure closure.
+        if (audioManager.audio.paused || audioManager.audio.ended) {
+            if (live2dModel?.internalModel?.coreModel) {
                 live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', 0);
             }
             return;
         }
 
         requestAnimationFrame(updateLip);
-        analyser.getByteFrequencyData(dataArray);
+        analyser!.getByteFrequencyData(dataArray);
 
         let sum = 0;
-        // Optimization: Check mostly low-mid freq? Nah, standard avg is fine for voice.
         for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
         let average = sum / bufferLength;
 
-        // --- Sensitivity Tuning ---
-        // RMS-like behavior: 
-        // 0-255 is byte data.
-        // Sensitivity: / 60 feels right based on tuning.
-        let targetOpenAmount = (average / 60);
-
-        // Noise Gate
+        // Sensitivity
+        let targetOpenAmount = (average / 60); // Tuning
         if (targetOpenAmount < 0.1) targetOpenAmount = 0;
-        // Cluster to Max
         if (targetOpenAmount > 1.0) targetOpenAmount = 1.0;
 
-        // --- Smoothing (Lerp) ---
-        // val = current + (target - current) * factor
-        // factor 0.3 = 30% towards target per frame.
+        // Smoothing
         const smoothing = 0.3;
         currentMouthY += (targetOpenAmount - currentMouthY) * smoothing;
 
-        if (live2dModel && live2dModel.internalModel && live2dModel.internalModel.coreModel) {
+        if (live2dModel?.internalModel?.coreModel) {
             live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', currentMouthY);
         }
     };
 
-    audio.onplay = () => updateLip();
+    // Trigger loop when play actually starts
+    audioManager.audio.onplay = () => {
+        updateLip();
+    };
 }
-
 // --- Error Handling Overlay ---
 function showError(message: string) {
     // ... (Keep existing error handler)
@@ -181,9 +221,13 @@ if (chatSendBtn) {
 }
 
 // Force Talk Logic
+// Force Talk Logic
 // Helper for Mobile Debugging
 function logToServer(msg: string) {
-    if (!window.pywebview) { // Only needed for web/mobile mode
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.debug_log) {
+        window.pywebview.api.debug_log(msg).catch((e: any) => console.error("Bridge log failed", e));
+    } else {
+        // Fallback or Web Mode
         fetch('/api/debug_log', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -192,7 +236,6 @@ function logToServer(msg: string) {
     }
 }
 
-// Force Talk Logic
 // Force Talk Logic
 if (forceTalkBtn) {
     const trigger = (e: Event) => {
@@ -207,20 +250,86 @@ if (forceTalkBtn) {
     logToServer("ERROR: Force Talk Button element not found at init");
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-    // Re-check in case script ran too early
-    const btn = document.getElementById('force-talk-btn');
-    if (btn && !forceTalkBtn) {
-        logToServer("Force Talk Button found on DOMContentLoaded (Late Init)");
-        const trigger = (e: Event) => {
-            e.preventDefault();
-            logToServer("Force Talk Button Pressed (Late Event: " + e.type + ")");
-            triggerForceTalk();
-        };
-        btn.addEventListener('click', trigger);
-        btn.addEventListener('touchstart', trigger, { passive: false });
+// --- Session Restore Logic (Phase 35) ---
+async function restoreSession() {
+    logToServer("restoreSession() Called.");
+    try {
+        const history = await api.restore_history();
+        logToServer(`restoreSession received raw: ${JSON.stringify(history)}`); // LOG CONTENT
+        logToServer(`restoreSession received: ${history ? history.length : 'null'} items`);
+
+        if (!history || history.length === 0) return;
+
+        // Render messages without TTS/AI triggers
+        history.forEach((msg: any) => {
+            logToServer(`Restoring msg: ${msg.role} - ${msg.text.substring(0, 20)}...`); // LOG ENTRY
+
+            // Re-use addLog but manual mode
+            addLog(msg.text, msg.role, false);
+        });
+
+        // Add Divider
+        if (chatLogArea) {
+            const divider = document.createElement('div');
+            divider.className = 'session-divider';
+            divider.innerText = '--- Last Session ---';
+            divider.style.textAlign = 'center';
+            divider.style.color = '#888';
+            divider.style.fontSize = '10px';
+            divider.style.margin = '10px 0';
+            chatLogArea.appendChild(divider);
+
+            // Scroll to bottom
+            chatLogArea.scrollTop = chatLogArea.scrollHeight;
+        }
+        logToServer("Session Restore Completed.");
+
+    } catch (e) {
+        logToServer(`Session restore failed: ${e}`);
+        console.error("Session restore failed", e);
     }
-});
+}
+
+// --- Robust Init for Restore ---
+// User Request: Wait for pywebviewready in Desktop, else DOMContentLoaded for Web
+const initRestore = () => {
+    // Note: window.pywebview might be injected slightly after DOMContentLoaded in some envs,
+    // but usually pywebviewready is the standard event.
+
+    // Listener for Desktop
+    window.addEventListener('pywebviewready', () => {
+        logToServer("Event: pywebviewready. Calling restoreSession (Desktop).");
+        restoreSession();
+    });
+
+    // Fallback/Web Check
+    window.addEventListener('DOMContentLoaded', () => {
+        // Give a short grace period to see if pywebview appears
+        setTimeout(() => {
+            if (!(window as any).pywebview) {
+                console.log("No pywebview detected. Calling restoreSession (Web Mode).");
+                restoreSession();
+            } else {
+                logToServer("pywebview detected. Waiting for ready event...");
+            }
+        }, 100);
+    });
+};
+initRestore();
+
+
+// Re-check in case script ran too early
+const btn = document.getElementById('force-talk-btn');
+if (btn && !forceTalkBtn) {
+    logToServer("Force Talk Button found on DOMContentLoaded (Late Init)");
+    const trigger = (e: Event) => {
+        e.preventDefault();
+        logToServer("Force Talk Button Pressed (Late Event: " + e.type + ")");
+        triggerForceTalk();
+    };
+    btn.addEventListener('click', trigger);
+    btn.addEventListener('touchstart', trigger, { passive: false });
+}
 
 async function triggerForceTalk() {
     // 0. Resume Audio
@@ -235,6 +344,12 @@ async function triggerForceTalk() {
     // 1. Show Thinking...
     const thinkingId = addLog('考え中...', 'ai', true);
     updateStatus("Thinking...", true);
+
+    // Auto-Open Chat Panel (User Request)
+    if (!uiState.isChatOpen) {
+        // @ts-ignore
+        if (typeof window.openChatPanel === 'function') window.openChatPanel(true);
+    }
 
     // 2. Call Backend
     // Use API Client (Adapts to Desktop/Web)
@@ -600,7 +715,7 @@ async function loadSettings() {
         console.error("Failed to load settings:", err);
     }
 }
-window.addEventListener('DOMContentLoaded', loadSettings);
+// window.addEventListener('DOMContentLoaded', loadSettings); // Avoid race condition
 window.addEventListener('pywebviewready', loadSettings);
 
 // Open Settings Window
@@ -655,6 +770,8 @@ if (settingsModal) {
     });
 }
 
+
+
 // Font Size Change
 if (fontSizeRange && fontSizeValue) {
     fontSizeRange.addEventListener('input', (e: any) => {
@@ -702,7 +819,7 @@ if (bgOpacityRange) {
 // UI State Management
 const uiState = {
     charWidth: 500,
-    chatWidth: 350, // width + margin
+    chatWidth: 450, // width + margin
     logWidth: 410, // width 400 + margin 10
     isChatOpen: false,
     isLogOpen: false
@@ -712,28 +829,37 @@ const leftPanel = document.getElementById('left-panel') as HTMLElement;
 // rightPanel is already defined above
 const debugContent = document.getElementById('debug-content');
 
+// --- Chat Toggle Function (Exposed) ---
+// We expose this so SoulBubble and ForceTalk can open the panel
+(window as any).openChatPanel = async function (open: boolean = true) {
+    if (open === uiState.isChatOpen) return; // No change
+
+    uiState.isChatOpen = open;
+    rightPanel.classList.toggle('open', uiState.isChatOpen);
+    if (chatToggleBtn) chatToggleBtn.classList.toggle('active', uiState.isChatOpen);
+
+    if (window.pywebview && window.pywebview.api) {
+        try {
+            // Margin Logic: 
+            // Right Panel CSS has margin-left: 40px. Width 450. Total 490.
+            const chatTotalWidth = 490;
+            let w = uiState.charWidth;
+            if (uiState.isLogOpen) w += uiState.logWidth;
+            if (uiState.isChatOpen) w += chatTotalWidth;
+
+            await window.pywebview.api.resize_window(w, 500);
+        } catch (err) {
+            console.error("Resize failed:", err);
+        }
+    }
+};
+
 // --- Chat Toggle Logic ---
 if (chatToggleBtn && rightPanel) {
     chatToggleBtn.addEventListener('click', async () => {
-        uiState.isChatOpen = !uiState.isChatOpen;
-        rightPanel.classList.toggle('open', uiState.isChatOpen);
-        chatToggleBtn.classList.toggle('active', uiState.isChatOpen);
-
-        if (window.pywebview && window.pywebview.api) {
-            try {
-                // Margin Logic: 
-                // Right Panel CSS has margin-left: 40px. Width 350. Total 390.
-                const chatTotalWidth = 390;
-
-                let w = uiState.charWidth;
-                if (uiState.isLogOpen) w += uiState.logWidth;
-                if (uiState.isChatOpen) w += chatTotalWidth;
-
-                await window.pywebview.api.resize_window(w, 500);
-            } catch (err) {
-                console.error("Resize failed:", err);
-            }
-        }
+        // Toggle current state
+        // @ts-ignore
+        if (typeof window.openChatPanel === 'function') window.openChatPanel(!uiState.isChatOpen);
     });
 }
 
@@ -775,42 +901,138 @@ function updateStatus(text: string, isActive: boolean = true) {
 // Initial status
 updateStatus("Idle", true);
 
-// --- Debug/Log Toggle Logic ---
-const debugBtn = document.getElementById('debug-btn');
-const closeDebugBtn = document.getElementById('close-debug');
+// 3. Soul Bubble Logic
+const soulBubbleManager = new SoulBubbleManager();
 
-async function toggleLogPanel() {
+// Exposed for Python
+// @ts-ignore
+(window as any).showSoulBubble = function (category: string, text: string, actionId: string, type: string = 'normal') {
+    if (soulBubbleManager) {
+        soulBubbleManager.addBubble(category, text, actionId, type);
+    }
+};
+
+// --- Systematic Panel Logic (Debug & History) ---
+const debugBtn = document.getElementById('debug-btn');
+const historyBtn = document.getElementById('history-btn');
+const closeDebugBtn = document.getElementById('close-debug');
+const panelTitle = document.getElementById('panel-title');
+const historyContent = document.getElementById('history-content');
+
+let currentActivePanel: 'debug' | 'history' | 'none' = 'none';
+
+async function toggleLeftPanel(mode: 'debug' | 'history') {
     if (!leftPanel || !window.pywebview || !window.pywebview.api) return;
 
     const wasOpen = uiState.isLogOpen;
-    uiState.isLogOpen = !wasOpen;
+    const previousMode = currentActivePanel;
 
-    leftPanel.classList.toggle('open', uiState.isLogOpen);
+    if (currentActivePanel === mode) {
+        // Closing active panel
+        currentActivePanel = 'none';
+        uiState.isLogOpen = false;
+    } else {
+        // Opening or Switching
+        currentActivePanel = mode;
+        uiState.isLogOpen = true;
+    }
 
-    try {
-        const { x, y } = await window.pywebview.api.get_window_pos();
-        // Width calculation
-        const chatTotalWidth = 390;
-        let baseW = uiState.charWidth + (uiState.isChatOpen ? chatTotalWidth : 0);
+    // Update UI Content Visibility
+    if (debugContent) debugContent.style.display = (currentActivePanel === 'debug') ? 'block' : 'none';
+    if (historyContent) historyContent.style.display = (currentActivePanel === 'history') ? 'block' : 'none';
 
-        if (uiState.isLogOpen) {
-            // OPENING: Move Left, Resize Width +
-            // Move Left by LogWidth
-            await window.pywebview.api.move_window(x - uiState.logWidth, y);
-            await window.pywebview.api.resize_window(baseW + uiState.logWidth, 500);
-        } else {
-            // CLOSING: Resize Width -, Move Right
-            // Move back to original pos
-            await window.pywebview.api.move_window(x + uiState.logWidth, y);
-            await window.pywebview.api.resize_window(baseW, 500);
+    // Update Header
+    if (panelTitle) {
+        panelTitle.innerText = (currentActivePanel === 'debug') ? 'SYSTEM LOGS' : 'CHAT HISTORY';
+        panelTitle.style.color = (currentActivePanel === 'debug') ? '#0f0' : '#0ff';
+    }
+
+    // Window Resize Logic
+    // Only resize if state changed (Closed <-> Open)
+    // If Switching (Open <-> Open), no resize needed.
+    if (wasOpen !== uiState.isLogOpen) {
+        leftPanel.classList.toggle('open', uiState.isLogOpen);
+        try {
+            const { x, y } = await window.pywebview.api.get_window_pos();
+            // Width calculation
+            // Note: Chat Panel Width logic used 490 in openChatPanel, but toggleLogPanel used 390?
+            // CSS: #right-panel width 450 + margin-left 40 = 490.
+            // Let's use 490 to be safe/consistent with CSS.
+            const chatTotalWidth = 490;
+            let baseW = uiState.charWidth + (uiState.isChatOpen ? chatTotalWidth : 0);
+
+            if (uiState.isLogOpen) {
+                // OPENING: Move Left, Resize Width +
+                await window.pywebview.api.move_window(x - uiState.logWidth, y);
+                await window.pywebview.api.resize_window(baseW + uiState.logWidth, 500);
+            } else {
+                // CLOSING: Resize Width -, Move Right
+                await window.pywebview.api.move_window(x + uiState.logWidth, y);
+                await window.pywebview.api.resize_window(baseW, 500);
+            }
+        } catch (e) {
+            console.error("Panel Toggle Failed", e);
         }
-    } catch (e) {
-        console.error("Log Toggle Failed", e);
+    }
+
+    // Fetch History if needed
+    if (currentActivePanel === 'history') {
+        loadHistorySystematic();
     }
 }
 
-if (debugBtn) debugBtn.addEventListener('click', toggleLogPanel);
-if (closeDebugBtn) closeDebugBtn.addEventListener('click', toggleLogPanel);
+async function loadHistorySystematic() {
+    if (!historyContent) return;
+    historyContent.innerHTML = '<div style="color:#888; text-align:center; margin-top:10px;">Loading data...</div>';
+
+    try {
+        const history = await api.get_history(50);
+        renderHistorySystematic(history);
+    } catch (e) {
+        historyContent.innerHTML = '<div style="color:#f44; margin-top:10px;">Error loading history.</div>';
+    }
+}
+
+function renderHistorySystematic(logs: any[]) {
+    if (!historyContent) return;
+    historyContent.innerHTML = '';
+
+    if (!logs || logs.length === 0) {
+        historyContent.innerHTML = '<div style="color:#888; margin-top:10px;">No history found.</div>';
+        return;
+    }
+
+    logs.forEach(log => {
+        const item = document.createElement('div');
+        item.className = 'hist-entry';
+        let timeStr = '--:--';
+        if (log.timestamp) {
+            try {
+                const d = new Date(log.timestamp);
+                timeStr = d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            } catch (e) { }
+        }
+        const persona = log.persona || 'System';
+        item.innerHTML = `
+            <div class="hist-meta">
+                <span style="color:#666;">[${timeStr}]</span> 
+                <span style="color:${log.user ? '#8cf' : '#ddd'}; font-weight:bold;">${log.user ? 'USER' : persona}</span>
+            </div>
+            <div style="padding-left:10px; color:${log.user ? '#ccc' : '#fff'};">
+               ${log.user ? escapeHtml(log.user) : escapeHtml(log.ai)}
+            </div>`;
+        historyContent.appendChild(item);
+    });
+    historyContent.scrollTop = historyContent.scrollHeight;
+}
+
+if (debugBtn) debugBtn.addEventListener('click', () => toggleLeftPanel('debug'));
+if (historyBtn) historyBtn.addEventListener('click', () => toggleLeftPanel('history'));
+
+// Updated Close Button to just close current
+if (closeDebugBtn) closeDebugBtn.addEventListener('click', () => {
+    if (currentActivePanel !== 'none') toggleLeftPanel(currentActivePanel);
+});
 
 // 3. Debug Log Content
 function logToDebug(msg: string, type: 'info' | 'warn' | 'error' = 'info') {
@@ -839,6 +1061,105 @@ function logToDebug(msg: string, type: 'info' | 'warn' | 'error' = 'info') {
 
 // Global Exposure for Python
 (window as any).logToDebug = logToDebug;
+
+// --- Dual Context Menus (Phase 35 Follow-up) ---
+const contextMenu = document.getElementById('context-menu');
+// Removed duplicate characterArea declaration (it's likely defined globally or earlier)
+// Use the earlier reference or just getElementById here if scope allows, but re-using existing var is safer
+const charAreaRef = document.getElementById('character-area');
+
+// Helper to show menu
+const showCtxMenu = (e: MouseEvent, type: 'restore' | 'settings') => {
+    e.preventDefault();
+    if (!contextMenu) return;
+
+    const x = e.clientX;
+    const y = e.clientY;
+
+    // Content Switching
+    contextMenu.innerHTML = ''; // Clear
+
+    if (type === 'restore') {
+        contextMenu.innerHTML = `
+            <div class="ctx-item" id="ctx-restore-action">
+                <span class="ctx-icon">↻</span>
+                <span>履歴を復元</span>
+            </div>
+        `;
+        // Re-attach listener
+        setTimeout(() => {
+            const btn = document.getElementById('ctx-restore-action');
+            if (btn) {
+                btn.addEventListener('click', async () => {
+                    contextMenu.classList.remove('visible');
+                    logToServer("[UI] Manual Restore Triggered.");
+                    if (leftPanel) {
+                        const originalBorder = leftPanel.style.borderColor;
+                        leftPanel.style.borderColor = '#0f0';
+                        leftPanel.style.transition = 'all 0.3s ease';
+                        await restoreSession();
+                        setTimeout(() => {
+                            leftPanel.style.borderColor = originalBorder;
+                            leftPanel.style.transition = ''; // Clear transition after use
+                        }, 800);
+                    }
+                });
+            }
+        }, 0);
+    } else {
+        contextMenu.innerHTML = `
+            <div class="ctx-item" id="ctx-settings-action">
+                <span class="ctx-icon">⚙️</span>
+                <span>設定</span>
+            </div>
+            <div style="height:1px; background:#444; margin:2px 0;"></div>
+            <div class="ctx-item" id="ctx-exit-action">
+                <span class="ctx-icon">❌</span>
+                <span>終了</span>
+            </div>
+        `;
+        // Re-attach listeners
+        setTimeout(() => {
+            const settingsBtn = document.getElementById('ctx-settings-action');
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', () => {
+                    contextMenu.classList.remove('visible');
+                    const modal = document.getElementById('settings-modal');
+                    if (modal) modal.style.display = 'block';
+                });
+            }
+            const exitBtn = document.getElementById('ctx-exit-action');
+            if (exitBtn) {
+                exitBtn.addEventListener('click', () => {
+                    contextMenu.classList.remove('visible');
+                    if (window.pywebview) window.pywebview.api.close_window();
+                });
+            }
+        }, 0);
+    }
+
+    contextMenu.style.left = `${x}px`;
+    contextMenu.style.top = `${y}px`;
+    contextMenu.classList.add('visible');
+    console.log(`[UI] Context Menu Opened (${type})`);
+};
+
+if (leftPanel) {
+    leftPanel.addEventListener('contextmenu', (e) => showCtxMenu(e, 'restore'));
+}
+
+if (characterArea) {
+    characterArea.addEventListener('contextmenu', (e) => {
+        showCtxMenu(e, 'settings');
+    });
+}
+
+// Global Close
+window.addEventListener('click', () => {
+    if (contextMenu?.classList.contains('visible')) {
+        contextMenu.classList.remove('visible');
+    }
+});
 
 // Hook into console to capture system logs? 
 // Or just manual logging. Let's redirect console.log/error/warn partially.
@@ -1189,7 +1510,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // Settings Sync Logic (Phase 18.7)
-window.addEventListener('DOMContentLoaded', async () => {
+window.addEventListener('pywebviewready', async () => {
     // Only verify/sync if not in Desktop mode (or always? Desktop usually loads from local file anyway?)
     // Desktop PyWebview usually injects values or we might want to sync UI there too if not done.
     // Existing code might not populate Settings Modal on load?

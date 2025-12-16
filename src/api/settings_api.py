@@ -91,3 +91,21 @@ class SettingsApiMixin(BaseApiMixin):
         if profile:
             self._ai_engine.set_system_prompt(profile.get('system_prompt', ''))
 
+    
+    def get_search_topics(self):
+        """Returns search topics as a single string (newline separated)."""
+        try:
+            if hasattr(self, 'interest_manager') and self.interest_manager:
+                topics = self.interest_manager.load_topics()
+                return "\n".join(topics)
+        except Exception as e:
+            print(f"Error getting search topics: {e}")
+        return ""
+
+    def save_search_topics(self, topics_str):
+        """Saves newline separated topics."""
+        if hasattr(self, 'interest_manager') and self.interest_manager:
+            topics_list = topics_str.split('\n')
+            self.interest_manager.save_topics(topics_list)
+            return {"status": "success"}
+        return {"status": "error", "message": "InterestManager not initialized"}

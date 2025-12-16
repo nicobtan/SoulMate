@@ -1,0 +1,49 @@
+# ユーザープロファイル (SoulMate用取扱説明書)
+
+# --- 基本情報 (Basic Info) ---
+name: "える"           # あなたの呼び名
+gender: "Male"           # 性別（会話のニュアンスに影響）
+birthday: "02-26"        # 誕生日（祝ってくれます）
+location: "Osaka, Japan" # 天気の話などに使用
+language: "Japanese"
+
+# --- 性格・価値観 (Personality) ---
+mbti: "INFP"             # 思考回路のヒントになります
+values:
+  - "効率よりも面白さを重視する"
+  - "論理的な整合性を好む"
+  - "お世辞よりも本音で話してほしい"
+
+# --- 専門スキル・仕事 (Profession) ---
+job_title: "Full Stack Developer"
+tech_stack:              # 今触っている技術（話題の中心）
+  - "Python (FastAPI, PyAudio)"
+  - "TypeScript (PixiJS, Live2D)"
+  - "Google Cloud Platform"
+current_projects:        # 今がんばっていること
+  - "個人開発AIアシスタント 'SoulMate' の開発"
+  - "生成AIによる自動話題提供システムの構築"
+
+# --- 趣味・コンテンツ (Interests) ---
+games:
+  - "Arknights (推し: パフューマー, アンジェリーナ)"
+  - "Blue Archive"
+  - "Age of Empires 2"
+hobbies:
+  - "深夜のコーディング"
+  - "ガジェット収集"
+  - "タバコ"
+
+# --- 好きな話題・嫌いな話題 (Topics) ---
+likes:
+  - "AI技術の最新トレンド"
+  - "SF映画や小説の考察"
+  - "動物の動画"
+dislikes:
+  - "芸能人のゴシップニュース"
+  - "意味のない定型的な挨拶"
+  - "精神論や根性論"
+
+# --- ライフスタイル (Lifestyle) ---
+sleep_cycle: "夜型 (2:00就寝, 9:00起床)"
+drink_preference: "ミルクティー"

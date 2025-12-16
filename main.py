@@ -21,8 +21,16 @@ from src.services.calendar_manager import CalendarManager
 from src.api.window_api import WindowApiMixin
 from src.api.settings_api import SettingsApiMixin
 from src.api.chat_api import ChatApiMixin
+from src.api.bubble_api import BubbleApi
+from src.api.user_api import UserApiMixin
+from src.services.bubble_service import BubbleService
+from src.services.history_manager import HistoryManager
 
-class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin):
+from src.services.user_manager import UserManager
+
+from src.services.interest_manager import InterestManager
+
+class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin):
     def __init__(self):
         super().__init__() # Initialize BaseApiMixin attributes
         
@@ -31,27 +39,30 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin):
         self._ai_engine = AIEngine()
         self._persona_manager = PersonaManager()
         self._memory_manager = MemoryManager()
+        self.history_manager = HistoryManager()
         
+        # User & Interest Manager
+        self.user_manager = UserManager()
+        self.interest_manager = InterestManager()
+        
+        # Soul Bubble Service
+        self.bubble_service = BubbleService(self)
+
         # TTS Engine
-        cred_path = os.path.join(base_dir, 'google-credentials.json')
         try:
-            # Note: TTSEngine in src/services might need adjustment if it doesn't default correctly?
-            # Step 2138 used key_path="google-credentials.json". 
-            # We assume google-credentials.json is in ROOT.
-            # TTSEngine logic uses os.environ if key_path passed.
-            self.tts_engine = TTSEngine(key_path="google-credentials.json")
+            key_path = os.path.join(os.getcwd(), "settings", "google-credentials.json")
+            self.tts_engine = TTSEngine(key_path=key_path)
             print("[System] TTS Engine initialized.")
         except Exception as e:
             print(f"[System] TTS Init Failed: {e}")
             self.tts_engine = None
-
+ 
         # Active Engine
         self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback)
         self.active_engine.configure(self._config_manager.get_all())
         
         # Apply Initial Config
         settings = self._config_manager.get_all()
-        # _configure_ai is defined in SettingsApiMixin
         self._configure_ai(settings)
 
         # Calendar Manager & Auto-Auth
@@ -60,6 +71,125 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin):
             self._calendar_manager.authenticate() 
             print(f"[System] Auto-Auth Result: {self._calendar_manager.is_authenticated}")
         threading.Thread(target=auto_auth, daemon=True).start()
+
+        # Test Bubble Timer (Validation)
+        def test_bubble():
+            import time
+            time.sleep(10) # Wait for startup
+            
+            # Spawn multiple bubbles to test stacking/randomness
+            # Continuous Bubble Maintenance Loop
+            while True:
+                if self._window:
+                    packet = self.bubble_service.get_smart_bubble()
+                    if packet:
+                        # JS Call
+                        b_type = packet.get('type', 'normal')
+                        js = f"showSoulBubble('{packet['category']}', '{packet['text']}', '{packet['action_id']}', '{b_type}')"
+                        self._window.evaluate_js(js)
+                        print(f"[System] Bubble Injected: {packet['text']} ({b_type})")
+                    # else: Limit reached, do nothing
+                    
+                time.sleep(5) # Check every 5 sec
+        
+        threading.Thread(target=test_bubble, daemon=True).start()
+
+    def _configure_ai(self, settings):
+        """Override to include User Profile Context"""
+        api_key = settings.get('api_key')
+        model = settings.get('model_name', 'gemini-2.5-flash-lite')
+        persona_id = settings.get('current_persona_id', 'default')
+
+        # 1. Base Prompt (Persona)
+        base_prompt = ""
+        if self._persona_manager:
+            data = self._persona_manager.load_persona(persona_id)
+            if data:
+                base_prompt = data.get('system_prompt', '')
+            else:
+                base_prompt = "You are a helpful AI."
+
+        # 2. User Profile Context
+        user_context = ""
+        if self.user_manager:
+            user_context = self.user_manager.get_profile_context()
+
+        # 3. Topic Guidance
+        topic_instruction = """
+Guidance for conversation:
+- Use the [User Profile] information to proactively suggest topics when the user is silent or asks for a topic.
+- E.g., If the user likes 'Arknights', ask about their favorite character.
+- E.g., If they are working on 'SoulMate project', ask about the specific progress.
+"""
+
+        # 4. JSON Mode Instruction (Required for frontend to work properly with suggestion chips)
+        json_instruction = """
+Response Format: JSON
+You MUST respond in the following JSON format:
+{
+    "response": "Your spoken response text here.",
+    "suggestions": ["Option 1", "Option 2", "Option 3"]
+}
+"""
+        
+        full_system_prompt = f"{base_prompt}\\n{user_context}\\n{topic_instruction}\\n\\n{json_instruction}"
+        
+        if self._ai_engine:
+            self._ai_engine.set_system_prompt(full_system_prompt)
+            self._ai_engine.configure(
+                api_key=api_key, 
+                model_name=model
+            )
+            print(f"[System] AI Configured: {model} with User Profile")
+
+    def force_talk(self):
+        """ピンクボタンの処理: 検索ベースの話題提供 (Grounding)"""
+        print("[Api] Processing Grounded Force Talk...")
+        
+        if not self._ai_engine:
+            return {"text": "Error: AI Engine not ready", "audio": None}
+
+        # 1. ユーザープロファイル
+        user_context = ""
+        if hasattr(self, 'user_manager') and self.user_manager:
+            user_context = self.user_manager.get_profile_context()
+
+        # 2. 検索トピックの取得
+        import random
+        search_topic_instruction = ""
+        if hasattr(self, 'interest_manager') and self.interest_manager:
+            topics = self.interest_manager.load_topics()
+            if topics:
+                chosen_topic = random.choice(topics)
+                search_topic_instruction = f"""
+[Grounding Instruction]
+The user is interested in: "{chosen_topic}".
+**USE GOOGLE SEARCH** to find the latest news or updates (today/this week) about "{chosen_topic}".
+Then, tell the user about it in your persona's tone.
+If no recent news is found, talk about general facts regarding "{chosen_topic}".
+"""
+            else:
+                 search_topic_instruction = "Use Google Search to find a trending technology news topic."
+        
+        # 3. プロンプト構築
+        prompt = f"""
+[Situation]
+The user is silent. You want to start a conversation about something NEW and EXCITING using external information.
+
+[User Profile]
+{user_context}
+
+{search_topic_instruction}
+
+[Output Requirement]
+- Use your Persona's tone.
+- Keep it concise (2-3 sentences).
+- Ask a follow-up question.
+"""
+        
+        # 4. チャットとして処理 (AI Engine側でツール呼び出しが自動で行われる)
+        return self.chat(prompt)
+
 
     def set_window(self, window):
         self._window = window
@@ -106,6 +236,22 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin):
             # If js_payload is an object string (from json.dumps), it works directly as arg
             self._window.evaluate_js(f"receiveMessage({js_payload}, {audio_arg})")
 
+    # --- Session Restore & Debugging (Phase 35) ---
+    def restore_history(self):
+        """API: Restore session history."""
+        print(f"[Api] restore_history called.")
+        if hasattr(self, 'history_manager') and self.history_manager:
+            history = self.history_manager.get_session_history()
+            print(f"[Api] Returning {len(history)} messages for restore.")
+            return history
+        print("[Api] History manager not initialized.")
+        return []
+
+    def debug_log(self, message: str):
+        """Exposed for frontend logging via pywebview."""
+        print(f"[CLIENT LOG] {message}")
+        return {"status": "ok"}
+
 def create_app():
     api = Api()
     
@@ -127,7 +273,8 @@ def create_app():
         y=y,
         transparent=True,
         frameless=True,
-        on_top=True
+        on_top=True,
+        easy_drag=False
     )
     api.set_window(window)
     webview.start(debug=True)

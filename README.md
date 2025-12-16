@@ -15,6 +15,12 @@
 - **System Integration**:
     - **TTS (Text-to-Speech)**: Speaks responses using Google Cloud Neural voices.
     - **Window Control**: Resizable, draggable, and toggleable UI.
+- **Pluggable Persona System**:
+    - Define characters via YAML files.
+    - Switch personalities (e.g. from "SoulMate" to "Butler") on the fly.
+- **Mobile / Web Access**:
+    - Access from your smartphone (`http://<ip>:8000`).
+    - **Smart Layout**: Automatically adapts to Mobile (2-Story Layout) or Desktop.
 
 ## 📂 Project Structure
 

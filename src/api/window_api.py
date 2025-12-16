@@ -1,6 +1,9 @@
 import sys
 from .base import BaseApiMixin
 
+# Global reference to prevent recursion in pywebview serialization
+SETTINGS_WINDOW_REF = {"window": None}
+
 class WindowApiMixin(BaseApiMixin):
     def resize_window(self, width, height):
         if self._window:
@@ -29,7 +32,16 @@ class WindowApiMixin(BaseApiMixin):
         # src/api/window_api.py -> src/api -> src -> root -> dist/settings.html
         settings_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'dist', 'settings.html'))
         
-        self.settings_window = webview.create_window(
+        # Check if already open
+        if SETTINGS_WINDOW_REF["window"]:
+             try:
+                 SETTINGS_WINDOW_REF["window"].restore()
+                 SETTINGS_WINDOW_REF["window"].focus()
+                 return
+             except:
+                 SETTINGS_WINDOW_REF["window"] = None
+
+        new_window = webview.create_window(
             'SoulMate Settings', 
             url=settings_path,
             js_api=self, # Share API instance
@@ -38,12 +50,16 @@ class WindowApiMixin(BaseApiMixin):
             resizable=False,
             on_top=True
         )
+        SETTINGS_WINDOW_REF["window"] = new_window
 
     def close_settings(self):
         """Closes the settings window if open."""
-        if hasattr(self, 'settings_window') and self.settings_window:
-            self.settings_window.destroy()
-            self.settings_window = None
+        if SETTINGS_WINDOW_REF["window"]:
+            try:
+                SETTINGS_WINDOW_REF["window"].destroy()
+            except:
+                pass
+            SETTINGS_WINDOW_REF["window"] = None
     
     def close_app(self):
         self.close_window()

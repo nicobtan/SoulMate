@@ -32,6 +32,16 @@ declare global {
                 get_calendar_events: () => Promise<any>;
                 get_calendar_status: () => Promise<any>;
                 authenticate_calendar: () => Promise<any>;
+
+                // Soul Bubble
+                trigger_bubble_action: (actionId: string) => Promise<any>;
+
+                // Debug & History
+                debug_log: (message: string) => Promise<any>;
+                get_history: (limit: number) => Promise<any[]>;
+                restore_history: () => Promise<any[]>;
+                dismiss_bubble: (actionId: string) => Promise<any>;
+                change_persona: (id: string) => Promise<any>;
             };
         };
     }
