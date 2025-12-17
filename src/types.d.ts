@@ -21,6 +21,7 @@ declare global {
 
                 // Chat & Logic
                 chat: (message: string) => Promise<any>;
+                chat_with_vision: (message: string) => Promise<any>;
                 force_talk: () => Promise<any>;
                 suggest_reply: () => Promise<string>;
                 get_personas: () => Promise<string[]>;

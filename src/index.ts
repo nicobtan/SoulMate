@@ -1124,8 +1124,12 @@ const showCtxMenu = (e: MouseEvent, type: 'restore' | 'settings') => {
             if (settingsBtn) {
                 settingsBtn.addEventListener('click', () => {
                     contextMenu.classList.remove('visible');
-                    const modal = document.getElementById('settings-modal');
-                    if (modal) modal.style.display = 'block';
+                    // Use new Window API for Settings (Tabbed Interface)
+                    if (window.pywebview) {
+                        window.pywebview.api.open_settings();
+                    } else {
+                        console.error("pywebview API not available");
+                    }
                 });
             }
             const exitBtn = document.getElementById('ctx-exit-action');
@@ -1596,6 +1600,60 @@ window.addEventListener('pywebviewready', async () => {
             } catch (e) {
                 console.error("Save failed:", e);
                 alert("保存に失敗しました。");
+            }
+        });
+    }
+});
+
+// --- Vision Feature (Phase 35) ---
+window.addEventListener('DOMContentLoaded', () => {
+    const visionBtn = document.getElementById('vision-btn');
+    const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement;
+
+    if (visionBtn) {
+        visionBtn.addEventListener('click', async () => {
+            // Resume Audio
+            if (!audioCtx) {
+                // @ts-ignore
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const message = chatInput ? chatInput.value.trim() : "";
+            if (chatInput) chatInput.value = "";
+
+            // UI Feedback
+            addLog(message || "(画面を見て)", 'user');
+            const thinkingId = addLog('画像を確認中... (Vision)', 'ai', true);
+            updateStatus("Viewing...", true);
+
+            try {
+                // Call API
+                const response = await api.chat_with_vision(message);
+
+                removeLog(thinkingId);
+                updateStatus("Active", true);
+
+                let text = "";
+                let audio = null;
+                let suggestions: string[] = [];
+
+                if (typeof response === 'string') {
+                    text = response;
+                } else {
+                    text = response.text;
+                    audio = response.audio;
+                    suggestions = response.suggestions || [];
+                }
+
+                processAIResponse(text, audio);
+                // @ts-ignore
+                if (typeof updateSuggestions === 'function') updateSuggestions(suggestions);
+
+            } catch (e: any) {
+                removeLog(thinkingId);
+                addLog("Error: " + e.message, 'ai');
+                updateStatus("Error", false);
             }
         });
     }

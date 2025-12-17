@@ -4,19 +4,35 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+import time
+
 class BubbleService:
     def __init__(self, services_container=None):
         self.services = services_container
         self._active_bubbles = {} # Map action_id -> bubble_packet
-        # History for de-duplication (Keep last 10)
         self._history = [] 
-        logger.info("BubbleService Initialized (Date-Aware Mode)")
+        self._last_gen_time = 0
+        self._max_balloons_cache = 3
+        # Allow immediate generation on startup
+        self._startup_mode = True 
+        logger.info("BubbleService Initialized (Stability Fixed)")
+
+    def update_settings(self, config: dict):
+        """Called when server settings are updated."""
+        if 'max_balloons' in config:
+            new_max = int(config['max_balloons'])
+            if new_max != self._max_balloons_cache:
+                self._max_balloons_cache = new_max
+                logger.info(f"Bubble Limit Updated: {self._max_balloons_cache}")
+                # Trigger refill if limit increased
+                self.refill_bubbles()
 
     def _get_max_balloons(self):
-        default_max = 3
+        # Use cached value for consistency, update via update_settings
+        # Fallback to config reading if needed
         if self.services and hasattr(self.services, 'config_manager'):
-            return self.services.config_manager.get('max_balloons', default_max)
-        return default_max
+             self._max_balloons_cache = int(self.services.config_manager.get('max_balloons', self._max_balloons_cache))
+        return self._max_balloons_cache
 
     def _get_time_context(self):
         """
@@ -68,21 +84,13 @@ class BubbleService:
 
     def get_smart_bubble(self):
         """
-        Generate a smart context-aware bubble payload.
+        Generate a single smart context-aware bubble payload.
+        Does NOT check limits/time internally (logic moved to refill_bubbles).
         """
         ctx = self._get_time_context()
         slot = ctx["slot"]
         weekday = ctx["weekday"]
         
-        logger.info(f"Generating bubble for: {ctx['formatted']}, Slot: {slot}")
-
-        # 0. Check Limits
-        max_b = self._get_max_balloons()
-        current_count = len(self._active_bubbles)
-        if current_count >= max_b:
-            logger.info(f"Bubble Limit Reached ({current_count}/{max_b}). Skipping generation.")
-            return None
-
         # 1. Base Candidates (Time Slot)
         candidates = {
             "morning": {
@@ -132,11 +140,7 @@ class BubbleService:
              elif slot == "night":
                  special_messages.append({"cat": "play", "text": "明日のためにゆっくり休んでね"})
 
-        # 3. Personalization
-        user_topics = self._get_personalized_topics()
-        dynamic_topics = []
         # 3. Personalization & Discovery
-        # Discovery Mode: 30% chance to pick something random/new
         is_discovery = False
         discovery_topics = ["宇宙の謎", "深海生物", "古代文明", "最新ガジェット", "珍しい動物", "世界の絶景", "心理学トリビア"]
         
@@ -161,30 +165,31 @@ class BubbleService:
             ]
 
         # 4. Selection Process
-        # Decide Strategy: Special > Dynamic > Slot
         strategy_roll = random.random()
         
         selected_cat = "topics"
         selected_text = "何か話そう？"
 
         if special_messages and strategy_roll < 0.4:
-            # 40% chance for special day message if available
             msg = random.choice(special_messages)
             selected_cat = msg["cat"]
             selected_text = msg["text"]
-        
         elif dynamic_topics and strategy_roll < 0.7:
-             # 30% chance (0.4 to 0.7) for personalized topic
              selected_cat = "topics"
              selected_text = random.choice(dynamic_topics)
-             
         else:
-             # Fallback to standard time slot messages
              slot_data = candidates.get(slot, candidates["daytime"])
              available_cats = list(slot_data.keys())
              selected_cat = random.choice(available_cats)
              selected_text = random.choice(slot_data[selected_cat])
 
+        # De-duplication Check
+        if selected_text in self._history:
+            return None # Retry caller
+            
+        self._history.append(selected_text)
+        if len(self._history) > 20: self._history.pop(0)
+        
         action_id = f"BUBBLE_{weekday.upper()}_{slot.upper()}_{random.randint(1000,9999)}"
         
         packet = {
@@ -195,36 +200,61 @@ class BubbleService:
             "type": "discovery" if is_discovery else "normal"
         }
         
-        # De-duplication Check
-        if selected_text in self._history:
-            logger.info(f"Duplicate bubble text '{selected_text}'. Skipping.")
-            return None
-            
-        self._history.append(selected_text)
-        if len(self._history) > 20: self._history.pop(0)
-        
         self._active_bubbles[action_id] = packet
+        logger.info(f"[System] Bubble Injected: {selected_text} ({packet['type']})")
         return packet
 
     def remove_bubble(self, action_id):
         """Removes a bubble and triggers refill if needed."""
         if action_id in self._active_bubbles:
             del self._active_bubbles[action_id]
-            logger.info(f"Removed bubble: {action_id}")
+            logger.info(f"Removed bubble: {action_id} | Remaining: {len(self._active_bubbles)}")
             return True
+        logger.warning(f"Attempted to remove non-existent bubble: {action_id}")
         return False
         
     def refill_bubbles(self):
-        """Attempts to generate new bubbles until max is reached or failure."""
+        """
+        Smart Refill Logic:
+        1. Checks time interval (5 min) unless it's startup or empty.
+        2. Loops until MAX is reached.
+        """
         max_b = self._get_max_balloons()
         current = len(self._active_bubbles)
-        if current < max_b:
-            # Generate one
-            return self.get_smart_bubble()
-        return None
+        now = time.time()
+
+        # Guard Logic: If full, return immediately (silent)
+        if current >= max_b:
+            return None 
         
-        self._active_bubbles[action_id] = packet
-        return packet
+        # User Request: "Immediate 5 on startup"
+        # If count is 0, we imply urgency/startup.
+        is_urgent = (current == 0) or self._startup_mode
+        
+        # Interval Check (300s = 5min)
+        if not is_urgent and (now - self._last_gen_time < 300):
+            return None # Too soon
+            
+        logger.info(f"Refilling Bubbles... (Current: {current}, Max: {max_b}, Urgent: {is_urgent})")
+        
+        # User Request: "3 bubbles on startup"
+        target_fill = max_b
+        if self._startup_mode:
+            target_fill = min(max_b, 3)
+
+        new_bubbles = []
+        attempts = 0
+        while len(self._active_bubbles) < target_fill and attempts < 10:
+            attempts += 1
+            bubble = self.get_smart_bubble()
+            if bubble:
+                new_bubbles.append(bubble)
+        
+        if new_bubbles:
+            self._last_gen_time = now
+            self._startup_mode = False # Startup burst done
+            
+        return new_bubbles
 
     # Wrapper for backward compatibility
     def get_test_bubble(self):
@@ -275,6 +305,12 @@ Consider the current time (Morning/Night/Weekday/Weekend) in your tone.
 {grounding_instruction}
 
 [Output Requirement]
+You must output a JSON object with the following structure:
+{{
+    "response": "Your friendly response here...",
+    "suggestions": ["Option 1", "Option 2", "Option 3"]
+}}
+- "suggestions": Provide 2-3 short follow-up options or questions for the user to choose from.
 - Be friendly and engaging.
 - If it's a question, wait for user answer.
 - If it's a topic, start with the latest info you found.
@@ -286,18 +322,26 @@ Consider the current time (Morning/Night/Weekday/Weekend) in your tone.
                  try:
                      response_text = api._ai_engine.generate_response(prompt)
                      
-                     # Simple logic to extract string if dict
-                     msg = response_text
+                     # Check if response_text is already a dict
+                     payload = {}
                      if isinstance(response_text, dict):
-                         # If engine usually returns a dict structure, handle it?
-                         # Assuming default engine returns dict or str based on previous logs
-                         # We'll just dump it as is for the frontend handler
-                         import json
-                         api.push_message_callback(json.dumps(response_text, ensure_ascii=False))
+                         payload = response_text
                      else:
+                         # Try to parse JSON from string
                          import json
-                         payload = {"response": str(msg), "emotion": "happy"}
-                         api.push_message_callback(json.dumps(payload, ensure_ascii=False))
+                         import re
+                         try:
+                             # Clean code blocks if present
+                             clean_text = re.sub(r'```json\s*', '', str(response_text))
+                             clean_text = re.sub(r'```', '', clean_text)
+                             payload = json.loads(clean_text)
+                         except:
+                             # Fallback to plain text
+                             payload = {"response": str(response_text), "emotion": "happy"}
+
+                     import json
+                     api.push_message_callback(json.dumps(payload, ensure_ascii=False))
+
                          
                  except Exception as e:
                      logger.error(f"Bubble Talk Failed: {e}")

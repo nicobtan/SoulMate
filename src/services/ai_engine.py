@@ -65,7 +65,7 @@ class AIEngine:
             )
         return self.chat_session
 
-    def generate_response(self, message, context=None):
+    def generate_response(self, message, context=None, image=None):
         """Generates a JSON response for the given message."""
         if not self.api_key:
             return "設定画面でGoogle Gemini APIキーを設定してください。"
@@ -107,7 +107,11 @@ Key "suggestions": Provide 2-3 short, natural Japanese response options.
             # Note: handling history manually might be safer if we format context every time?
             # But chat session handles it. We inject context into the MESSAGE this time.
             
-            response = session.send_message(full_message)
+            content = [full_message]
+            if image:
+                content.append(image)
+
+            response = session.send_message(content)
             raw_text = response.text
             logging.info(f"raw_text: {raw_text}")
             

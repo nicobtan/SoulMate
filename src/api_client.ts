@@ -35,6 +35,16 @@ export class ApiClient {
         }
     }
 
+    async chat_with_vision(text: string): Promise<any> {
+        if (this.isDesktop || (window as any).pywebview) {
+            return await (window as any).pywebview.api.chat_with_vision(text);
+        } else {
+            // Web fallback? Maybe upload image or not supported?
+            console.warn("Vision not supported in Web Mode");
+            return { text: "Web版では視覚機能はサポートされていません。" };
+        }
+    }
+
     // ★このメソッドがないとピンクボタンは動きません！
     async force_talk(): Promise<any> {
         if (this.isDesktop || (window as any).pywebview) {

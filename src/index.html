@@ -68,6 +68,19 @@
         }
 
         #character-area {
+            /* 既存のプロパティを維持しつつ、サイズ関連を強化 */
+            width: 500px !important;
+            height: 500px !important;
+            min-width: 500px !important;
+            min-height: 500px !important;
+            flex-shrink: 0 !important;
+            /* 絶対に縮ませない */
+
+            position: relative;
+            background: rgba(0, 0, 0, 0);
+            overflow: visible;
+            /* 内部パーツ（バルーン等）のはみ出しは許可 */
+            cursor: move;
             -webkit-app-region: drag;
         }
 
@@ -123,13 +136,7 @@
             }
         }
 
-        .soul-bubble.floating {
-            /* animation: gentleFloat 4s infinite ease-in-out; */
-            /* Animation handles by JS for randomness or keep simple here? 
-               Let's leave simple here but mix with transform. 
-               Wait, transform conflict with popIn?
-               After popIn, we can add class 'floating'. */
-        }
+
 
         /* Color Modifiers */
         .bubble-blue {
@@ -826,42 +833,47 @@
         /* Trash Zone */
         #trash-zone {
             position: absolute;
-            top: -30px;
-            /* Moved up-left */
-            left: -30px;
-            width: 100px;
-            /* Larger hit area */
-            height: 100px;
+            /* 【変更点】内側の左上に配置 */
+            top: 10px;
+            left: 10px;
+
+            width: 60px;
+            /* 少しコンパクトに調整 */
+            height: 60px;
             border-radius: 50%;
-            /* border: 2px dashed rgba(255, 68, 68, 0.5); Removed messy border */
-            background: radial-gradient(circle at center, rgba(0, 0, 0, 0.8), transparent 70%);
-            /* Subtle gradient */
+
+            /* 視認性向上のためのスタイル */
+            background: rgba(0, 0, 0, 0.6);
+            /* 半透明の黒背景を追加 */
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            /* 薄い赤枠 */
+
             display: flex;
             justify-content: center;
-            /* Center horizontally */
             align-items: center;
-            /* Center vertically */
-            padding: 0;
-            /* Remove padding */
-            font-size: 40px;
-            color: #ff4444;
+            font-size: 24px;
+            /* アイコンサイズ調整 */
+
             opacity: 0;
+            /* 通常時は非表示 */
             pointer-events: none;
             transition: all 0.3s ease;
             z-index: 9000;
         }
 
+        /* ドラッグ中などの表示状態 */
         #trash-zone.visible {
-            opacity: 0.8;
-            top: -20px;
-            /* Slide in slightly */
-            left: -20px;
+            opacity: 1 !important;
+            pointer-events: auto;
+            background: rgba(50, 0, 0, 0.8);
         }
 
         #trash-zone.active {
             opacity: 1;
-            background: radial-gradient(circle at center, rgba(255, 68, 68, 0.4), transparent 70%);
             transform: scale(1.1);
+            background: rgba(200, 0, 0, 0.8);
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
         }
 
         .soul-bubble.dragging {
@@ -1405,8 +1417,72 @@
             /* Dynamic Height */
             overflow: hidden;
             position: relative;
-            background-color: #1a1a1a;
             /* Phase 18.6 Fix: Prevent white flash */
+        }
+
+        /* Trash Zone (New) */
+        #trash-zone {
+            position: absolute;
+            /* Relative to #character-area */
+            top: 10px;
+            left: 10px;
+            transform: none;
+            /* Ensure no centering transform */
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            border: 2px dashed rgba(255, 68, 68, 0.3);
+            background: rgba(50, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            /* Above Character(10), Below Panels(50+) */
+            z-index: 10000 !important;
+            backdrop-filter: blur(5px);
+        }
+
+        #vision-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: none;
+            background: #8a2be2;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: transform 0.2s;
+            margin-right: 5px;
+        }
+
+        #vision-btn:hover {
+            transform: scale(1.1);
+            background: #9b4dca;
+        }
+
+        #trash-zone.visible {
+            opacity: 1 !important;
+            pointer-events: all;
+            background: rgba(100, 0, 0, 0.8);
+            border-color: red;
+        }
+
+        #trash-zone.active {
+            opacity: 1;
+            background: rgba(200, 0, 0, 0.8);
+            transform: scale(1.1);
+            border-style: solid;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+        }
+
+        #trash-zone .icon {
+            font-size: 24px;
+            color: #ffcccc;
         }
 
         /* Character: Positioned at Top, anchored to top */
@@ -1713,7 +1789,8 @@
 
     <!-- UI Container -->
     <div id="app-container">
-        <!-- Left Panel: System Log -->
+
+        <!-- Soul Bubble Container -->
         <!-- Left Panel: System Log + History -->
         <div id="left-panel">
             <div class="panel-header">
@@ -1728,6 +1805,12 @@
 
         <!-- Frame A: Character Area (Fixed 500x500) -->
         <div id="character-area" class="pywebview-drag-region">
+
+            <!-- Trash Zone (Moved here to stay on character layer) -->
+            <div id="trash-zone">
+                <span class="icon">🗑️</span>
+            </div>
+
             <!-- Phase 7.5 Elements -->
 
             <!-- Mobile Settings Button (Added in Phase 18.5) -->
@@ -1790,6 +1873,7 @@
 
             <div id="input-area">
                 <!-- Suggestion UI -->
+                <button id="vision-btn" title="Vision">📷</button>
                 <button id="suggestion-toggle-btn" title="AI Suggestions">💡</button>
                 <div id="suggestion-popup"></div>
 

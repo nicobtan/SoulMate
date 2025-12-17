@@ -5,6 +5,7 @@ import re
 import json
 from .base import BaseApiMixin
 from .json_helper import _extract_json_from_text
+from PIL import ImageGrab
 
 class ChatApiMixin(BaseApiMixin):
     
@@ -147,6 +148,75 @@ class ChatApiMixin(BaseApiMixin):
         
         # Append Static Suggestion
         suggestions_list.append("別の話題はある？")
+        
+        return {
+            "text": response_text,
+            "audio": audio_path,
+            "suggestions": suggestions_list
+        }
+
+    def chat_with_vision(self, message):
+        """Captures a screenshot and sends it with the message to the AI Engine."""
+        self.log_to_debug(f"Vision Chat Received: {message}", 'info')
+        
+        # Capture Screenshot
+        try:
+            image = ImageGrab.grab()
+            # Optional: Resize to avoid huge payloads if needed, 
+            # but Gemini Flash Lite handles standard Desktop res fine.
+            self.log_to_debug("Screenshot captured.", 'info')
+        except Exception as e:
+            self.log_to_debug(f"Screenshot Failed: {e}", 'error')
+            return {"text": "画面のキャプチャに失敗しました。", "audio": None, "suggestions": []}
+
+        # Update Active Engine Interaction Time
+        if self.active_engine:
+            self.active_engine.update_interaction()
+
+        # Context (RAG is less relevant for Vision usually, but can keep it)
+        context = "[System: User sent a screenshot of their screen. Analyze it along with the input.]"
+        
+        # Generate Response
+        response_text = ""
+        suggestions_list = []
+        emotion = None
+        
+        if self._ai_engine:
+            # Pass Image to generate_response
+            raw_result = self._ai_engine.generate_response(message, context=context, image=image)
+            
+            # Post-Processing (Reuse Logic)
+            if isinstance(raw_result, dict):
+                response_text = raw_result.get("response", "")
+                emotion = raw_result.get("emotion") 
+                suggestions_list = raw_result.get("suggestions", [])
+                self.log_to_debug(f"AI Vision JSON: {response_text} (Emo: {emotion})", 'info')
+            else:
+                extracted_data = _extract_json_from_text(raw_result)
+                if extracted_data and "response" in extracted_data:
+                    response_text = extracted_data.get("response", "")
+                    emotion = extracted_data.get("emotion")
+                    suggestions_list = extracted_data.get("suggestions", [])
+                else:
+                    response_text = raw_result
+        else:
+            response_text = "AI Engine is not initialized."
+            
+        # TTS
+        audio_path = None
+        if self.tts_engine and self._config_manager:
+            voice_name = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
+            base_dir = self._config_manager.base_dir
+            tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
+            tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
+            tts_text = tts_text.replace('*', '')
+            
+            if tts_text.strip():
+                audio_path = self.tts_engine.generate_voice(
+                    tts_text, 
+                    output_dir=os.path.join(base_dir, 'dist/audio'), 
+                    voice_name=voice_name
+                )
         
         return {
             "text": response_text,

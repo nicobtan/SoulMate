@@ -328,13 +328,32 @@ You MUST respond in the following JSON format:
         return {"status": "success", "name": data.get('name', persona_id)}
 
 
+    @app.post("/api/settings")
+    async def save_settings_endpoint(settings: dict):
+        """Updates server configuration."""
+        if not server_api:
+            raise HTTPException(status_code=500, detail="Server not initialized")
+        
+        # Update ConfigManager
+        server_api.config_manager.config.update(settings)
+        server_api.config_manager.save()
+        
+        # Re-configure AI
+        server_api._configure_ai(server_api.config_manager.config)
+        
+        # PUSH CONFIG TO BUBBLE SERVICE (NEW)
+        if server_api.bubble_service:
+            server_api.bubble_service.update_settings(server_api.config_manager.config)
+        
+        return {"status": "ok", "config": server_api.config_manager.get_all()}
+        
     def dismiss_bubble(self, action_id):
         """API: Dismiss a bubble and refill."""
         if self.bubble_service:
+            # 1. Remove it logic
             removed = self.bubble_service.remove_bubble(action_id)
             if removed:
-                # Auto-Refill logic
-                # Try to refill if below max
+                # 2. Trigger Refill logic (This will now fill up to MAX due to service update)
                 new_bubble = self.bubble_service.refill_bubbles()
                 return {"status": "success", "refilled": new_bubble is not None, "bubble": new_bubble}
         return {"status": "error"}

@@ -45,10 +45,10 @@ class WindowApiMixin(BaseApiMixin):
             'SoulMate Settings', 
             url=settings_path,
             js_api=self, # Share API instance
-            width=600,
-            height=600,
-            resizable=False,
-            on_top=True
+            width=800,
+            height=700,
+            resizable=True,
+            on_top=False
         )
         SETTINGS_WINDOW_REF["window"] = new_window
 

@@ -269,6 +269,7 @@
     - [x] `src/services/bubble_service.py`: 実際のニュースや話題に基づいてバブルのテキストとアクションIDを生成する。
     - [x] **Smart Force Talk Implementation** (Added): `force_talk` uses `user_profile.yaml`.
     - [x] クリック時にその話題についての会話が始まるようにする。 (Completed in Phase 30)
+    - [x] **Stability Fixes**: Refactored `BubbleService` for interval limits & dynamic settings.
 - [x] **デザインの洗練 (Design Polish)**
     - [x] **アイコンデザイン**: テキストアイコンを適切なSVGまたは画像アイコンに置き換える。 (Basic Implementation Done)
     - [x] **アニメーション**: 浮遊や出現・消失の動きを微調整する。 (Verified)
@@ -345,6 +346,19 @@
     - [x] Implement `MemoryService` with logic to extract/save facts and combine contexts.
     - [x] Integrate Memory context into `server.py` System Prompt.
 
+## Phase 31.5: UI/UX Fixes [完了]
+- [x] **Settings Window Fixes**:
+    - [x] Resize to 800x700 and enable resizing.
+    - [x] Add drag region to sidebar.
+    - [x] Restore "Tabbed" interface by opening proper `settings.html` window (switched from legacy overlay).
+- [x] **Trash Zone Fix**:
+    - [x] Add `#trash-zone` to `index.html` with visible CSS.n by default)
+    - [x] Update `SoulBubble` (TS) to handle Drag & Drop events
+    - [x] Implement spring-back logic (Cancel dismissal)
+    - [x] Implement drop-to-delete logic (API Trigger)
+- [x] **Visuals**
+    - [x] Dragging visual feedback (Scale, Z-Index)
+
 ## Phase 32: Soul Bubble Drag & Drop (Refinements) [完了]
 - [x] **Frontend Implementation**
     - [x] Add `#trash-zone` to `index.html` (Hidden by default)
@@ -410,3 +424,8 @@
     - [x] Refactor: `HistoryManager` now uses `memory/` dir with `logs/` fallback and fixed parsing logic.
     - [x] Fix: Implemented aggressive JSON cleanup in `server.py` to remove markdown leakage.
 
+
+## Phase 36: UI Stability Fixes (Desktop Layout) [完了]
+- [x] **Desktop Layout Fixes**
+    - [x] `#character-area` fixed size (500px !important, no-shrink) to prevent layout shifts.
+    - [x] `#trash-zone` positioning (Inside character area, top: 10px, left: 10px) to prevent clipping.

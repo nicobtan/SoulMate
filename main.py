@@ -73,26 +73,27 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         threading.Thread(target=auto_auth, daemon=True).start()
 
         # Test Bubble Timer (Validation)
-        def test_bubble():
+        # Main Bubble Loop (Safe)
+        def bubble_loop():
             import time
-            time.sleep(10) # Wait for startup
+            time.sleep(5) # Wait for startup
             
-            # Spawn multiple bubbles to test stacking/randomness
-            # Continuous Bubble Maintenance Loop
             while True:
                 if self._window:
-                    packet = self.bubble_service.get_smart_bubble()
-                    if packet:
-                        # JS Call
-                        b_type = packet.get('type', 'normal')
-                        js = f"showSoulBubble('{packet['category']}', '{packet['text']}', '{packet['action_id']}', '{b_type}')"
-                        self._window.evaluate_js(js)
-                        print(f"[System] Bubble Injected: {packet['text']} ({b_type})")
-                    # else: Limit reached, do nothing
+                    # Use refill_bubbles() which respects MAX limits and Time Intervals
+                    # Returns a list of new bubbles
+                    packets = self.bubble_service.refill_bubbles()
+                    if packets:
+                        for packet in packets:
+                            # JS Call
+                            b_type = packet.get('type', 'normal')
+                            js = f"showSoulBubble('{packet['category']}', '{packet['text']}', '{packet['action_id']}', '{b_type}')"
+                            self._window.evaluate_js(js)
+                            print(f"[System] Bubble Injected: {packet['text']} ({b_type})")
                     
-                time.sleep(5) # Check every 5 sec
+                time.sleep(5) # Check frequently (Service handles 5min throttling)
         
-        threading.Thread(target=test_bubble, daemon=True).start()
+        threading.Thread(target=bubble_loop, daemon=True).start()
 
     def _configure_ai(self, settings):
         """Override to include User Profile Context"""
