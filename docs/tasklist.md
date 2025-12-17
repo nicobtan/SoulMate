@@ -429,3 +429,24 @@
 - [x] **Desktop Layout Fixes**
     - [x] `#character-area` fixed size (500px !important, no-shrink) to prevent layout shifts.
     - [x] `#trash-zone` positioning (Inside character area, top: 10px, left: 10px) to prevent clipping.
+
+## Phase 37: Vision Integration & Prompt Fix (Desktop) [完了]
+- [x] **視覚機能の実装 (Vision)**
+    - [x] Backend (`server.py`): `chat_with_vision(mode)` implementation using `PIL.ImageGrab`.
+    - [x] Frontend (`index.ts`): Camera Button Logic (Left Click: Screen, Right Click: Clipboard).
+    - [x] API Bridge (`api_client.ts`): Updated interface to support `mode`.
+- [x] **AI人格プロンプトの修正**
+    - [x] System Prompt (`server.py`): "Keep it concise" constraint relaxed to allow detailed responses when requested.
+
+## Phase 38: Vision Debugging & UI Refinement (Desktop) [完了]
+- [x] **Vision Mode Fix (Conflict Resolution)**
+    - [x] `ai_engine.py`: Refactored `generate_response` logic.
+    - [x] **Stateless Request**: Use `generate_content` (Tools=[]) for image input to avoid conflicts.
+    - [x] **Prompt Override**: Added strict instruction "You CAN see the image" to Vision mode.
+    - [x] **JSON Parsing**: Implemented Regex-based extraction (`_parse_json_response`) to handle conversational precursors.
+- [x] **UI Layout Refinement**
+    - [x] Vertical Button Stack (Suggestion 💡 / Vision 📷).
+    - [x] Clock moved to bottom-left corner for clarity.
+    - [x] Right-side buttons (Settings, Debug, History, Toggle) tightened to bottom-right corner.
+    - [x] **Initialization Fix**: Force window resize to 500x500 on startup to prevent UI cropping.
+    - [x] **Context Menu Fix**: Prevent app context menu on Vision button right-click (`stopPropagation`).

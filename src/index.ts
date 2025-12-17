@@ -216,8 +216,109 @@ const chatLogArea = document.getElementById('chat-log-area');
 
 // ... (existing code)
 
+const visionBtn = document.getElementById('vision-btn');
+
 if (chatSendBtn) {
     chatSendBtn.addEventListener('click', () => sendMessage()); // Wrapper to avoid event args
+}
+
+// Vision Button Logic
+let isVisionProcessing = false;
+
+if (visionBtn) {
+    // Left Click: Screen Capture
+    visionBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (isVisionProcessing) return;
+        chatWithVision("screen");
+    });
+
+    // Right Click: Clipboard
+    visionBtn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation(); // Stop parent context menu
+        if (isVisionProcessing) return;
+        chatWithVision("clipboard");
+    });
+}
+
+async function chatWithVision(mode: string) {
+    if (isVisionProcessing) return;
+    isVisionProcessing = true;
+
+    // 0. Resume AudioContext
+    if (!audioCtx) {
+        // @ts-ignore
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    if (!chatInput || !chatLogArea) {
+        isVisionProcessing = false;
+        return;
+    }
+    const message = chatInput.value.trim();
+    // Allow empty message for vision (just "look at this")
+
+    // 1. Add User Message
+    const modeLabel = mode === "clipboard" ? "📋 [Clipboard]" : "📷 [Screen]";
+    addLog(`${modeLabel} ${message}`, 'user');
+    chatInput.value = '';
+
+    // 2. Show Thinking...
+    const thinkingId = addLog('視覚情報を解析中...', 'ai', true);
+    updateStatus("Seeing...", true);
+
+    // 3. Call Backend
+    try {
+        const response = await api.chat_with_vision(message, mode);
+
+        removeLog(thinkingId);
+        updateStatus("Active", true);
+
+        // Handle Response
+        let text = "";
+        let audio = null;
+        let suggestions: string[] = [];
+        let imageStr: string | null = null;
+
+        if (typeof response === 'string') {
+            text = response;
+        } else {
+            text = response.text;
+            audio = response.audio;
+            suggestions = response.suggestions || [];
+            imageStr = response.image || null;
+        }
+
+        // Show Image if returned
+        if (imageStr) {
+            const imgHtml = `<img src="data:image/jpeg;base64,${imageStr}" style="max-width: 200px; border-radius: 8px; margin: 10px 0; display: block;" alt="Captured Image">`;
+            const logDiv = document.createElement('div');
+            logDiv.className = 'chat-message ai-message';
+            // Simple wrapper
+            logDiv.innerHTML = `<div class="message-content">${imgHtml}</div>`;
+            if (chatLogArea) {
+                chatLogArea.appendChild(logDiv);
+                chatLogArea.scrollTop = chatLogArea.scrollHeight;
+            }
+        }
+
+        // Output
+        processAIResponse(text, audio);
+
+        // Update Suggestions
+        updateSuggestions(suggestions);
+
+    } catch (err: any) {
+        removeLog(thinkingId);
+        addLog('Error: ' + err.message, 'ai');
+        updateStatus("Error", false);
+    } finally {
+        isVisionProcessing = false;
+    }
 }
 
 // Force Talk Logic
@@ -1515,6 +1616,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Settings Sync Logic (Phase 18.7)
 window.addEventListener('pywebviewready', async () => {
+    // 1. Force Resize to prevent UI cutoff (Clock/Buttons)
+    try {
+        console.log("System Init: Forcing Window Size to 500x500");
+        // @ts-ignore
+        await window.pywebview.api.resize_window(500, 500);
+    } catch (e) {
+        console.warn("Failed to resize window on init:", e);
+    }
+
     // Only verify/sync if not in Desktop mode (or always? Desktop usually loads from local file anyway?)
     // Desktop PyWebview usually injects values or we might want to sync UI there too if not done.
     // Existing code might not populate Settings Modal on load?
@@ -1600,60 +1710,6 @@ window.addEventListener('pywebviewready', async () => {
             } catch (e) {
                 console.error("Save failed:", e);
                 alert("保存に失敗しました。");
-            }
-        });
-    }
-});
-
-// --- Vision Feature (Phase 35) ---
-window.addEventListener('DOMContentLoaded', () => {
-    const visionBtn = document.getElementById('vision-btn');
-    const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement;
-
-    if (visionBtn) {
-        visionBtn.addEventListener('click', async () => {
-            // Resume Audio
-            if (!audioCtx) {
-                // @ts-ignore
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-
-            const message = chatInput ? chatInput.value.trim() : "";
-            if (chatInput) chatInput.value = "";
-
-            // UI Feedback
-            addLog(message || "(画面を見て)", 'user');
-            const thinkingId = addLog('画像を確認中... (Vision)', 'ai', true);
-            updateStatus("Viewing...", true);
-
-            try {
-                // Call API
-                const response = await api.chat_with_vision(message);
-
-                removeLog(thinkingId);
-                updateStatus("Active", true);
-
-                let text = "";
-                let audio = null;
-                let suggestions: string[] = [];
-
-                if (typeof response === 'string') {
-                    text = response;
-                } else {
-                    text = response.text;
-                    audio = response.audio;
-                    suggestions = response.suggestions || [];
-                }
-
-                processAIResponse(text, audio);
-                // @ts-ignore
-                if (typeof updateSuggestions === 'function') updateSuggestions(suggestions);
-
-            } catch (e: any) {
-                removeLog(thinkingId);
-                addLog("Error: " + e.message, 'ai');
-                updateStatus("Error", false);
             }
         });
     }

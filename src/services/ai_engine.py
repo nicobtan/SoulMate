@@ -65,22 +65,48 @@ class AIEngine:
             )
         return self.chat_session
 
+    def _parse_json_response(self, raw_text):
+        """Extracts JSON from text even if there is conversational filler."""
+        if not raw_text:
+            return {"response": "...", "emotion": "neutral", "suggestions": []}
+
+        try:
+            # 1. Try to find code block first
+            json_match = re.search(r'```json\s*(.*?)\s*```', raw_text, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+            else:
+                # 2. Fallback: Try to find the first '{' and last '}'
+                # This handles cases where code blocks are missing but JSON is present
+                start = raw_text.find('{')
+                end = raw_text.rfind('}')
+                if start != -1 and end != -1:
+                    json_str = raw_text[start:end+1]
+                else:
+                    # No JSON found, treat as plain text if it looks like a response
+                    return {"response": raw_text.strip(), "emotion": "neutral", "suggestions": []}
+
+            return json.loads(json_str)
+
+        except (json.JSONDecodeError, ValueError) as e:
+            logging.warn(f"JSON Parse Failed: {e}. Raw: {raw_text[:50]}...")
+            # Fallback: Treat entire text as response
+            clean_text = raw_text.strip()
+            # Remove markdown code blocks if any remain
+            clean_text = clean_text.replace("```json", "").replace("```", "")
+            return {"response": clean_text, "emotion": "neutral", "suggestions": []}
+
     def generate_response(self, message, context=None, image=None):
         """Generates a JSON response for the given message."""
         if not self.api_key:
-            return "設定画面でGoogle Gemini APIキーを設定してください。"
+            return {"response": "設定画面でGoogle Gemini APIキーを設定してください。", "emotion": "neutral", "suggestions": []}
 
         try:
-            # Prepare Tools (Grounding)
-            # Enable Grounding for all chat interactions? Or just Smart Talk?
-            # User wants grounding. Enable it.
-            tools = [types.Tool(google_search=types.GoogleSearch())]
-            
-            session = self._get_chat_session(tools=tools)
-
-            # Context Construction
+            # Context Construction (Shared)
             now = datetime.datetime.now()
             now_str = now.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Simple Time Segment
             hour = now.hour
             time_segment = "Night"
             if 5 <= hour < 11: time_segment = "Morning"
@@ -92,26 +118,77 @@ class AIEngine:
             if context:
                 base_context += f"{context}\n"
             
-            full_message = f"""
+            # System Prompt (JSON Requirement)
+            system_prompt_add = """
+[SYSTEM REMINDER]
+JSON Output Required! 
+Format: {"response": "string", "emotion": "string", "suggestions": ["string", "string"]}
+Key "suggestions": Provide 2-3 short, natural Japanese response options.
+"""
+            
+            # --- BRANCH: VISION MODE (Stateless) ---
+            if image:
+                logging.info("Vision request detected: Using stateless generate_content")
+                
+                # Check for empty or tag-only message
+                # If message is empty or just standard tags, give a default instruction
+                vision_instruction = message
+                if not message or message.strip() in ["[Screen]", "[Clipboard]", ""]:
+                    vision_instruction = "Please analyze this image and describe what you see."
+                elif message.strip().startswith("[") and len(message.strip()) < 20: 
+                     # Heuristic: If short tag-like message, treat as needing description
+                     vision_instruction = f"{message} Please analyze this image."
+
+                # Vision Prompt with Strong Override
+                full_message = f"""
+[Context]
+{base_context}
+
+[Instruction]
+You are currently in **Vision Mode**. You CAN see the attached image.
+Ignore any previous instructions stating you cannot see images.
+Please answer the user's request based on the image.
+
+[User Request]
+{vision_instruction}
+
+{system_prompt_add}
+"""
+                # Disable tools (Search) for Vision
+                run_config = types.GenerateContentConfig(
+                    system_instruction=self.system_instruction,
+                    response_mime_type="text/plain", 
+                    tools=[] 
+                )
+                
+                # Stateless Generation
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[full_message, image],
+                    config=run_config
+                )
+                
+            # --- BRANCH: CHAT MODE (Stateful / Grounding) ---
+            else:
+                # Tools (Grounding) Enable
+                # Enable Grounding for all chat interactions? Or just Smart Talk?
+                # User wants grounding. Enable it.
+                tools = [types.Tool(google_search=types.GoogleSearch())]
+                session = self._get_chat_session(tools=tools)
+
+                full_message = f"""
 [Context/Memory]
 {base_context}
 
 [User Input]
 {message}
 
-[SYSTEM REMINDER]
-JSON Output Required! 
-Key "suggestions": Provide 2-3 short, natural Japanese response options.
+{system_prompt_add}
 """
-            # Send Message
-            # Note: handling history manually might be safer if we format context every time?
-            # But chat session handles it. We inject context into the MESSAGE this time.
-            
-            content = [full_message]
-            if image:
-                content.append(image)
+                # Stateful Send
+                response = session.send_message(full_message)
 
-            response = session.send_message(content)
+            # Common Response Parsing
             raw_text = response.text
             logging.info(f"raw_text: {raw_text}")
             
@@ -119,50 +196,7 @@ Key "suggestions": Provide 2-3 short, natural Japanese response options.
 
         except Exception as e:
             logging.error(f"Generation Error: {e}")
-            # Fallback to Text Mode? (Simplified for now)
             return {"response": f"エラー: {str(e)}", "emotion": "sad", "suggestions": []}
-
-    def generate_proactive_message(self, context=None):
-        """Generates a proactive message (Agent initiates topic) with Grounding."""
-        if not self.api_key:
-            return {"response": "API Key not configured.", "emotion": "neutral", "suggestions": []}
-
-        try:
-            # Enable Grounding
-            tools = [types.Tool(google_search=types.GoogleSearch())]
-            session = self._get_chat_session(tools=tools)
-
-            now = datetime.datetime.now()
-            now_str = now.strftime('%Y-%m-%d %H:%M:%S')
-            base_context = f"Current Time: {now_str}\n"
-            if context:
-                base_context += f"{context}\n"
-
-            full_message = f"""
-[Context]
-{base_context}
-
-[SYSTEM INSTRUCTION]
-User signal: "Talk to me" or Silent.
-Initiate conversation using Grounding tools if relevant.
-"""
-            response = session.send_message(full_message)
-            return self._parse_json_response(response.text)
-
-        except Exception as e:
-            logging.error(f"Proactive Error: {e}")
-            return {"response": "...", "emotion": "neutral", "suggestions": []}
-
-    def _parse_json_response(self, raw_text):
-        try:
-            clean_text = raw_text.strip()
-            if clean_text.startswith("```json"): clean_text = clean_text[7:]
-            if clean_text.startswith("```"): clean_text = clean_text[3:]
-            if clean_text.endswith("```"): clean_text = clean_text[:-3]
-            return json.loads(clean_text)
-        except json.JSONDecodeError:
-            logging.warn(f"JSON Decode Failed: {raw_text}")
-            return {"response": raw_text, "emotion": "neutral", "suggestions": []}
 
     def reset_chat(self):
         self.chat_session = None

@@ -232,9 +232,9 @@
         /* 1. Chat Toggle Button (Green, Mid-Right) */
         #chat-toggle-btn {
             position: absolute;
-            bottom: 80px;
+            bottom: 70px;
             /* Stack Middle */
-            right: 20px;
+            right: 10px;
             /* Aligned */
             width: 50px;
             height: 50px;
@@ -260,9 +260,9 @@
         /* 2. Clock Display (Red/Stylish, Bottom-Left) */
         #clock-display {
             position: absolute;
-            bottom: 30px;
+            bottom: 15px;
             /* Moved up slightly */
-            left: 35px;
+            left: 15px;
             /* Moved in slightly */
             background: rgba(0, 0, 0, 0.6);
             padding: 5px 15px;
@@ -327,9 +327,9 @@
         /* 4. Debug Button (Yellow, Bottom-Right) */
         #debug-btn {
             position: absolute;
-            bottom: 20px;
+            bottom: 10px;
             /* Stack Bottom */
-            right: 20px;
+            right: 10px;
             /* Aligned */
             width: 50px;
             /* Unified Size */
@@ -358,8 +358,8 @@
         /* 5. History Button (Cyan, Next to Debug) */
         #history-btn {
             position: absolute;
-            bottom: 20px;
-            right: 80px;
+            bottom: 10px;
+            right: 70px;
             /* Left of debug btn */
             width: 50px;
             height: 50px;
@@ -1002,9 +1002,9 @@
         /* Force Talk Button (Sparkle, Above Toggle) */
         #force-talk-btn {
             position: absolute;
-            bottom: 140px;
+            bottom: 130px;
             /* Stack Top */
-            right: 20px;
+            right: 10px;
             /* Aligned */
             width: 50px;
             /* Unified Size */
@@ -1178,6 +1178,22 @@
             padding: 10px;
             display: flex;
             align-items: center;
+        }
+
+        /* Input Actions Wrapper (Stacked Buttons) */
+        .input-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Reset margins for stacked buttons */
+        #vision-btn,
+        #suggestion-toggle-btn {
+            margin-right: 0 !important;
+            /* Ensure specific overrides */
         }
 
         /* --- Mobile Optimization (Phase 18) --- */
@@ -1872,9 +1888,11 @@
             </div>
 
             <div id="input-area">
-                <!-- Suggestion UI -->
-                <button id="vision-btn" title="Vision">📷</button>
-                <button id="suggestion-toggle-btn" title="AI Suggestions">💡</button>
+                <!-- Stacked Action Buttons -->
+                <div class="input-actions">
+                    <button id="suggestion-toggle-btn" title="AI Suggestions">💡</button>
+                    <button id="vision-btn" title="Vision">📷</button>
+                </div>
                 <div id="suggestion-popup"></div>
 
 
