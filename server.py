@@ -399,8 +399,8 @@ The user is silent. You want to start a conversation about something NEW and EXC
 
 [Output Requirement]
 - Use your Persona's tone.
-- Keep it concise (2-3 sentences).
-"""
+- Keep it concise usually (2-3 sentences), but provide details if requested.
+- Ask a follow-up question.
         # 4. チャットとして処理
         return self.chat(prompt)
 
