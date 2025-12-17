@@ -57,7 +57,7 @@ class VoiceService:
                 model=model_id,
                 contents=text,
                 config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"], 
+                    response_modalities=["AUDIO"], # CRITICAL: Force AUDIO only
                     speech_config=types.SpeechConfig(
                         voice_config=types.VoiceConfig(
                             prebuilt_voice_config=types.PrebuiltVoiceConfig(

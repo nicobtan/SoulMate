@@ -359,7 +359,8 @@ You MUST respond in the following JSON format:
         return {
             "text": text_to_speak,
             "audio": audio_path,
-            "suggestions": suggestions
+            "suggestions": suggestions,
+            "grounding_info": raw_response.get("grounding_info") if isinstance(raw_response, dict) else None
         }
 
     """Returns list of available personas."""
@@ -604,7 +605,7 @@ class ChangePersonaRequest(BaseModel):
 
 @app.post("/api/persona/change")
 async def change_persona_endpoint(req: ChangePersonaRequest):
-    """Switches the current persona."""
+    # Switches the current persona.
     if not server_api:
         raise HTTPException(status_code=500, detail="Server not initialized")
     
@@ -616,7 +617,7 @@ async def change_persona_endpoint(req: ChangePersonaRequest):
 
 @app.get("/api/history")
 async def get_history_endpoint(limit: int = 50):
-    """Returns recent chat history."""
+    # Returns recent chat history.
     if not server_api:
         raise HTTPException(status_code=500, detail="Server not initialized")
     
@@ -624,7 +625,7 @@ async def get_history_endpoint(limit: int = 50):
 
 @app.get("/api/history/restore")
 async def restore_history_endpoint():
-    """Returns formatted session history for UI restore."""
+    # Returns formatted session history for UI restore.
     if not server_api:
         raise HTTPException(status_code=500, detail="Server not initialized")
     return server_api.restore_history()

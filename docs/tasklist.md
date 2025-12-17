@@ -460,7 +460,7 @@
     - [x] `settings.html`: Implemented dynamic voice list loading via `loadVoices()`.
     - [x] `src/api/settings_api.py`: Updated `get_voice_types` to support provider-specific lists.
 
-## フェーズ40: Gemini 2.5 TTS Integration (Completed)
+## Phase 40: Gemini 2.5 TTS Integration (Completed)
 - [x] **Backend Implementation**
     - [x] `src/services/voice_service.py`: Add `_generate_gemini_audio` using `google-genai` SDK.
     - [x] **Model Update**: Use `gemini-2.5-flash-preview-tts` (Flash 2.5).
@@ -470,3 +470,24 @@
     - [x] `src/api/settings_api.py`: Add Gemini voice list (Kore, Puck, Fenrir, etc.).
 - [x] **UI Polish**
     - [x] **Window Layering**: Fix Settings Window to always stay on top (`on_top=True`).
+
+## Phase 41: Stability & Refactoring (Soul Bubbles & API) [完了]
+- [x] **Soul Bubble Refactoring (Unified Logic)**
+    - [x] **Frontend**: 手動バルーン生成（💭ボタン）を `SoulBubbleManager` に統合。
+        - [x] 自動消滅タイマーの廃止（永続化）。
+        - [x] システム生成バルーンとのデザイン/挙動の統一。
+    - [x] **Backend**: 手動バルーンのステート管理 (`register_manual_bubble`)。
+        - [x] クリック時のアクションID (`MANUAL_...`) を正常に処理するロジック追加。
+- [x] **Critical Bug Fixes**
+    - [x] **Crash Fix**: `Api` クラス（Desktop/Server）の依存関係注入 (`self.services`) 漏れによる `AttributeError` を修正。
+    - [x] **JSON Serialization**: `datetime` オブジェクトが返却された際の `TypeError` を修正 (`isoformat()` 変換)。
+    - [x] **Startup Stability**: `pywebview` 初期化競合 (`showSoulBubble is not defined`) の解消確認。
+
+## Phase 42: Gemini TTS & RAG Stability 対応 [完了]
+- [x] **RAGログの修正 (RAG Logging Fixes)**
+    - [x] **フロントエンド 405エラー修正**: `src/index.ts` のログ送信を `console.log` (Bridge転送) に変更しエラーを解消。
+    - [x] **データ伝播ロジック修正**: `ChatApiMixin` (Desktop) および `server.py` (Server) で `grounding_info` をレスポンスに含めるよう修正。
+    - [x] **検証**: RAGタブに検索クエリとソースURLが表示されることを確認。
+- [x] **Gemini TTS 400エラー修正**
+    - [x] **原因特定**: Gemini TTSモデルがテキスト生成を試みて `INVALID_ARGUMENT` になっていた問題を特定。
+    - [x] **修正適用**: `voice_service.py` のconfigに `response_modalities=["AUDIO"]` を追加し、音声出力のみを強制。

@@ -59,11 +59,19 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **設定機能**:
     - **フォントサイズ**: チャットログの文字の大きさを調整可能。
     - **背景の濃さ**: キャラクター枠の背景透明度をスライダーで調整可能（環境により完全透過しない場合は白背景となります）。
+- **System Log Panel (Debugging & RAG)**:
+    - **概要**: システムの動作状況やAIの思考プロセスを可視化する開発用パネル。
+    - **アクセス**: 画面左下のデバッグボタン(🐞)からトグル表示（画面左側に展開）。
+    - **タブ構成**:
+        - **All**: すべてのログを表示。
+        - **Sys**: システムイベントのみ表示。
+        - **RAG**: 検索エンジン連携時の参照元(Grounding Sources)と検索クエリを表示する専用タブ。
+        - **Dbg**: 詳細デバッグログ。
 - **Soul Bubble (Active UI) [Desktop]**:
     - **概要**: キャラクターが話したい時に頭上に出現する、浮遊するバブル型通知。
-    - **Balloon Button**: 画面右下の💭ボタンから、手動で話題バルーンを生成可能。「何か話して」とリクエストできます。
+    - **Balloon Button**: 画面右下の💭ボタンから、手動で話題バルーンを生成可能。「何か話して」とリクエストできます。(クリックするまで消えません)
     - **挙動**: マウスホバーで内容をプレビュー、クリックで会話を開始します。
-    - **Smart Logic**: 時間帯や曜日、ユーザーの興味・関心に基づいて、AIが自律的に話題を選定します。クリックするとその話題についてGoogle検索を行い、最新情報を交えて会話を始めます。
+    - **Smart Logic**: 時間帯や曜日、ユーザーの興味・関心に基づいて、AIが自律的に話題を選定します。手動リクエスト時もAI状態を考慮したトピックが生成されます。
     - **カテゴリ**: 青(話題)、緑(遊び)、ピンク(好感度)、オレンジ(警告)で直感的に内容を伝えます。
 - **Mobile Mode (Smart Layout)**:
     - **概要**: スマホからのアクセス時に自動適用される最適化レイアウト。
@@ -96,7 +104,7 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **GUI:** HTML/CSS/TypeScript (Frontend)
 - **キャラクター描画:** Live2D Cubism SDK for Web + PixiJS
 - **AIエンジン (Brain):** Gemini API (Agentic Workflow)
-- **音声合成 (Voice):** Google Cloud TTS API / Gemini 2.5 Flash TTS / VOICEVOX (Local)
+- **音声合成 (Voice):** Google Cloud TTS API / **Gemini 2.5 Flash TTS (Preview)** / VOICEVOX (Local)
 - **連携API:** Google Calendar API, Google Docs API
 - **Others:** pywebview (Python-JS Bridge)
 

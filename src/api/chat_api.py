@@ -176,7 +176,8 @@ class ChatApiMixin(BaseApiMixin):
         return {
             "text": response_text,
             "audio": audio_path,
-            "suggestions": suggestions_list
+            "suggestions": suggestions_list,
+            "grounding_info": raw_result.get("grounding_info") if isinstance(raw_result, dict) else None
         }
 
     def chat_with_vision(self, message, mode="screen"):

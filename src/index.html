@@ -557,6 +557,38 @@
             color: #f44;
         }
 
+        /* --- Log Filtering Logic --- */
+        /* Default: Show All if no class, or view-all */
+
+        /* View: Sys (System only) -> Hide rag, dbg */
+        #debug-content.view-sys .cat-rag,
+        #debug-content.view-sys .cat-dbg {
+            display: none;
+        }
+
+        /* View: RAG (RAG only) -> Hide sys, dbg */
+        #debug-content.view-rag .cat-sys,
+        #debug-content.view-rag .cat-dbg {
+            display: none;
+        }
+
+        /* View: Dbg (Debug only) -> Show All or specific? Usually Dbg includes everything or just debug? */
+        /* Let's assume Dbg tab shows EVERYTHING including SYS and RAG for deep debugging, 
+           OR just 'dbg' category? 
+           User request implies 'RAG tab' shows RAG logs. 
+           Let's make each tab exclusive for clarity, or Dbg inclusive.
+           If cat-dbg is used for verbose stuff, maybe Dbg tab shows cat-dbg.
+           Let's stick to exclusive for now based on typical UI patterns. */
+        #debug-content.view-dbg .cat-sys,
+        #debug-content.view-dbg .cat-rag {
+            display: none;
+        }
+
+        /* Ensure RAG items are visible in RAG tab */
+        #debug-content.view-rag .cat-rag {
+            display: block;
+        }
+
 
         /* Chat Panel (B) */
         #right-panel {
@@ -1507,6 +1539,73 @@
                 margin-top: -15px;
             }
         }
+
+        /* --- ここから追加: ログ用タブのスタイル --- */
+        .log-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid #444;
+            flex-shrink: 0;
+        }
+
+        .log-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 0;
+            font-size: 11px;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .log-tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ccc;
+        }
+
+        .log-tab.active {
+            color: #fff;
+            font-weight: bold;
+            border-bottom: 2px solid #0f0;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        /* フィルタリング機能 */
+        #debug-content.view-sys .cat-rag,
+        #debug-content.view-sys .cat-dbg {
+            display: none;
+        }
+
+        #debug-content.view-rag .cat-sys,
+        #debug-content.view-rag .cat-dbg {
+            display: none;
+        }
+
+        #debug-content.view-dbg .cat-sys,
+        #debug-content.view-dbg .cat-rag {
+            display: none;
+        }
+
+        /* カテゴリ別の色 */
+        .cat-sys {
+            border-left: 2px solid #888;
+            padding-left: 5px;
+        }
+
+        .cat-rag {
+            border-left: 2px solid #0f0;
+            padding-left: 5px;
+            color: #cfc;
+        }
+
+        .cat-dbg {
+            border-left: 2px solid #fb0;
+            padding-left: 5px;
+            color: #ffeb3b;
+        }
+
+        /* --- ここまで --- */
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
@@ -1906,10 +2005,17 @@
                 <span id="panel-title">SYSTEM LOGS</span>
                 <span id="close-debug" style="cursor:pointer; color:#888;">x</span>
             </div>
-            <div id="debug-content">
-                <!-- Logs go here -->
+
+            <div id="debug-tabs" class="log-tabs">
+                <div class="log-tab active" data-view="view-all">All</div>
+                <div class="log-tab" data-view="view-sys">Sys</div>
+                <div class="log-tab" data-view="view-rag">RAG</div>
+                <div class="log-tab" data-view="view-dbg">Dbg</div>
             </div>
-            <div id="history-content"></div>
+
+            <div id="debug-content" class="view-all">
+            </div>
+            <div id="history-content" style="display:none;"></div>
         </div>
 
         <!-- Frame A: Character Area (Fixed 500x500) -->

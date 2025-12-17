@@ -348,26 +348,9 @@ window.addEventListener('pywebviewready', () => {
 });
 
 function logToServer(msg: string) {
-    if (window.pywebview && window.pywebview.api && window.pywebview.api.debug_log) {
-        window.pywebview.api.debug_log(msg).catch((e: any) => console.warn("Bridge log failed", e));
-    } else {
-        // Queue if not ready (Desktop Mode)
-        if (!isBridgeReady && !window.location.protocol.startsWith('http')) {
-            logQueue.push(msg);
-            return;
-        }
-
-        // Fallback or Web Mode (Only if actually on a server)
-        if (window.location.protocol.startsWith('http')) {
-            fetch('/api/debug_log', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: msg })
-            }).catch(e => console.warn("Log failed (Fetch Error)", e));
-        } else {
-            console.log("[Client Log]", msg);
-        }
-    }
+    // PyWebview forwards console.log to terminal automatically using Debug=True
+    // formatting to match existing logs
+    console.log("[CLIENT LOG] " + msg);
 }
 
 // Force Talk Logic
@@ -497,6 +480,7 @@ async function triggerForceTalk() {
         let text = "";
         let audio = null;
         let suggestions: string[] = [];
+        let grounding_info = null;
 
         if (typeof response === 'string') {
             text = response;
@@ -504,10 +488,11 @@ async function triggerForceTalk() {
             text = response.text;
             audio = response.audio;
             suggestions = response.suggestions || [];
+            grounding_info = response.grounding_info;
         }
 
         // Output
-        processAIResponse(text, audio);
+        processAIResponse(text, audio, grounding_info);
 
         // Update Suggestions
         updateSuggestions(suggestions);
@@ -589,7 +574,8 @@ const emotions: { [key: string]: string } = {
 };
 
 // --- Response Processing Helper ---
-function processAIResponse(text: string, audio: string | null) {
+// --- Response Processing Helper ---
+function processAIResponse(text: string, audio: string | null, grounding_info: any = null) {
     // --- Detect Emotion Tags ---
     let displayMessage = text;
     let triggeredEmotion = null;
@@ -613,6 +599,39 @@ function processAIResponse(text: string, audio: string | null) {
 
     // Add AI Response (Cleaned)
     addLog(displayMessage, 'ai');
+
+    // --- RAG Logging (Grounding Info) ---
+    if (grounding_info) {
+        console.log("Grounding Info Received:", grounding_info); // Debug
+
+        let ragLog = "**Search Sources:**<br>";
+
+        // Handle Simplified Structure from Backend (ai_engine.py)
+        // Structure: { queries: string[], sources: {title, url}[] }
+        const queries = grounding_info.queries || grounding_info.web_search_queries || [];
+        const sources = grounding_info.sources || [];
+        // Note: Raw Gemini uses grounding_chunks, but backend simplifies it to sources.
+
+        if (queries.length > 0) {
+            ragLog += `<em>Queries: ${queries.join(', ')}</em><br>`;
+        }
+
+        if (sources.length > 0) {
+            sources.forEach((src: any, i: number) => {
+                ragLog += `[${i + 1}] <a href="${src.url}" target="_blank" class="chat-link">${src.title || 'Source'}</a><br>`;
+            });
+        } else if (grounding_info.grounding_chunks) {
+            // Fallback for raw structure if ever passed
+            grounding_info.grounding_chunks.forEach((chunk: any, i: number) => {
+                if (chunk.web) {
+                    ragLog += `[${i + 1}] <a href="${chunk.web.uri}" target="_blank" class="chat-link">${chunk.web.title || 'Source'}</a><br>`;
+                }
+            });
+        }
+
+        // Add to System Log (RAG Tab)
+        addDebugLog(ragLog, 'rag');
+    }
 
     // Play Audio if available
     if (audio) {
@@ -685,10 +704,13 @@ async function sendMessage() {
             text = response.text;
             audio = response.audio;
             suggestions = response.suggestions || [];
+
+            // ★追加: デバッグログ (レスポンスの中身確認)
+            console.log("[DEBUG] API Response:", JSON.stringify(response));
         }
 
         // Output
-        processAIResponse(text, audio);
+        processAIResponse(text, audio, response.grounding_info);
 
         // Update Suggestions
         updateSuggestions(suggestions);
@@ -963,6 +985,17 @@ const leftPanel = document.getElementById('left-panel') as HTMLElement;
 // rightPanel is already defined above
 const debugContent = document.getElementById('debug-content');
 
+// Helper to add logs to specific System Panel tabs
+function addDebugLog(msg: string, type: 'sys' | 'rag' | 'dbg' = 'dbg') {
+    if (debugContent) {
+        const div = document.createElement('div');
+        div.className = `cat-${type}`;
+        div.innerHTML = msg; // allow HTML
+        debugContent.appendChild(div);
+        debugContent.scrollTop = debugContent.scrollHeight;
+    }
+}
+
 // --- Chat Toggle Function (Exposed) ---
 // We expose this so SoulBubble and ForceTalk can open the panel
 (window as any).openChatPanel = async function (open: boolean = true) {
@@ -1052,6 +1085,7 @@ const historyBtn = document.getElementById('history-btn');
 const closeDebugBtn = document.getElementById('close-debug');
 const panelTitle = document.getElementById('panel-title');
 const historyContent = document.getElementById('history-content');
+const debugTabs = document.getElementById('debug-tabs');
 
 let currentActivePanel: 'debug' | 'history' | 'none' = 'none';
 
@@ -1071,15 +1105,18 @@ async function toggleLeftPanel(mode: 'debug' | 'history') {
         uiState.isLogOpen = true;
     }
 
-    // Update UI Content Visibility
-    if (debugContent) debugContent.style.display = (currentActivePanel === 'debug') ? 'block' : 'none';
-    if (historyContent) historyContent.style.display = (currentActivePanel === 'history') ? 'block' : 'none';
+    // UI更新
+    if (debugContent) debugContent.style.display = (mode === 'debug') ? 'block' : 'none';
+    if (historyContent) historyContent.style.display = (mode === 'history') ? 'block' : 'none';
 
-    // Update Header
+    // ★この行を追加: デバッグモードの時だけタブを表示
+    if (debugTabs) debugTabs.style.display = (mode === 'debug') ? 'flex' : 'none';
+
     if (panelTitle) {
-        panelTitle.innerText = (currentActivePanel === 'debug') ? 'SYSTEM LOGS' : 'CHAT HISTORY';
-        panelTitle.style.color = (currentActivePanel === 'debug') ? '#0f0' : '#0ff';
+        panelTitle.innerText = (mode === 'debug') ? 'SYSTEM LOGS' : 'CHAT HISTORY';
+        panelTitle.style.color = (mode === 'debug') ? '#0f0' : '#0ff';
     }
+
 
     // Window Resize Logic
     // Only resize if state changed (Closed <-> Open)
@@ -1166,32 +1203,59 @@ if (historyBtn) historyBtn.addEventListener('click', () => toggleLeftPanel('hist
 // Updated Close Button to just close current
 if (closeDebugBtn) closeDebugBtn.addEventListener('click', () => {
     if (currentActivePanel !== 'none') toggleLeftPanel(currentActivePanel);
+
 });
 
 // 3. Debug Log Content
-function logToDebug(msg: string, type: 'info' | 'warn' | 'error' = 'info') {
+// --- 3. Debug Log Content ---
+
+// カテゴリ定義
+type LogCategory = 'sys' | 'rag' | 'dbg';
+
+// ★修正点1: タブ切り替えロジックを関数「外」に出す（1回だけ実行）
+window.addEventListener('DOMContentLoaded', () => {
+    const tabs = document.querySelectorAll('.log-tab');
+    const debugContent = document.getElementById('debug-content');
+
+    if (tabs && debugContent) {
+        tabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                // UIのアクティブ切り替え
+                tabs.forEach(t => t.classList.remove('active'));
+                (e.target as HTMLElement).classList.add('active');
+
+                // フィルタリング処理
+                const viewMode = (e.target as HTMLElement).dataset.view;
+                if (viewMode) {
+                    debugContent.className = viewMode; // view-all, view-rag 等
+                    debugContent.scrollTop = debugContent.scrollHeight;
+                }
+            });
+        });
+    }
+});
+
+// ★修正点2: logToDebug はログ出力のみに専念
+function logToDebug(msg: string, type: 'info' | 'warn' | 'error' = 'info', category: LogCategory = 'sys') {
+    const debugContent = document.getElementById('debug-content');
     if (!debugContent) return;
 
     const entry = document.createElement('div');
-    entry.className = 'log-entry';
+    entry.className = `log-entry cat-${category}`; // カテゴリクラス付与 (cat-ragなど)
 
-    const timeSpan = document.createElement('span');
-    timeSpan.className = 'log-time';
     const now = new Date();
-    timeSpan.innerText = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+    const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
 
-    const msgSpan = document.createElement('span');
-    msgSpan.className = `log-${type}`;
-    msgSpan.innerText = msg;
+    entry.innerHTML = `
+        <span class="log-time">${timeStr}</span>
+        <span class="log-${type}">${msg}</span>
+    `;
 
-    entry.appendChild(timeSpan);
-    entry.appendChild(msgSpan);
-
-    // Insert at top? or Append? Append usually.
-    debugContent.appendChild(entry);
     debugContent.appendChild(entry);
     debugContent.scrollTop = debugContent.scrollHeight;
 }
+// グローバル公開
+(window as any).logToDebug = logToDebug;
 
 // Global Exposure for Python
 (window as any).logToDebug = logToDebug;
@@ -1307,6 +1371,14 @@ const originalError = console.error;
 
 console.log = (...args) => {
     originalLog(...args);
+    const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
+    // 第3引数に 'dbg' を追加
+    logToDebug(msg, 'info', 'dbg');
+};
+// warn, error も同様に 'dbg' を追加してください
+
+console.log = (...args) => {
+    originalLog(...args);
     // Serialize args
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
     logToDebug(msg, 'info');
@@ -1326,6 +1398,7 @@ console.error = (...args) => {
 
 logToDebug("System initialized.", "info");
 logToDebug("Live2D Engine starting...", "info");
+
 
 
 // --- UI Interaction Logic (Phase 5) ---
@@ -1806,9 +1879,9 @@ function updateStatusDisplay(state: 'Idle' | 'Listening' | 'Thinking' | 'Speakin
 // Ideally replace previous logic or call this from there.
 // Since previous logic was simple, let's override logic in updateStatus if possible or better,
 // Let's hook into existing updateStatus calls.
-// Since I can't easily replace the previous function decl without scrolling up, 
+// Since I can't easily replace the previous function decl without scrolling up,
 // I will just add this new logic and ensure new features use it.
-// Actually, earlier updateStatus was: 
+// Actually, earlier updateStatus was:
 // function updateStatus(text: string, isActive: boolean = true) { ... }
 // I should probably inject a call there if I could.
 // For now, let's just make sure "Thinking..." calls use this if I can find them.
@@ -1820,159 +1893,3 @@ function updateStatusDisplay(state: 'Idle' | 'Listening' | 'Thinking' | 'Speakin
 
 // 3. Balloon Button Logic
 // 3. Balloon Button Logic (Polished)
-// New Topic Data Structure
-interface Topic {
-    text: string;
-    icon: string;
-    category: 'tech' | 'philosophy' | 'news' | 'fun' | 'casual';
-}
-
-const topicList: Topic[] = [
-    // Tech (Science)
-    { text: "核融合発電が実用化されたら世界はどう変わる？", icon: "⚛️", category: "tech" },
-    { text: "ジェイムズ・ウェッブ宇宙望遠鏡の最新の発見について教えて", icon: "🔭", category: "tech" },
-    { text: "量子コンピュータと今のPCの違いを教えて", icon: "💻", category: "tech" },
-    { text: "火星移住計画についてどう思う？", icon: "🚀", category: "tech" },
-    { text: "ダークマターの正体についてどういう説が有力なの？", icon: "🌌", category: "tech" },
-    // Philosophy
-    { text: "「テセウスの船」のパラドックスについてどう思う？", icon: "🧠", category: "philosophy" },
-    { text: "AIに「自由意志」は存在しうると思う？", icon: "🔮", category: "philosophy" },
-    { text: "人間にとっての「幸福」とは何だろう？", icon: "🍀", category: "philosophy" },
-    { text: "「水槽の中の脳」説について語ってみて", icon: "🧪", category: "philosophy" },
-    // News
-    { text: "日本で今話題になっている最新ニュースを教えて", icon: "📰", category: "news" },
-    { text: "最近のテック業界のトレンドは？", icon: "📈", category: "news" },
-    { text: "今週の日本の天気や気候の特徴は？", icon: "🌤️", category: "news" },
-    // Fun (Entertainment/Joke)
-    { text: "今の気分を「俳句」で詠んでみて", icon: "📜", category: "fun" },
-    { text: "何か面白いジョークを言って", icon: "🤣", category: "fun" },
-    { text: "私をRPGの職業に例えると？", icon: "⚔️", category: "fun" },
-    { text: "猫語（語尾がニャ）で可愛く話して", icon: "🐱", category: "fun" },
-    // Casual
-    { text: "今日の調子はどう？", icon: "☕", category: "casual" },
-    { text: "何か褒めて！", icon: "✨", category: "casual" },
-    { text: "最近何か面白い知識をインプットした？", icon: "📚", category: "casual" }
-];
-
-const balloonBtn = document.getElementById('spawn-balloon-btn');
-if (balloonBtn) {
-    balloonBtn.addEventListener('click', async () => {
-        const randomTopic = topicList[Math.floor(Math.random() * topicList.length)];
-        console.log("Requesting Manual Balloon:", randomTopic.category);
-
-        try {
-            // Request VALID bubble from backend (Stateful)
-            const bubble = await api.get_manual_bubble(randomTopic.category, randomTopic.text);
-
-            if (soulBubbleManager && bubble) {
-                // Use standard manager to spawn (Unified Design)
-                // Override text with randomTopic.text just in case, but backend should have echoed it.
-                soulBubbleManager.addBubble(
-                    bubble.category,
-                    bubble.text,
-                    bubble.action_id,
-                    'manual' // custom type if needed for styling, or 'normal'
-                );
-            }
-        } catch (e) {
-            console.error("Failed to spawn manual balloon:", e);
-        }
-    });
-}
-
-// 4. Balloon Logic & Send Trigger
-function createFloatingBalloon(topic: Topic) {
-    const balloon = document.createElement('div');
-    balloon.className = `floating-balloon balloon-${topic.category}`;
-    // Show Icon prominently
-    balloon.innerHTML = `<span class="balloon-icon">${topic.icon}</span>`;
-    balloon.title = topic.text; // Tooltip shows full text
-
-    // Target Container (Always stick to character frame)
-    const container = document.getElementById('soul-bubble-container') || document.getElementById('character-area') || document.body;
-
-    // Position Logic (Relative to 500x500 Container)
-    // Container is approx 500x500. Balloon is 60x60.
-    // We want to keep it inside the bounds.
-    const safeWidth = 500 - 70; // 60px + padding
-    const safeHeight = 500 - 70;
-
-    const x = Math.random() * safeWidth + 10;
-    const y = Math.random() * safeHeight + 10;
-
-    balloon.style.left = `${x}px`;
-    balloon.style.top = `${y}px`;
-
-    // Click Event
-    balloon.addEventListener('click', async (e) => {
-        e.stopPropagation(); // Stop other clicks
-        balloon.remove(); // Pop the balloon
-        await triggerBalloonChat(topic.text);
-    });
-
-    container.appendChild(balloon);
-
-    // Auto-remove after 15s
-    setTimeout(() => { if (balloon.parentElement) balloon.remove(); }, 15000);
-}
-
-// Dedicated Trigger function to fix "No Response" bug
-async function triggerBalloonChat(text: string) {
-    console.log("Balloon Triggered:", text);
-    const inputEl = document.getElementById('chat-input') as HTMLInputElement;
-    if (inputEl) inputEl.value = text;
-
-    // UI Updates: Add User Log
-    // Call local addLog directly
-    addLog(text, 'user');
-
-    // Thinking State (Simulated)
-    const logArea = document.getElementById('chat-log-area');
-    let tempThinkingId: string | null = null;
-
-    // Use local addLog for thinking
-    tempThinkingId = addLog('考え中...', 'ai', true);
-
-    // Update Status
-    if ((window as any).updateStatusDisplay) {
-        (window as any).updateStatusDisplay('Thinking');
-    }
-
-    try {
-        if (window.pywebview) {
-            const response = await window.pywebview.api.chat(text);
-
-            // Remove thinking
-            if (tempThinkingId) removeLog(tempThinkingId);
-
-            // Process Response handling
-            let resText = "";
-            let resAudio = null;
-            let suggestions: string[] = [];
-
-            if (typeof response === 'string') {
-                resText = response;
-            } else {
-                resText = response.text;
-                resAudio = response.audio;
-                suggestions = response.suggestions || [];
-            }
-
-            // Call local processAIResponse directly
-            processAIResponse(resText, resAudio);
-
-            // Update suggestions if function exists
-            if (typeof updateSuggestions === 'function') {
-                updateSuggestions(suggestions);
-            }
-
-        } else {
-            console.error("Pywebview API not found");
-        }
-    } catch (e: any) {
-        console.error("Balloon Chat Error:", e);
-        if (tempThinkingId) removeLog(tempThinkingId);
-        addLog('Error: ' + e.message, 'ai');
-    }
-}
-

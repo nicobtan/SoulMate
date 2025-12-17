@@ -19,6 +19,7 @@ class AIEngine:
         # New SDK chat_session (client.chats.create) maintains its own history.
         
         self.system_instruction = "You are a helpful AI assistant."
+        self.use_search = True # Enable Grounding by default for SoulMate
 
     def configure(self, api_key, model_name=None, system_instruction=None):
         """Configures the AI Engine with new settings."""
@@ -170,10 +171,11 @@ Please answer the user's request based on the image.
                 
             # --- BRANCH: CHAT MODE (Stateful / Grounding) ---
             else:
-                # Tools (Grounding) Enable
-                # Enable Grounding for all chat interactions? Or just Smart Talk?
-                # User wants grounding. Enable it.
-                tools = [types.Tool(google_search=types.GoogleSearch())]
+                # Google Search Toolの設定を確認
+                tools = []
+                if self.use_search: # もし検索機能フラグがあれば
+                    tools = [types.Tool(google_search=types.GoogleSearch())]
+                
                 session = self._get_chat_session(tools=tools)
 
                 full_message = f"""
@@ -185,15 +187,86 @@ Please answer the user's request based on the image.
 
 {system_prompt_add}
 """
-                # Stateful Send
-                response = session.send_message(full_message)
+
+                # Generate content
+                # Tools Config for this turn
+                run_config = None
+                if self.use_search:
+                     # Explicitly pass tools in config to ensure availability
+                     # and override any session defaults if needed.
+                     run_config = types.GenerateContentConfig(
+                         tools=[types.Tool(google_search=types.GoogleSearch())],
+                         response_mime_type="text/plain"
+                     )
+
+                response = session.send_message(
+                    full_message,
+                    config=run_config
+                )
 
             # Common Response Parsing
             raw_text = response.text
             logging.info(f"raw_text: {raw_text}")
-            
-            return self._parse_json_response(raw_text)
 
+            # ★ Grounding (Search) Info Extraction
+            grounding_info = None
+            try:
+                # DEBUG: Inspect the response object structure
+                logging.info(f"[DEBUG] Response Type: {type(response)}")
+                logging.info(f"[DEBUG] Response Candidates: {response.candidates if hasattr(response, 'candidates') else 'No candidates'}")
+                if hasattr(response, 'candidates') and response.candidates:
+                    c0 = response.candidates[0]
+                    logging.info(f"[DEBUG] Candidate 0 vars: {vars(c0)}")
+                    if hasattr(c0, 'grounding_metadata'):
+                        logging.info(f"[DEBUG] Grounding Metadata found: {c0.grounding_metadata}")
+                    else:
+                        logging.info("[DEBUG] No grounding_metadata in Candidate 0")
+
+                # 安全にメタデータにアクセス
+                candidates = getattr(response, 'candidates', [])
+                if candidates and hasattr(candidates[0], 'grounding_metadata'):
+                    gm = candidates[0].grounding_metadata
+                    
+                    if gm: # メタデータ自体がNoneでないか確認
+                        # 1. 検索クエリの取得
+                        queries = []
+                        # hasattrだけでなく、中身がNoneでないことも確認する
+                        if hasattr(gm, 'web_search_queries') and gm.web_search_queries:
+                            queries = [q for q in gm.web_search_queries]
+                        
+                        # 2. 参照ソースの取得
+                        sources = []
+                        if hasattr(gm, 'grounding_chunks') and gm.grounding_chunks:
+                            for chunk in gm.grounding_chunks:
+                                # web情報を持っているか確認
+                                if hasattr(chunk, 'web') and chunk.web:
+                                    sources.append({
+                                        "title": chunk.web.title,
+                                        "url": chunk.web.uri
+                                    })
+                        
+                        # データがあればセット
+                        if queries or sources:
+                            grounding_info = {
+                                "queries": queries,
+                                "sources": sources
+                            }
+                            logging.info(f"[Grounding] Found info: {grounding_info}")
+
+            except Exception as e:
+                logging.warning(f"[Grounding] Extract Error: {e}")
+
+            # レスポンスの構築
+            result = self._parse_json_response(raw_text)
+            
+            # Frontend expects 'text' key (based on user snippet and index.ts)
+            # Map 'response' from JSON to 'text' for frontend compatibility
+            if "response" in result:
+                result["text"] = result["response"]
+            
+            result["grounding_info"] = grounding_info
+            return result
+            
         except Exception as e:
             logging.error(f"Generation Error: {e}")
             return {"response": f"エラー: {str(e)}", "emotion": "sad", "suggestions": []}
