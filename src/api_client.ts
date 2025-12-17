@@ -35,9 +35,9 @@ export class ApiClient {
         }
     }
 
-    async chat_with_vision(text: string): Promise<any> {
+    async chat_with_vision(text: string, mode: string = "screen"): Promise<any> {
         if (this.isDesktop || (window as any).pywebview) {
-            return await (window as any).pywebview.api.chat_with_vision(text);
+            return await (window as any).pywebview.api.chat_with_vision(text, mode);
         } else {
             // Web fallback? Maybe upload image or not supported?
             console.warn("Vision not supported in Web Mode");
@@ -122,8 +122,8 @@ export class ApiClient {
         }
     }
 
-    async get_voice_types(): Promise<any> {
-        if (this.desktopApi) return await this.desktopApi.get_voice_types();
+    async get_voice_types(provider?: string): Promise<any> {
+        if (this.desktopApi) return await this.desktopApi.get_voice_types(provider);
         return [];
     }
 
@@ -209,6 +209,20 @@ export class ApiClient {
                 console.error("Failed to restore history:", e);
             }
             return [];
+        }
+    }
+
+    async get_manual_bubble(category: string, text: string): Promise<any> {
+        if (this.desktopApi && this.desktopApi.get_manual_bubble) {
+            return await this.desktopApi.get_manual_bubble(category, text);
+        } else {
+            // Web Mock
+            return {
+                category,
+                text,
+                action_id: 'MOCK_' + Date.now(),
+                type: 'manual'
+            };
         }
     }
 }

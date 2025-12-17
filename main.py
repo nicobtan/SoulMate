@@ -33,6 +33,7 @@ from src.services.interest_manager import InterestManager
 class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin):
     def __init__(self):
         super().__init__() # Initialize BaseApiMixin attributes
+        self.services = self # Mixin Pattern: API instance itself is the service container
         
         # 1. Core & Services Initialization
         self._config_manager = ConfigManager()
@@ -56,6 +57,15 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         except Exception as e:
             print(f"[System] TTS Init Failed: {e}")
             self.tts_engine = None
+
+        # VOICEVOX Service
+        try:
+            from src.services.voice_service import VoiceService
+            self.voice_service = VoiceService()
+            print("[System] VoiceService initialized.")
+        except Exception as e:
+            print(f"[System] VoiceService Init Failed: {e}")
+            self.voice_service = None
  
         # Active Engine
         self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback)
@@ -141,6 +151,11 @@ You MUST respond in the following JSON format:
                 api_key=api_key, 
                 model_name=model
             )
+            
+            # Pass API Key to VoiceService (for Gemini TTS)
+            if self.voice_service and api_key:
+                self.voice_service.set_api_key(api_key)
+
             print(f"[System] AI Configured: {model} with User Profile")
 
     def force_talk(self):
@@ -218,19 +233,7 @@ The user is silent. You want to start a conversation about something NEW and EXC
                 pass # Treat as raw text
             
             # Speak it
-            out_path = None
-            if self.tts_engine:
-                 voice = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
-                 # Helper to clean text
-                 import re
-                 # Remove simple URLs
-                 clean_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', tts_text)
-                 
-                 out_path = self.tts_engine.generate_voice(
-                     clean_text, 
-                     output_dir=os.path.join(base_dir, 'dist/audio'), 
-                     voice_name=voice
-                 )
+            out_path = self.generate_tts_audio(tts_text)
             
             # Single call to frontend
             audio_arg = f"'{out_path}'" if out_path else "null"

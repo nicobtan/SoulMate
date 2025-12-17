@@ -382,6 +382,33 @@
             transform: scale(1.1);
         }
 
+        /* 6. Balloon Button (White/Thought, Left of History) */
+        #spawn-balloon-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 130px;
+            /* Left of history btn (70+50+10) */
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            color: #fff;
+            font-size: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s;
+            z-index: 5000;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        #spawn-balloon-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
         #debug-btn:hover {
             background: rgba(255, 255, 0, 0.5);
         }
@@ -1414,6 +1441,72 @@
             padding-bottom: 15px;
             /* iOS Home Bar spacing */
         }
+
+        /* --- Phase 43: Balloon Features (Polished) --- */
+        /* Balloon Base */
+        .floating-balloon {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            /* Slightly larger */
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 28px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            animation: floatUp 3s ease-in-out infinite alternate;
+            z-index: 1000;
+            transition: transform 0.2s, box-shadow 0.2s;
+            backdrop-filter: blur(2px);
+        }
+
+        .floating-balloon:hover {
+            transform: scale(1.2);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            z-index: 1001;
+        }
+
+        .floating-balloon:active {
+            transform: scale(0.9);
+        }
+
+        /* Categories Colors */
+        .balloon-tech {
+            background: linear-gradient(135deg, rgba(161, 196, 253, 0.9) 0%, rgba(194, 233, 251, 0.9) 100%);
+            border: 2px solid #5599ff;
+        }
+
+        .balloon-philosophy {
+            background: linear-gradient(135deg, rgba(224, 195, 252, 0.9) 0%, rgba(142, 197, 252, 0.9) 100%);
+            border: 2px solid #9b59b6;
+        }
+
+        .balloon-news {
+            background: linear-gradient(135deg, rgba(255, 154, 158, 0.9) 0%, rgba(254, 207, 239, 0.9) 99%, rgba(254, 207, 239, 0.9) 100%);
+            border: 2px solid #ff6b6b;
+        }
+
+        .balloon-fun {
+            background: linear-gradient(135deg, rgba(246, 211, 101, 0.9) 0%, rgba(253, 160, 133, 0.9) 100%);
+            border: 2px solid #f39c12;
+        }
+
+        .balloon-casual {
+            background: linear-gradient(135deg, rgba(132, 250, 176, 0.9) 0%, rgba(143, 211, 244, 0.9) 100%);
+            border: 2px solid #2ecc71;
+        }
+
+        @keyframes floatUp {
+            from {
+                margin-top: 0;
+            }
+
+            to {
+                margin-top: -15px;
+            }
+        }
     </style>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
@@ -1866,6 +1959,8 @@
             <!-- 5. History Button (Systematic Position) -->
             <div id="history-btn" title="View History">📖</div>
 
+            <!-- 6. Balloon Button (New) -->
+            <div id="spawn-balloon-btn" title="Talk about something">💭</div>
         </div>
 
         <!-- Frame B: Chat Panel (Side by Side) -->

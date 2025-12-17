@@ -14,6 +14,45 @@ class ChatApiMixin(BaseApiMixin):
             return self._ai_engine.configure(api_key) is not None
         return False
 
+    def generate_tts_audio(self, text):
+        """Helper to generate audio using configured provider (VOICEVOX or Google)."""
+        if not self._config_manager:
+            return None
+            
+        settings = self._config_manager.get_all()
+        provider = settings.get('tts_provider', 'voicevox')
+        voice_name = settings.get('voice_type', '3')
+        base_dir = self._config_manager.base_dir
+        
+        # Clean Text
+        tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+        tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
+        tts_text = tts_text.replace('*', '')
+        
+        if not tts_text.strip():
+            return None
+            
+        try:
+            # VoiceService Check (VOICEVOX or Gemini)
+            if provider in ['voicevox', 'gemini'] and getattr(self, 'voice_service', None):
+                 # For Gemini, we trust validation is done in VoiceService or Settings
+                 return self.voice_service.generate_voice(tts_text.strip(), voice_name=voice_name, provider=provider)
+            
+            # Google Fallback
+            elif getattr(self, 'tts_engine', None):
+                 if provider == 'google' and len(str(voice_name)) < 3:
+                     voice_name = 'ja-JP-Neural2-B'
+                     
+                 return self.tts_engine.generate_voice(
+                    tts_text, 
+                    output_dir=os.path.join(base_dir, 'dist/audio'), 
+                    voice_name=voice_name
+                )
+        except Exception as e:
+            self.log_to_debug(f"TTS Error: {e}", 'error')
+            return None
+
+
     def chat(self, message):
         """Sends a message to the AI Engine and returns the response object {text, audio}."""
         # Log input
@@ -129,22 +168,7 @@ class ChatApiMixin(BaseApiMixin):
             self._memory_manager.log_interaction(message, response_text, current_persona)
         
         # TTS
-        audio_path = None
-        if self.tts_engine and self._config_manager:
-            voice_name = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
-            base_dir = self._config_manager.base_dir
-            tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
-            # Try to filter out [ACTION] tags if remaining
-            tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
-            # Filter out asterisks (*) used for emphasis/actions
-            tts_text = tts_text.replace('*', '')
-            
-            if tts_text.strip():
-                audio_path = self.tts_engine.generate_voice(
-                    tts_text, 
-                    output_dir=os.path.join(base_dir, 'dist/audio'), 
-                    voice_name=voice_name
-                )
+        audio_path = self.generate_tts_audio(response_text)
         
         # Append Static Suggestion
         suggestions_list.append("別の話題はある？")
@@ -155,26 +179,65 @@ class ChatApiMixin(BaseApiMixin):
             "suggestions": suggestions_list
         }
 
-    def chat_with_vision(self, message):
-        """Captures a screenshot and sends it with the message to the AI Engine."""
-        self.log_to_debug(f"Vision Chat Received: {message}", 'info')
+    def chat_with_vision(self, message, mode="screen"):
+        """Captures a screenshot or clipboard and sends it with the message to the AI Engine."""
+        self.log_to_debug(f"Vision Chat Received: {message} Mode: {mode}", 'info')
         
-        # Capture Screenshot
+        # Capture Logic
+        image = None
+        img_str = None
+        
         try:
-            image = ImageGrab.grab()
-            # Optional: Resize to avoid huge payloads if needed, 
-            # but Gemini Flash Lite handles standard Desktop res fine.
-            self.log_to_debug("Screenshot captured.", 'info')
+            if mode == "clipboard":
+                # Windows: grabclipboard() returns Image or list of filenames
+                image = ImageGrab.grabclipboard()
+                if image is None:
+                    return {
+                        "text": "クリップボードに画像が見当たりません。\nWin+Shift+S (領域指定) や Alt+PrtSc (ウィンドウ) でコピーしてから、もう一度右クリックしてください。", 
+                        "audio": None, 
+                        "suggestions": []
+                    }
+                if isinstance(image, list):
+                    # Handle file paths in clipboard
+                    from PIL import Image
+                    try:
+                        image = Image.open(image[0])
+                    except:
+                         return {"text": "画像ファイルをコピーしたようですね。現在は画像データのコピーのみ対応しています。", "audio": None, "suggestions": []}
+            else:
+                # Screen (Default)
+                # Try all_screens=True if supported by this Pillow version, else fallback
+                try:
+                    image = ImageGrab.grab(all_screens=True)
+                except TypeError:
+                    image = ImageGrab.grab()
+                self.log_to_debug("Screenshot captured.", 'info')
+            
+            # Process Image for Return (Display)
+            if image:
+                from io import BytesIO
+                import base64
+                buffered = BytesIO()
+                # Optimize: RGB conversion just in case (e.g. RGBA from screenshot)
+                if image.mode in ("RGBA", "P"):
+                    image = image.convert("RGB")
+                    
+                image.save(buffered, format="JPEG", quality=70) # Lightweight
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
         except Exception as e:
-            self.log_to_debug(f"Screenshot Failed: {e}", 'error')
-            return {"text": "画面のキャプチャに失敗しました。", "audio": None, "suggestions": []}
+            self.log_to_debug(f"Capture Failed: {e}", 'error')
+            return {"text": f"画像の取得に失敗しました: {e}", "audio": None, "suggestions": []}
+            
+        if not image:
+             return {"text": "画像の取得に失敗しました。", "audio": None, "suggestions": []}
 
         # Update Active Engine Interaction Time
         if self.active_engine:
             self.active_engine.update_interaction()
 
-        # Context (RAG is less relevant for Vision usually, but can keep it)
-        context = "[System: User sent a screenshot of their screen. Analyze it along with the input.]"
+        # Context
+        context = f"[System: User is showing an image ({mode}). Analyze it along with the input.]"
         
         # Generate Response
         response_text = ""
@@ -203,24 +266,12 @@ class ChatApiMixin(BaseApiMixin):
             response_text = "AI Engine is not initialized."
             
         # TTS
-        audio_path = None
-        if self.tts_engine and self._config_manager:
-            voice_name = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
-            base_dir = self._config_manager.base_dir
-            tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
-            tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
-            tts_text = tts_text.replace('*', '')
-            
-            if tts_text.strip():
-                audio_path = self.tts_engine.generate_voice(
-                    tts_text, 
-                    output_dir=os.path.join(base_dir, 'dist/audio'), 
-                    voice_name=voice_name
-                )
+        audio_path = self.generate_tts_audio(response_text)
         
         return {
             "text": response_text,
             "audio": audio_path,
+            "image": img_str,
             "suggestions": suggestions_list
         }
 
@@ -285,20 +336,7 @@ class ChatApiMixin(BaseApiMixin):
             self._memory_manager.log_interaction("[System:ForceTalk]", response_text, current_persona)
             
         # TTS
-        if self.tts_engine and self._config_manager:
-            voice_name = self._config_manager.get('voice_type', 'ja-JP-Neural2-B')
-            base_dir = self._config_manager.base_dir
-            tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', response_text)
-            tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
-            # Filter out asterisks (*) used for emphasis/actions
-            tts_text = tts_text.replace('*', '')
-            
-            if tts_text.strip():
-                audio_path = self.tts_engine.generate_voice(
-                    tts_text, 
-                    output_dir=os.path.join(base_dir, 'dist/audio'), 
-                    voice_name=voice_name
-                )
+        audio_path = self.generate_tts_audio(response_text)
         
         # Static Suggestion
         suggestions_list.append("別の話題はある？")
@@ -345,4 +383,14 @@ Output ONLY the suggested text.
         """Retrieves chat history via MemoryManager."""
         if self._memory_manager:
             return self._memory_manager.get_recent_history(limit=limit)
-        return []
+    def trigger_bubble_action(self, action_id):
+        if not hasattr(self.services, 'bubble_service') or not self.services.bubble_service:
+            # Fallback for now if service missing or mock
+            return {'status': 'ignored'}
+        return self.services.bubble_service.handle_action(action_id)
+
+    def get_manual_bubble(self, category, text):
+        """Allows frontend to request a valid bubble packet for manual spawning."""
+        if not hasattr(self.services, 'bubble_service') or not self.services.bubble_service:
+            return {'status': 'error', 'message': 'Service unavailable'}
+        return self.services.bubble_service.register_manual_bubble(category, text)

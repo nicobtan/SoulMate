@@ -16,6 +16,9 @@ from src.services.memory_manager import MemoryManager
 from src.services.history_manager import HistoryManager
 # from src.services.active_engine import ActiveEngine # Optional
 from src.services.tts_engine import TTSEngine
+from src.services.voice_service import VoiceService # [NEW]
+
+
 
 from src.api.base import BaseApiMixin
 from src.api.chat_api import ChatApiMixin
@@ -28,6 +31,9 @@ logger = logging.getLogger("server")
 
 from src.services.user_manager import UserManager
 import re
+from PIL import ImageGrab
+import io
+import base64
 
 def extract_json_from_text(text):
     """
@@ -89,6 +95,7 @@ def extract_json_from_text(text):
 class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
     def __init__(self):
         self._window = None # No GUI
+        self.services = self # Mixin Pattern: API instance itself is the service container
         self._config_manager = ConfigManager()
         self._ai_engine = AIEngine()
         self.calendar_manager = CalendarManager()
@@ -136,6 +143,14 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         except Exception as e:
             logger.error(f"TTS Init Failed: {e}")
             self.tts_engine = None
+            
+        # Init VOICEVOX Integration
+        try:
+            self.voice_service = VoiceService()
+            logger.info("VoiceService initialized.")
+        except Exception as e:
+            logger.error(f"VoiceService Init Failed: {e}")
+            self.voice_service = None
 
 
         # Configure AI
@@ -190,6 +205,10 @@ You MUST respond in the following JSON format:
     "response": "Your spoken response text here.",
     "suggestions": ["Option 1", "Option 2", "Option 3"]
 }
+
+[Output Requirement]
+- Use your Persona's tone.
+- Keep it concise usually (2-3 sentences), but provide details if requested.
 """
         
         # 5. Combine All
@@ -204,11 +223,15 @@ You MUST respond in the following JSON format:
             self._ai_engine.set_system_prompt(full_system_prompt)
             
             # Configure Key/Model
+            # Configure Key/Model
             self._ai_engine.configure(
                 api_key=api_key, 
                 model_name=model
             )
-            logger.info(f"AI Configured: {model} with User Profile")
+            
+            # Pass API Key to VoiceService (for Gemini TTS)
+            if self.voice_service and api_key:
+                self.voice_service.set_api_key(api_key)
 
             logger.info(f"AI Configured: {model} with User Profile")
 
@@ -273,24 +296,60 @@ You MUST respond in the following JSON format:
 
         # 3. 音声生成
         audio_path = None
-        if self.tts_engine:
-            try:
-                # URLなどを除去してクリーンにする
-                import re
-                clean_text = re.sub(r'http[s]?://\S+', '', text_to_speak)
-                # 音声生成
-                voice = self.config_manager.get('voice_type', 'ja-JP-Neural2-B')
-                output_dir = os.path.join(os.getcwd(), 'dist/audio')
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
-                    
-                audio_path = self.tts_engine.generate_voice(
+        
+        # Determine Provider
+        # ConfigManager is accessed via self.config_manager (inherited or assigned? It's assigned in __init__)
+        # But wait, HeadlessApi inherits SettingsApiMixin which uses self._config_manager.
+        # Check __init__: self._config_manager = ConfigManager()
+        # So use self._config_manager.
+        
+        settings = self._config_manager.get_all()
+        provider = settings.get('tts_provider', 'voicevox') 
+        
+        # DEBUG LOGGING (Temporary)
+        logger.info(f"[TTS DEBUG] Provider: {provider}, VoiceService Available: {self.voice_service is not None}")
+        
+        try:
+            # URLなどを除去してクリーンにする
+            import re
+            clean_text = re.sub(r'http[s]?://\S+', '', text_to_speak)
+            
+            # Common Output Dir
+            output_dir = os.path.join(os.getcwd(), 'dist/audio')
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            if provider == 'voicevox' and self.voice_service:
+                voice = settings.get('voice_type', '3') # Default Zundamon
+                logger.info(f"Generating VOICEVOX audio (Speaker: {voice})...")
+                audio_path = self.voice_service.generate_voice(clean_text, voice_name=voice)
+                
+                # Check for None result (VoiceService error caught internally)
+                if audio_path is None:
+                    logger.error("VOICEVOX generation returned None.")
+                
+            elif self.tts_engine:
+                 # Default Google (or if provider is google)
+                 if provider != 'google' and provider != 'voicevox':
+                     logger.warning(f"Unknown provider {provider}, falling back to Google.")
+                     
+                 voice = settings.get('voice_type', 'ja-JP-Neural2-B')
+                 # If switching from Voicevox (int ID) to Google (string ID), this might fail if ID is '3'.
+                 # We need to ensure voice_type matches the provider.
+                 # The frontend should handle setting the correct ID.
+                 # But if we just switched, it might be wrong.
+                 # Safety check:
+                 if provider == 'google' and len(str(voice)) < 3: # Assuming Google IDs are long
+                     voice = 'ja-JP-Neural2-B'
+                 
+                 logger.info(f"Generating Google TTS audio (Voice: {voice})...")
+                 audio_path = self.tts_engine.generate_voice(
                     clean_text, 
                     output_dir=output_dir, 
                     voice_name=voice
                 )
-            except Exception as e:
-                logger.error(f"TTS Error: {e}")
+        except Exception as e:
+            logger.error(f"TTS Error ({provider}): {e}")
 
         # 4. Return Data
         # 履歴保存（HistoryManagerの呼び出し）

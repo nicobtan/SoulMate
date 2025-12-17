@@ -11,11 +11,12 @@
         }
     },
     "current_persona_file": "default.yaml",
-    "voice_type": "ja-JP-Standard-A",
+    "voice_type": "Aoede",
     "bg_opacity": 81,
     "model_name": "gemini-2.5-flash-lite",
     "window_x": 666,
     "window_y": 522,
     "active_talk_interval": 5,
-    "max_balloons": 5
+    "max_balloons": 5,
+    "tts_provider": "gemini"
 }

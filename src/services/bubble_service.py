@@ -58,7 +58,7 @@ class BubbleService:
         else: season = "winter"
         
         return {
-            "now": now,
+            "now": now.isoformat(), # Fixed: Convert to string for JSON serialization
             "slot": slot,
             "weekday": weekday,
             "season": season,
@@ -255,6 +255,28 @@ class BubbleService:
             self._startup_mode = False # Startup burst done
             
         return new_bubbles
+
+    def register_manual_bubble(self, category, text):
+        """
+        Manually register a bubble from frontend (e.g. Topic Button).
+        Returns the bubble packet including a valid Action ID.
+        """
+        ctx = self._get_time_context()
+        # Generate ID
+        action_id = f"MANUAL_{ctx['weekday'].upper()}_{random.randint(10000,99999)}"
+        
+        packet = {
+            "category": category,
+            "text": text,
+            "action_id": action_id,
+            "metadata": ctx,
+            "type": "manual"
+        }
+        
+        # Store in active list so handle_action can find it
+        self._active_bubbles[action_id] = packet
+        logger.info(f"[System] Manual Bubble Registered: {text} ({action_id})")
+        return packet
 
     # Wrapper for backward compatibility
     def get_test_bubble(self):

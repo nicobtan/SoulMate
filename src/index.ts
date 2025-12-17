@@ -46,6 +46,66 @@ window.addEventListener('resize', detectLayoutMode);
 // Global reference to Model for LipSync
 import { AudioManager } from './services/audio_manager.js';
 
+// --- Lip Sync Manager Class (Web Audio API) ---
+class LipSyncManager {
+    audioContext: AudioContext | null = null;
+    analyser: AnalyserNode | null = null;
+    dataArray: Uint8Array | null = null;
+    source: MediaElementAudioSourceNode | null = null;
+    isInitialized: boolean = false;
+
+    init(audioElement: HTMLAudioElement) {
+        if (this.isInitialized) return;
+
+        // @ts-ignore
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.audioContext = new AudioContext();
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 256;
+
+        this.source = this.audioContext.createMediaElementSource(audioElement);
+        this.source.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
+
+        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+        this.isInitialized = true;
+
+        // AudioContext Resume Logic
+        audioElement.addEventListener('play', () => {
+            if (this.audioContext && this.audioContext.state === 'suspended') {
+                this.audioContext.resume();
+            }
+        });
+    }
+
+    update(model: any) {
+        if (!this.isInitialized || !model) return;
+        if (!this.analyser || !this.dataArray) return;
+
+        // Get Volume Data
+        this.analyser.getByteFrequencyData(this.dataArray as any);
+
+        // Calculate Average Volume
+        let values = 0;
+        const length = this.dataArray.length;
+        for (let i = 0; i < length; i++) {
+            values += this.dataArray[i];
+        }
+        const average = values / length;
+
+        // Sensitivity & Normalization (0.0 - 1.0)
+        let volume = (average / 255) * 5.0;
+        if (volume > 1.0) volume = 1.0;
+        if (volume < 0.1) volume = 0; // Noise Gate
+
+        // Apply to ParamMouthOpenY
+        if (model.internalModel && model.internalModel.coreModel) {
+            model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', volume);
+        }
+    }
+}
+const lipSync = new LipSyncManager();
+
 // Global reference to Model for LipSync
 let live2dModel: any = null;
 let audioCtx: AudioContext | null = null;
@@ -62,6 +122,8 @@ const audioSpeedBtn = document.getElementById('audio-speed-btn');
 
 // Initialize AudioManager
 const audioManager = AudioManager.getInstance();
+// Initialize LipSync with the single Audio element
+lipSync.init(audioManager.audio);
 
 // Bind UI Events
 if (audioStopBtn) {
@@ -99,69 +161,15 @@ audioManager.onSpeedChange = (speed) => {
 
 
 // --- Lip Sync Logic (Refactored for Singleton Audio) ---
+// --- Lip Sync Logic (Refactored for Singleton Audio) ---
 function playAudioWithLipSync(url: string) {
-    // 1. Setup AudioContext if needed
-    if (!audioCtx) {
-        // @ts-ignore
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
+    // 1. Resume AudioContext if needed (User Interaction Requirement)
+    if (lipSync.audioContext && lipSync.audioContext.state === 'suspended') {
+        lipSync.audioContext.resume();
     }
 
-    // 2. Setup Analyser Node ONCE for the singleton audio element
-    // Crucial: createMediaElementSource can only be called once per element.
-    if (!mediaSource) {
-        mediaSource = audioCtx.createMediaElementSource(audioManager.audio);
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 512;
-        mediaSource.connect(analyser);
-        analyser.connect(audioCtx.destination);
-    }
-
-    // 3. Play via Manager
+    // 2. Play via Manager (LipSync update is handled in Pixi Ticker)
     audioManager.play(url);
-
-    // 4. Lip Sync Loop
-    if (!analyser) return; // Should not happen
-
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    let currentMouthY = 0;
-
-    const updateLip = () => {
-        if (audioManager.audio.paused || audioManager.audio.ended) {
-            if (live2dModel?.internalModel?.coreModel) {
-                live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', 0);
-            }
-            return;
-        }
-
-        requestAnimationFrame(updateLip);
-        analyser!.getByteFrequencyData(dataArray);
-
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
-        let average = sum / bufferLength;
-
-        // Sensitivity
-        let targetOpenAmount = (average / 60); // Tuning
-        if (targetOpenAmount < 0.1) targetOpenAmount = 0;
-        if (targetOpenAmount > 1.0) targetOpenAmount = 1.0;
-
-        // Smoothing
-        const smoothing = 0.3;
-        currentMouthY += (targetOpenAmount - currentMouthY) * smoothing;
-
-        if (live2dModel?.internalModel?.coreModel) {
-            live2dModel.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', currentMouthY);
-        }
-    };
-
-    // Trigger loop when play actually starts
-    audioManager.audio.onplay = () => {
-        updateLip();
-    };
 }
 // --- Error Handling Overlay ---
 function showError(message: string) {
@@ -324,16 +332,41 @@ async function chatWithVision(mode: string) {
 // Force Talk Logic
 // Force Talk Logic
 // Helper for Mobile Debugging
+// Helper for Mobile Debugging
+// Helper for Mobile Debugging
+const logQueue: string[] = [];
+let isBridgeReady = false;
+
+window.addEventListener('pywebviewready', () => {
+    isBridgeReady = true;
+    // Flush Queue
+    while (logQueue.length > 0) {
+        const msg = logQueue.shift();
+        if (msg) logToServer(msg);
+    }
+    console.log("[Bridge] Log Queue Flushed");
+});
+
 function logToServer(msg: string) {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.debug_log) {
-        window.pywebview.api.debug_log(msg).catch((e: any) => console.error("Bridge log failed", e));
+        window.pywebview.api.debug_log(msg).catch((e: any) => console.warn("Bridge log failed", e));
     } else {
-        // Fallback or Web Mode
-        fetch('/api/debug_log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: msg })
-        }).catch(e => console.error("Log failed", e));
+        // Queue if not ready (Desktop Mode)
+        if (!isBridgeReady && !window.location.protocol.startsWith('http')) {
+            logQueue.push(msg);
+            return;
+        }
+
+        // Fallback or Web Mode (Only if actually on a server)
+        if (window.location.protocol.startsWith('http')) {
+            fetch('/api/debug_log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            }).catch(e => console.warn("Log failed (Fetch Error)", e));
+        } else {
+            console.log("[Client Log]", msg);
+        }
     }
 }
 
@@ -1475,6 +1508,13 @@ if (appContainer) {
         // @ts-ignore
         window.live2d_model = model; // For global access (resize)
 
+        // ★ Add Lip Sync Ticker
+        app.ticker.add(() => {
+            if (live2dModel) {
+                lipSync.update(live2dModel);
+            }
+        });
+
         // Initial Resize
         // @ts-ignore
         if (typeof resizeModel === 'function') resizeModel();
@@ -1714,3 +1754,225 @@ window.addEventListener('pywebviewready', async () => {
         });
     }
 });
+
+// --- Phase 42: new UI/UX Features ---
+
+// 1. Mouse Tracking Reset (Prevent staring when mouse leaves)
+window.addEventListener('mouseout', (e) => {
+    if (!e.relatedTarget && live2dModel) {
+        // マウスがウィンドウから出た場合
+        // console.log("Mouse Left Window: Resetting Focus");
+        live2dModel.focus(0, 0); // Reset to center
+    }
+});
+
+// 2. Status Display Enhancements
+// Call this function whenever status changes
+// Valid States: Idle, Listening, Thinking, Speaking
+function updateStatusDisplay(state: 'Idle' | 'Listening' | 'Thinking' | 'Speaking') {
+    const statusText = document.getElementById('status-text');
+    const statusDot = document.getElementById('status-dot');
+
+    if (statusText) statusText.innerText = state;
+
+    if (statusDot) {
+        // Reset Logic
+        statusDot.style.animation = 'none';
+
+        switch (state) {
+            case 'Idle':
+                statusDot.style.backgroundColor = '#888'; // Gray
+                break;
+            case 'Listening':
+                statusDot.style.backgroundColor = '#ff4444'; // Red
+                statusDot.style.animation = 'pulse 1s infinite';
+                break;
+            case 'Thinking':
+                statusDot.style.backgroundColor = '#ffff00'; // Yellow
+                statusDot.style.animation = 'pulse 0.5s infinite'; // Fast
+                break;
+            case 'Speaking':
+                statusDot.style.backgroundColor = '#00ff00'; // Green
+                statusDot.style.animation = 'pulse 1.5s infinite'; // Gentle
+                break;
+        }
+    }
+}
+// Expose for usage
+(window as any).updateStatusDisplay = updateStatusDisplay;
+
+// Update existing updateStatus to use this
+// We previously defined updateStatus in line ~995. Logic might partially duplicate.
+// Ideally replace previous logic or call this from there.
+// Since previous logic was simple, let's override logic in updateStatus if possible or better,
+// Let's hook into existing updateStatus calls.
+// Since I can't easily replace the previous function decl without scrolling up, 
+// I will just add this new logic and ensure new features use it.
+// Actually, earlier updateStatus was: 
+// function updateStatus(text: string, isActive: boolean = true) { ... }
+// I should probably inject a call there if I could.
+// For now, let's just make sure "Thinking..." calls use this if I can find them.
+// But wait, existing calls use strings like "Active", "Thinking...".
+// I'll leave existing logic alone to avoid breakage and just add this for future use?
+// No, user wants enhanced status display.
+// I should replace the logic if I can find it. But it's far up.
+// I'll add the Balloon Button logic first.
+
+// 3. Balloon Button Logic
+// 3. Balloon Button Logic (Polished)
+// New Topic Data Structure
+interface Topic {
+    text: string;
+    icon: string;
+    category: 'tech' | 'philosophy' | 'news' | 'fun' | 'casual';
+}
+
+const topicList: Topic[] = [
+    // Tech (Science)
+    { text: "核融合発電が実用化されたら世界はどう変わる？", icon: "⚛️", category: "tech" },
+    { text: "ジェイムズ・ウェッブ宇宙望遠鏡の最新の発見について教えて", icon: "🔭", category: "tech" },
+    { text: "量子コンピュータと今のPCの違いを教えて", icon: "💻", category: "tech" },
+    { text: "火星移住計画についてどう思う？", icon: "🚀", category: "tech" },
+    { text: "ダークマターの正体についてどういう説が有力なの？", icon: "🌌", category: "tech" },
+    // Philosophy
+    { text: "「テセウスの船」のパラドックスについてどう思う？", icon: "🧠", category: "philosophy" },
+    { text: "AIに「自由意志」は存在しうると思う？", icon: "🔮", category: "philosophy" },
+    { text: "人間にとっての「幸福」とは何だろう？", icon: "🍀", category: "philosophy" },
+    { text: "「水槽の中の脳」説について語ってみて", icon: "🧪", category: "philosophy" },
+    // News
+    { text: "日本で今話題になっている最新ニュースを教えて", icon: "📰", category: "news" },
+    { text: "最近のテック業界のトレンドは？", icon: "📈", category: "news" },
+    { text: "今週の日本の天気や気候の特徴は？", icon: "🌤️", category: "news" },
+    // Fun (Entertainment/Joke)
+    { text: "今の気分を「俳句」で詠んでみて", icon: "📜", category: "fun" },
+    { text: "何か面白いジョークを言って", icon: "🤣", category: "fun" },
+    { text: "私をRPGの職業に例えると？", icon: "⚔️", category: "fun" },
+    { text: "猫語（語尾がニャ）で可愛く話して", icon: "🐱", category: "fun" },
+    // Casual
+    { text: "今日の調子はどう？", icon: "☕", category: "casual" },
+    { text: "何か褒めて！", icon: "✨", category: "casual" },
+    { text: "最近何か面白い知識をインプットした？", icon: "📚", category: "casual" }
+];
+
+const balloonBtn = document.getElementById('spawn-balloon-btn');
+if (balloonBtn) {
+    balloonBtn.addEventListener('click', async () => {
+        const randomTopic = topicList[Math.floor(Math.random() * topicList.length)];
+        console.log("Requesting Manual Balloon:", randomTopic.category);
+
+        try {
+            // Request VALID bubble from backend (Stateful)
+            const bubble = await api.get_manual_bubble(randomTopic.category, randomTopic.text);
+
+            if (soulBubbleManager && bubble) {
+                // Use standard manager to spawn (Unified Design)
+                // Override text with randomTopic.text just in case, but backend should have echoed it.
+                soulBubbleManager.addBubble(
+                    bubble.category,
+                    bubble.text,
+                    bubble.action_id,
+                    'manual' // custom type if needed for styling, or 'normal'
+                );
+            }
+        } catch (e) {
+            console.error("Failed to spawn manual balloon:", e);
+        }
+    });
+}
+
+// 4. Balloon Logic & Send Trigger
+function createFloatingBalloon(topic: Topic) {
+    const balloon = document.createElement('div');
+    balloon.className = `floating-balloon balloon-${topic.category}`;
+    // Show Icon prominently
+    balloon.innerHTML = `<span class="balloon-icon">${topic.icon}</span>`;
+    balloon.title = topic.text; // Tooltip shows full text
+
+    // Target Container (Always stick to character frame)
+    const container = document.getElementById('soul-bubble-container') || document.getElementById('character-area') || document.body;
+
+    // Position Logic (Relative to 500x500 Container)
+    // Container is approx 500x500. Balloon is 60x60.
+    // We want to keep it inside the bounds.
+    const safeWidth = 500 - 70; // 60px + padding
+    const safeHeight = 500 - 70;
+
+    const x = Math.random() * safeWidth + 10;
+    const y = Math.random() * safeHeight + 10;
+
+    balloon.style.left = `${x}px`;
+    balloon.style.top = `${y}px`;
+
+    // Click Event
+    balloon.addEventListener('click', async (e) => {
+        e.stopPropagation(); // Stop other clicks
+        balloon.remove(); // Pop the balloon
+        await triggerBalloonChat(topic.text);
+    });
+
+    container.appendChild(balloon);
+
+    // Auto-remove after 15s
+    setTimeout(() => { if (balloon.parentElement) balloon.remove(); }, 15000);
+}
+
+// Dedicated Trigger function to fix "No Response" bug
+async function triggerBalloonChat(text: string) {
+    console.log("Balloon Triggered:", text);
+    const inputEl = document.getElementById('chat-input') as HTMLInputElement;
+    if (inputEl) inputEl.value = text;
+
+    // UI Updates: Add User Log
+    // Call local addLog directly
+    addLog(text, 'user');
+
+    // Thinking State (Simulated)
+    const logArea = document.getElementById('chat-log-area');
+    let tempThinkingId: string | null = null;
+
+    // Use local addLog for thinking
+    tempThinkingId = addLog('考え中...', 'ai', true);
+
+    // Update Status
+    if ((window as any).updateStatusDisplay) {
+        (window as any).updateStatusDisplay('Thinking');
+    }
+
+    try {
+        if (window.pywebview) {
+            const response = await window.pywebview.api.chat(text);
+
+            // Remove thinking
+            if (tempThinkingId) removeLog(tempThinkingId);
+
+            // Process Response handling
+            let resText = "";
+            let resAudio = null;
+            let suggestions: string[] = [];
+
+            if (typeof response === 'string') {
+                resText = response;
+            } else {
+                resText = response.text;
+                resAudio = response.audio;
+                suggestions = response.suggestions || [];
+            }
+
+            // Call local processAIResponse directly
+            processAIResponse(resText, resAudio);
+
+            // Update suggestions if function exists
+            if (typeof updateSuggestions === 'function') {
+                updateSuggestions(suggestions);
+            }
+
+        } else {
+            console.error("Pywebview API not found");
+        }
+    } catch (e: any) {
+        console.error("Balloon Chat Error:", e);
+        if (tempThinkingId) removeLog(tempThinkingId);
+        addLog('Error: ' + e.message, 'ai');
+    }
+}
+

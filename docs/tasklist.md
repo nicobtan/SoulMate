@@ -450,3 +450,23 @@
     - [x] Right-side buttons (Settings, Debug, History, Toggle) tightened to bottom-right corner.
     - [x] **Initialization Fix**: Force window resize to 500x500 on startup to prevent UI cropping.
     - [x] **Context Menu Fix**: Prevent app context menu on Vision button right-click (`stopPropagation`).
+
+## Phase 39: VOICEVOX Integration (Completed)
+- [x] **Backend Service**
+    - [x] `src/services/voice_service.py`: Created `VoiceService` to interface with local VOICEVOX app (port 50021).
+    - [x] `server.py`: Integrated `VoiceService` and added `tts_provider` logic in `chat()` method.
+- [x] **Frontend Configuration**
+    - [x] `settings.html`: Enabled TTS Provider selection (Google vs VOICEVOX).
+    - [x] `settings.html`: Implemented dynamic voice list loading via `loadVoices()`.
+    - [x] `src/api/settings_api.py`: Updated `get_voice_types` to support provider-specific lists.
+
+## フェーズ40: Gemini 2.5 TTS Integration (Completed)
+- [x] **Backend Implementation**
+    - [x] `src/services/voice_service.py`: Add `_generate_gemini_audio` using `google-genai` SDK.
+    - [x] **Model Update**: Use `gemini-2.5-flash-preview-tts` (Flash 2.5).
+    - [x] **Robustness**: Implement WAV Header Wrapping (Raw PCM -> WAV) & URL Encoding.
+- [x] **Frontend Configuration**
+    - [x] `settings.html`: Add "Gemini 2.5 Flash TTS (Preview)" option.
+    - [x] `src/api/settings_api.py`: Add Gemini voice list (Kore, Puck, Fenrir, etc.).
+- [x] **UI Polish**
+    - [x] **Window Layering**: Fix Settings Window to always stay on top (`on_top=True`).

@@ -42,8 +42,55 @@ class SettingsApiMixin(BaseApiMixin):
         
         return {"status": "success", "name": data.get('name', persona_id)}
 
-    def get_voice_types(self):
-        # Return hardcoded list for now, or fetch from Google API
+    def get_voice_types(self, provider=None):
+        # Determine provider from arg or config
+        if not provider:
+            provider = self._config_manager.get('tts_provider', 'voicevox')
+
+        if provider == 'voicevox':
+             return [
+                {"id": "3", "name": "ずんだもん (ノーマル)"},
+                {"id": "1", "name": "ずんだもん (あまあま)"},
+                {"id": "2", "name": "四国めたん (ノーマル)"},
+                {"id": "8", "name": "春日部つむぎ"},
+                {"id": "47", "name": "ナースロボ＿タイプＴ"},
+                {"id": "70", "name": "小夜/SAYO (Recommended)"},
+             ]
+        
+        if provider == 'gemini':
+            return [
+                # Female Voices (Approx sorted)
+                {"id": "Aoede", "name": "Aoede (Female - Confident)"},
+                {"id": "Callirrhoe", "name": "Callirrhoe (Female - Gentle)"},
+                {"id": "Charon", "name": "Charon (Male - Deep)"}, 
+                {"id": "Chiron", "name": "Chiron (Male - Generic)"},
+                {"id": "Daphne", "name": "Daphne (Female - Bright)"},
+                {"id": "Dipper", "name": "Dipper (Male - Deep)"},
+                {"id": "Echo", "name": "Echo (Male - Soft)"},
+                {"id": "Eos", "name": "Eos (Female - Warm)"},
+                {"id": "Fenrir", "name": "Fenrir (Male - Strong)"},
+                {"id": "Helios", "name": "Helios (Male - Powerful)"},
+                {"id": "Hera", "name": "Hera (Female - Formal)"},
+                {"id": "Kore", "name": "Kore (Female - Soothing)"},
+                {"id": "Leda", "name": "Leda (Female - Soft)"},
+                {"id": "Luna", "name": "Luna (Female - Calm)"},
+                {"id": "Lysithea", "name": "Lysithea (Female - Gentle)"},
+                {"id": "Mimosa", "name": "Mimosa (Female - Bright)"},
+                {"id": "Morgan", "name": "Morgan (Female/Androgynous - Deep)"},
+                {"id": "Orion", "name": "Orion (Male - Resonant)"},
+                {"id": "Orpheus", "name": "Orpheus (Male - Tenor)"},
+                {"id": "Puck", "name": "Puck (Male - Playful)"},
+                {"id": "Pegasus", "name": "Pegasus (Male - Strong)"},
+                {"id": "Rover", "name": "Rover (Male - Generic)"},
+                {"id": "Themis", "name": "Themis (Female - Formal)"},
+                {"id": "Vega", "name": "Vega (Female - Clear)"},
+                {"id": "Zephyr", "name": "Zephyr (Female - Calm)"},
+                {"id": "Titan", "name": "Titan (Male - Deep)"},
+                {"id": "Triton", "name": "Triton (Male - Resonant)"},
+                {"id": "Uranus", "name": "Uranus (Male - Strong)"},
+            ]
+
+        # Default Google lists
         return [
             {"id": "ja-JP-Neural2-B", "name": "女性 (Neural2-B) - 明るい"},
             {"id": "ja-JP-Neural2-C", "name": "男性 (Neural2-C) - 落ち着いた"},

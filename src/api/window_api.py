@@ -48,7 +48,7 @@ class WindowApiMixin(BaseApiMixin):
             width=800,
             height=700,
             resizable=True,
-            on_top=False
+            on_top=True
         )
         SETTINGS_WINDOW_REF["window"] = new_window
 
