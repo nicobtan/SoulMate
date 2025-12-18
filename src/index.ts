@@ -1,6 +1,7 @@
 /// <reference path="./types.d.ts" />
 export { }; // Ensure this file is treated as a module
 import { api } from './api_client.js';
+import { LogManager } from './managers/log_manager.js';
 
 import { Live2DModel } from 'pixi-live2d-display';
 import { SoulBubbleManager } from './soul_bubble.js';
@@ -180,41 +181,22 @@ function showError(message: string) {
 // ... (Existing Event Listeners) ...
 
 // --- Context Menu Logic ---
-const menu = document.getElementById('context-menu') as HTMLElement;
-const settingsButton = document.getElementById('menu-settings');
-const closeButton = document.getElementById('menu-close');
+// --- Context Menu Logic (Legacy removed) ---
+// See "Dual Context Menus" below for current implementation.
 
-// UI Elements
+// --- UI Elements (Restored) ---
 const rightPanel = document.getElementById('right-panel') as HTMLElement;
-const chatToggleBtn = document.getElementById('chat-toggle-btn'); // New toggle button
-const settingsModal = document.getElementById('settings-modal'); // Legacy ref? Or needed for hiding modal? 
-// Actually we removed the modal logic but some TS might still reference it if I didn't clean it up?
-// The build errors showed usage of 'settingsModal' in line 167 etc.
-// Wait, I thought I removed modal code? 
-// Ah, lines 167-176 in current file view still reference 'settingsModal'.
-// I should probably keep the definition or remove the usage blocks.
-// The usage blocks are:
-// 1. Context menu strict close (lines 142-146 in prev view, lines ~60 in current view?)
-// Let's restore definitions to fix errors first, then maybe clean up if needed.
+const chatToggleBtn = document.getElementById('chat-toggle-btn');
+const settingsModal = document.getElementById('settings-modal');
 const settingsCloseBtn = document.getElementById('settings-close-btn');
+
+// Settings Elements
 const fontSizeRange = document.getElementById('font-size-range') as HTMLInputElement;
 const fontSizeValue = document.getElementById('font-size-value');
+const bgOpacityRange = document.getElementById('bg-opacity-range') as HTMLInputElement;
+const bgOpacityValue = document.getElementById('bg-opacity-value');
+const characterAreaBg = document.getElementById('character-area') as HTMLElement;
 const characterArea = document.getElementById('character-area') as HTMLElement;
-
-if (menu) {
-    document.addEventListener('contextmenu', function (e) {
-        e.preventDefault();
-        menu.style.display = 'block';
-        menu.style.left = e.pageX + 'px';
-        menu.style.top = e.pageY + 'px';
-    });
-
-    document.addEventListener('click', function (e) {
-        if (menu.style.display === 'block') {
-            menu.style.display = 'none';
-        }
-    });
-}
 
 // --- Chat Logic ---
 const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement;
@@ -809,15 +791,7 @@ function removeLog(id: string) {
 
 
 
-if (closeButton) {
-    closeButton.addEventListener('click', function () {
-        if (window.pywebview && window.pywebview.api) {
-            window.pywebview.api.close_window();
-        } else {
-            console.warn('Python API not found (Development Mode)');
-        }
-    });
-}
+// (Legacy closeButton logic removed)
 
 // --- Settings Logic ---
 // Elements
@@ -875,13 +849,7 @@ async function loadSettings() {
 window.addEventListener('pywebviewready', loadSettings);
 
 // Open Settings Window
-if (settingsButton) {
-    settingsButton.addEventListener('click', function () {
-        if (window.pywebview && window.pywebview.api) {
-            window.pywebview.api.open_settings();
-        }
-    });
-}
+// (Legacy settingsButton logic removed)
 
 // Mobile Settings Save Logic
 const settingsSaveBtn = document.getElementById('settings-save-btn');
@@ -938,9 +906,7 @@ if (fontSizeRange && fontSizeValue) {
 }
 
 // Background Opacity Change (White/Background transparency)
-const bgOpacityRange = document.getElementById('bg-opacity-range') as HTMLInputElement;
-const bgOpacityValue = document.getElementById('bg-opacity-value');
-const characterAreaBg = document.getElementById('character-area') as HTMLElement;
+// (Variables moved to top)
 
 // Function to update background
 function updateBackgroundOpacity(percent: number) {
@@ -1002,23 +968,14 @@ function addDebugLog(msg: string, type: 'sys' | 'rag' | 'dbg' = 'dbg') {
     if (open === uiState.isChatOpen) return; // No change
 
     uiState.isChatOpen = open;
-    rightPanel.classList.toggle('open', uiState.isChatOpen);
-    if (chatToggleBtn) chatToggleBtn.classList.toggle('active', uiState.isChatOpen);
+    const rightPanel = document.getElementById('right-panel');
+    const chatToggleBtn = document.getElementById('chat-toggle-btn');
 
-    if (window.pywebview && window.pywebview.api) {
-        try {
-            // Margin Logic: 
-            // Right Panel CSS has margin-left: 40px. Width 450. Total 490.
-            const chatTotalWidth = 490;
-            let w = uiState.charWidth;
-            if (uiState.isLogOpen) w += uiState.logWidth;
-            if (uiState.isChatOpen) w += chatTotalWidth;
+    if (rightPanel) rightPanel.classList.toggle('open', open);
+    if (chatToggleBtn) chatToggleBtn.classList.toggle('active', open);
 
-            await window.pywebview.api.resize_window(w, 500);
-        } catch (err) {
-            console.error("Resize failed:", err);
-        }
-    }
+    // ★修正: LogManagerのリサイズ機能を使って、全体の幅を再計算する
+    await LogManager.getInstance().resizeWindow();
 };
 
 // --- Chat Toggle Logic ---
@@ -1085,7 +1042,7 @@ if (spawnBalloonBtn) {
             // Request manual bubble (Smart Generation)
             const packet = await api.generate_bubble();
             if (packet && packet.action_id) {
-                soulBubbleManager.addBubble(packet.category, packet.text, packet.action_id, packet.type || 'normal');
+                (window as any).showSoulBubble(packet.category, packet.text, packet.action_id, packet.type || 'normal');
                 // @ts-ignore
                 if (window.logToDebug) window.logToDebug("Manual Bubble Spawned", 'info', 'sys');
             } else if (packet && packet.status === 'skipped') {
@@ -1100,86 +1057,75 @@ if (spawnBalloonBtn) {
     spawnBalloonBtn.addEventListener('touchstart', trigger, { passive: false });
 }
 
-// Exposed for Python
-// @ts-ignore
-(window as any).showSoulBubble = function (category: string, text: string, actionId: string, type: string = 'normal') {
-    if (soulBubbleManager) {
-        soulBubbleManager.addBubble(category, text, actionId, type);
-    }
+// --- カテゴリ変換マップ (ここが重要！) ---
+// バックエンドから来るカテゴリ名(キー)を、CSSクラス名(値)に変換します
+const categoryMapping: Record<string, string> = {
+    'topics': 'topic',       // 青・吹き出し
+    'bond': 'force_talk',    // ピンク・ハート (ここが効いてなかった)
+    'chat': 'topic',
+    'general': 'topic',
+    'tech': 'news',          // 緑・新聞
+    'news': 'news',
+    'game': 'fun',           // 紫・ゲーム
+    'fun': 'fun',
+    'weather': 'weather',    // 黄・天気
+    'search': 'search'       // 青緑・虫眼鏡
 };
 
+// --- アイコン定義 ---
+const categoryIcons: Record<string, string> = {
+    'topic': '💬',
+    'news': '📰',
+    'weather': '☀',
+    'fun': '🎮',
+    'health': '💊',
+    'suggestion': '💡',
+    'force_talk': '💖', // Bondはハートに
+    'search': '🔍',
+    'alert': '❗',
+    // 復活: 詳細カテゴリアイコン
+    'tech': '💻',
+    'gadget': '📱',
+    'science': '🔬',
+    'space': '🚀',
+    'food': '🍔',
+    'travel': '✈️',
+    'game': '🎮',
+    'anime': '📺',
+    'movie': '🎬',
+    'music': '🎵',
+    'art': '🎨'
+};
+
+// --- 修正版 showSoulBubble ---
+(window as any).showSoulBubble = function (rawCategory: string, text: string, actionId: string, type: string = 'normal') {
+    if (!soulBubbleManager) return;
+
+    // 1. カテゴリ名の正規化 (小文字にして空白削除)
+    const rawLower = rawCategory ? rawCategory.toLowerCase().trim() : 'topic';
+
+    // 2. CSSクラス名への変換 (マッピングになければそのまま使う)
+    const styleCategory = categoryMapping[rawLower] || rawLower;
+
+    // 3. アイコンの決定 (変換後のカテゴリ名で探す)
+    const displayIcon = categoryIcons[styleCategory] || '💬';
+
+    // 4. 生成 (変換後のカテゴリを渡すことで色がつく)
+    // styleCategory = 'force_talk' なら、CSSの .bubble-force_talk (ピンク) が適用される
+    soulBubbleManager.addBubble(styleCategory, displayIcon, text, actionId, type);
+
+    // デバッグログ (F12で確認できます)
+    console.log(`[Bubble Fix] Raw: "${rawCategory}" -> Style: "${styleCategory}" -> Icon: ${displayIcon}`);
+};
+
+
 // --- Systematic Panel Logic (Debug & History) ---
-const debugBtn = document.getElementById('debug-btn');
-const historyBtn = document.getElementById('history-btn');
-const closeDebugBtn = document.getElementById('close-debug');
+// Now handled by LogManager
 const panelTitle = document.getElementById('panel-title');
 const historyContent = document.getElementById('history-content');
-const debugTabs = document.getElementById('debug-tabs');
 
-let currentActivePanel: 'debug' | 'history' | 'none' = 'none';
-
-async function toggleLeftPanel(mode: 'debug' | 'history') {
-    if (!leftPanel || !window.pywebview || !window.pywebview.api) return;
-
-    const wasOpen = uiState.isLogOpen;
-    const previousMode = currentActivePanel;
-
-    if (currentActivePanel === mode) {
-        // Closing active panel
-        currentActivePanel = 'none';
-        uiState.isLogOpen = false;
-    } else {
-        // Opening or Switching
-        currentActivePanel = mode;
-        uiState.isLogOpen = true;
-    }
-
-    // UI更新
-    if (debugContent) debugContent.style.display = (mode === 'debug') ? 'block' : 'none';
-    if (historyContent) historyContent.style.display = (mode === 'history') ? 'block' : 'none';
-
-    // ★この行を追加: デバッグモードの時だけタブを表示
-    if (debugTabs) debugTabs.style.display = (mode === 'debug') ? 'flex' : 'none';
-
-    if (panelTitle) {
-        panelTitle.innerText = (mode === 'debug') ? 'SYSTEM LOGS' : 'CHAT HISTORY';
-        panelTitle.style.color = (mode === 'debug') ? '#0f0' : '#0ff';
-    }
-
-
-    // Window Resize Logic
-    // Only resize if state changed (Closed <-> Open)
-    // If Switching (Open <-> Open), no resize needed.
-    if (wasOpen !== uiState.isLogOpen) {
-        leftPanel.classList.toggle('open', uiState.isLogOpen);
-        try {
-            const { x, y } = await window.pywebview.api.get_window_pos();
-            // Width calculation
-            // Note: Chat Panel Width logic used 490 in openChatPanel, but toggleLogPanel used 390?
-            // CSS: #right-panel width 450 + margin-left 40 = 490.
-            // Let's use 490 to be safe/consistent with CSS.
-            const chatTotalWidth = 490;
-            let baseW = uiState.charWidth + (uiState.isChatOpen ? chatTotalWidth : 0);
-
-            if (uiState.isLogOpen) {
-                // OPENING: Move Left, Resize Width +
-                await window.pywebview.api.move_window(x - uiState.logWidth, y);
-                await window.pywebview.api.resize_window(baseW + uiState.logWidth, 500);
-            } else {
-                // CLOSING: Resize Width -, Move Right
-                await window.pywebview.api.move_window(x + uiState.logWidth, y);
-                await window.pywebview.api.resize_window(baseW, 500);
-            }
-        } catch (e) {
-            console.error("Panel Toggle Failed", e);
-        }
-    }
-
-    // Fetch History if needed
-    if (currentActivePanel === 'history') {
-        loadHistorySystematic();
-    }
-}
+// Expose history loader for LogManager
+(window as any).loadHistorySystematic = loadHistorySystematic;
 
 async function loadHistorySystematic() {
     if (!historyContent) return;
@@ -1226,78 +1172,16 @@ function renderHistorySystematic(logs: any[]) {
     historyContent.scrollTop = historyContent.scrollHeight;
 }
 
-if (debugBtn) debugBtn.addEventListener('click', () => toggleLeftPanel('debug'));
-if (historyBtn) historyBtn.addEventListener('click', () => toggleLeftPanel('history'));
-
-// Updated Close Button to just close current
-if (closeDebugBtn) closeDebugBtn.addEventListener('click', () => {
-    if (currentActivePanel !== 'none') toggleLeftPanel(currentActivePanel);
-
-});
+// (Old listeners removed)
 
 // 3. Debug Log Content
-// --- 3. Debug Log Content ---
-
-// カテゴリ定義
-type LogCategory = 'sys' | 'rag' | 'dbg';
-
-// ★修正点1: タブ切り替えロジックを関数「外」に出す（1回だけ実行）
-window.addEventListener('DOMContentLoaded', () => {
-    const tabs = document.querySelectorAll('.log-tab');
-    const debugContent = document.getElementById('debug-content');
-
-    if (tabs && debugContent) {
-        tabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                // UIのアクティブ切り替え
-                tabs.forEach(t => t.classList.remove('active'));
-                (e.target as HTMLElement).classList.add('active');
-
-                // フィルタリング処理
-                const viewMode = (e.target as HTMLElement).dataset.view;
-                if (viewMode) {
-                    debugContent.className = viewMode; // view-all, view-rag 等
-                    debugContent.scrollTop = debugContent.scrollHeight;
-                }
-            });
-        });
-    }
-});
-
-// ★修正点2: logToDebug はログ出力のみに専念
-function logToDebug(msg: string, type: 'info' | 'warn' | 'error' = 'info', category: LogCategory = 'sys') {
-    const debugContent = document.getElementById('debug-content');
-    if (!debugContent) return;
-
-    const entry = document.createElement('div');
-    entry.className = `log-entry cat-${category}`; // カテゴリクラス付与 (cat-ragなど)
-
-    const now = new Date();
-    const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
-
-    entry.innerHTML = `
-        <span class="log-time">${timeStr}</span>
-        <span class="log-${type}">${msg}</span>
-    `;
-
-    debugContent.appendChild(entry);
-    debugContent.scrollTop = debugContent.scrollHeight;
-}
-// グローバル公開
-(window as any).logToDebug = logToDebug;
-
-// Global Exposure for Python
-(window as any).logToDebug = logToDebug;
+// (Old logToDebug removed - handled by LogManager)
 
 // --- Dual Context Menus (Phase 35 Follow-up) ---
-const contextMenu = document.getElementById('context-menu');
-// Removed duplicate characterArea declaration (it's likely defined globally or earlier)
-// Use the earlier reference or just getElementById here if scope allows, but re-using existing var is safer
-const charAreaRef = document.getElementById('character-area');
-
 // Helper to show menu
 const showCtxMenu = (e: MouseEvent, type: 'restore' | 'settings') => {
     e.preventDefault();
+    const contextMenu = document.getElementById('context-menu'); // Fetch dynamically
     if (!contextMenu) return;
 
     const x = e.clientX;
@@ -1369,10 +1253,17 @@ const showCtxMenu = (e: MouseEvent, type: 'restore' | 'settings') => {
         }, 0);
     }
 
+    // Force Position (px単位を忘れずに)
     contextMenu.style.left = `${x}px`;
     contextMenu.style.top = `${y}px`;
-    contextMenu.classList.add('visible');
-    console.log(`[UI] Context Menu Opened (${type})`);
+    contextMenu.style.display = 'block';
+
+    // Delay visibility slightly to ensure layout applies
+    requestAnimationFrame(() => {
+        contextMenu.classList.add('visible');
+    });
+
+    console.log(`[UI] Context Menu Opened (${type}) at ${x},${y}. Style Check: ${contextMenu.style.left}, ${contextMenu.style.top}`);
 };
 
 if (leftPanel) {
@@ -1385,48 +1276,58 @@ if (characterArea) {
     });
 }
 
-// Global Close
-window.addEventListener('click', () => {
-    if (contextMenu?.classList.contains('visible')) {
+// Global Close Context Menu
+window.addEventListener('click', (e) => {
+    const contextMenu = document.getElementById('context-menu');
+    // メニューが表示されていたら隠す
+    if (contextMenu && contextMenu.style.display !== 'none') {
+        contextMenu.style.display = 'none';
         contextMenu.classList.remove('visible');
     }
-});
+}, { capture: true }); // ★Captureフェーズで確実に拾う
 
 // Hook into console to capture system logs? 
 // Or just manual logging. Let's redirect console.log/error/warn partially.
+// --- Initialize LogManager ---
+window.addEventListener('DOMContentLoaded', () => {
+    const logManager = LogManager.getInstance();
+    logManager.log("System Initialized via LogManager.", "info", "sys");
+});
+
+// Hook into console to capture system logs
 const originalLog = console.log;
 const originalWarn = console.warn;
 const originalError = console.error;
 
-console.log = (...args) => {
-    originalLog(...args);
-    const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    // 第3引数に 'dbg' を追加
-    logToDebug(msg, 'info', 'dbg');
+// Helper to safely log to manager
+const safeLog = (msg: string, type: 'info' | 'warn' | 'error') => {
+    // LogManager sets window.logToDebug, so we can use that if available,
+    // or access singleton if imported (but circular deps might be tricky if we move this).
+    // Simplest is to check window.logToDebug which LogManager sets in constructor.
+    if ((window as any).logToDebug) {
+        (window as any).logToDebug(msg, type, 'dbg');
+    }
 };
-// warn, error も同様に 'dbg' を追加してください
 
 console.log = (...args) => {
     originalLog(...args);
-    // Serialize args
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    logToDebug(msg, 'info');
+    safeLog(msg, 'info');
 };
 
 console.warn = (...args) => {
     originalWarn(...args);
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    logToDebug(msg, 'warn');
+    safeLog(msg, 'warn');
 };
 
 console.error = (...args) => {
     originalError(...args);
     const msg = args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ');
-    logToDebug(msg, 'error');
+    safeLog(msg, 'error');
 };
 
-logToDebug("System initialized.", "info");
-logToDebug("Live2D Engine starting...", "info");
+// (Old init logs removed)
 
 
 
@@ -1490,7 +1391,8 @@ if (appContainer) {
         characterArea.appendChild(canvas);
 
         // Ensure menu is top
-        if (menu) menu.style.zIndex = "4000";
+        const ctxMenu = document.getElementById('context-menu');
+        if (ctxMenu) ctxMenu.style.zIndex = "4000";
 
         // ★MOVED: Define resizeModel early to avoid ReferenceError
         const resizeModel = () => {

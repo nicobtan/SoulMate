@@ -1,0 +1,1263 @@
+/* =========================================
+   BASE RESET & SETTINGS
+   ========================================= */
+:root {
+    --chat-font-size: 13px;
+}
+
+/* ★Box-Sizing Reset (Important for Layout) */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    background-color: transparent !important;
+    background: transparent !important;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    color: white;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================================
+   APP LAYOUT (Fixing the Shift Bug)
+   ========================================= */
+#app-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-color: transparent !important;
+}
+
+/* Character Frame (Center) - 500x500 Fixed */
+#character-area {
+    /* Flex settings to prevent shrinking */
+    flex: 0 0 500px !important;
+    width: 500px !important;
+    height: 500px !important;
+    min-width: 500px !important;
+    min-height: 500px !important;
+
+    position: relative;
+    background: rgba(0, 0, 0, 0);
+    overflow: visible;
+    cursor: move;
+    pointer-events: auto;
+    z-index: 100;
+}
+
+.pywebview-drag-region {
+    -webkit-app-region: drag;
+}
+
+/* =========================================
+   SIDE PANELS (Forced 0 width when closed)
+   ========================================= */
+
+/* --- Left Panel (System Logs) --- */
+#left-panel {
+    display: flex;
+    flex-direction: column;
+    /* Force close width to 0 */
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+
+    height: 500px;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 8px;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    pointer-events: auto;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    color: #0f0;
+    font-family: 'Consolas', monospace;
+    font-size: 12px;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+#left-panel.open {
+    flex: 0 0 400px !important;
+    width: 400px !important;
+    opacity: 1;
+    margin-right: 10px !important;
+    border: 1px solid #444 !important;
+}
+
+/* --- Right Panel (Chat) --- */
+#right-panel {
+    display: flex;
+    flex-direction: column;
+    /* Force close width to 0 */
+    flex: 0 0 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+
+    height: 500px;
+    position: relative;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    pointer-events: auto;
+}
+
+#right-panel.open {
+    flex: 0 0 450px !important;
+    width: 450px !important;
+    opacity: 1;
+    margin-left: 40px !important;
+}
+
+/* =========================================
+   INTERNAL CONTENT
+   ========================================= */
+.panel-header {
+    padding: 10px;
+    background: #222;
+    border-bottom: 1px solid #444;
+    font-weight: bold;
+    color: #0f0;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#debug-content,
+#history-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* ★横スクロールを禁止 */
+    padding: 10px;
+    display: block;
+}
+
+#history-content {
+    display: none;
+}
+
+.log-entry {
+    margin-bottom: 4px;
+    border-bottom: 1px solid #222;
+    padding-bottom: 2px;
+}
+
+.log-time {
+    color: #888;
+    margin-right: 5px;
+}
+
+.log-info {
+    color: #8cf;
+}
+
+.log-warn {
+    color: #fb0;
+}
+
+.log-error {
+    color: #f44;
+}
+
+/* Log Filtering */
+#debug-content.view-sys .cat-rag,
+#debug-content.view-sys .cat-dbg {
+    display: none;
+}
+
+#debug-content.view-rag .cat-sys,
+#debug-content.view-rag .cat-dbg {
+    display: none;
+}
+
+#debug-content.view-dbg .cat-sys,
+#debug-content.view-dbg .cat-rag {
+    display: none;
+}
+
+#debug-content.view-rag .cat-rag {
+    display: block;
+}
+
+.cat-dbg {
+    border-left: 2px solid #fb0;
+    padding-left: 5px;
+    color: #ffeb3b;
+}
+
+/* Tabs (Restored) */
+.log-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid #444;
+    flex-shrink: 0;
+    min-height: 30px;
+}
+
+.log-tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 11px;
+    color: #888;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.log-tab:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ccc;
+}
+
+.log-tab.active {
+    color: #fff;
+    font-weight: bold;
+    border-bottom: 2px solid #0f0;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Chat UI */
+#chat-log-area {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px 15px 0 0;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#input-area {
+    height: 80px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: none;
+    border-radius: 0 0 15px 15px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.input-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+#vision-btn,
+#suggestion-toggle-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+#chat-input {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    color: white;
+    padding: 8px 10px;
+    outline: none;
+    resize: none;
+    height: 100%;
+    font-family: inherit;
+}
+
+#send-button {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+}
+
+.message {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: var(--chat-font-size);
+    line-height: 1.4;
+    max-width: 95%;
+    white-space: pre-wrap;
+}
+
+.message.user {
+    background: rgba(0, 120, 255, 0.4);
+    align-self: flex-end;
+}
+
+.message.ai {
+    background: rgba(255, 255, 255, 0.15);
+    align-self: flex-start;
+}
+
+.msg-timestamp {
+    display: block;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: right;
+    margin-top: 4px;
+}
+
+.chat-link {
+    color: #4da6ff;
+    text-decoration: underline;
+}
+
+#suggestion-popup {
+    position: absolute;
+    bottom: 100px;
+    right: 15px;
+    background: rgba(30, 30, 30, 0.9);
+    border-radius: 12px;
+    padding: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    z-index: 2000;
+}
+
+.suggestion-chip {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 12px;
+}
+
+/* =========================================
+   FLOATING UI (Buttons, Bubbles)
+   ========================================= */
+#soul-bubble-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.soul-bubble {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    pointer-events: auto;
+    transform: scale(0) translateY(0);
+    opacity: 0;
+}
+
+.soul-bubble.appeared {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+@keyframes gentleFloat {
+
+    0%,
+    100% {
+        transform: scale(1) translateY(0);
+    }
+
+    50% {
+        transform: scale(1) translateY(-15px);
+    }
+}
+
+.bubble-blue {
+    background: #3498db;
+    color: white;
+}
+
+.bubble-green {
+    background: #2ecc71;
+    color: white;
+}
+
+.bubble-pink {
+    background: #e91e63;
+    color: white;
+}
+
+.bubble-orange {
+    background: #f39c12;
+    color: white;
+}
+
+.soul-bubble.bubble-discovery {
+    background: radial-gradient(circle at 30% 30%, #a855f7, #6b21a8);
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.4);
+}
+
+.soul-bubble .icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+#clock-display {
+    position: absolute;
+    bottom: 15px;
+    left: 15px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 5px 15px;
+    border-radius: 10px;
+    border-left: 3px solid #ff4444;
+    font-family: 'Consolas', monospace;
+    font-size: 24px;
+    font-weight: bold;
+    color: #fff;
+    backdrop-filter: blur(5px);
+    z-index: 2000;
+}
+
+#clock-date {
+    font-size: 10px;
+    color: #ddd;
+    text-align: center;
+}
+
+#status-bar {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 165, 0, 0.5);
+    color: #fff;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(4px);
+    opacity: 0.8;
+}
+
+#status-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #ffa500;
+    border-radius: 50%;
+}
+
+#chat-toggle-btn,
+#debug-btn,
+#history-btn,
+#spawn-balloon-btn,
+#force-talk-btn {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 5000;
+    transition: all 0.3s;
+    font-size: 24px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+#chat-toggle-btn {
+    bottom: 70px;
+    right: 10px;
+    background: rgba(40, 167, 69, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+}
+
+#debug-btn {
+    bottom: 10px;
+    right: 10px;
+    background: rgba(255, 255, 0, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: #ff0;
+}
+
+#history-btn {
+    bottom: 10px;
+    right: 70px;
+    background: rgba(0, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: #0ff;
+}
+
+#spawn-balloon-btn {
+    bottom: 10px;
+    right: 130px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: #fff;
+}
+
+#force-talk-btn {
+    bottom: 130px;
+    right: 10px;
+    background: rgba(255, 105, 180, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+}
+
+#chat-toggle-btn:hover,
+#debug-btn:hover,
+#history-btn:hover,
+#spawn-balloon-btn:hover,
+#force-talk-btn:hover {
+    transform: scale(1.1);
+}
+
+#trash-zone {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s ease;
+    z-index: 9000;
+}
+
+#trash-zone.visible {
+    opacity: 1 !important;
+    pointer-events: auto;
+    background: rgba(50, 0, 0, 0.8);
+}
+
+#trash-zone.active {
+    opacity: 1;
+    transform: scale(1.1);
+    background: rgba(200, 0, 0, 0.8);
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+}
+
+.soul-bubble.dragging {
+    cursor: grabbing;
+    z-index: 9999 !important;
+    transition: none !important;
+    transform: scale(1.1);
+}
+
+/* Exclude interactive elements from drag */
+button,
+input,
+textarea,
+.no-drag,
+.log-tab,
+.suggestion-chip {
+    -webkit-app-region: no-drag;
+    cursor: pointer;
+}
+
+
+/* =========================================
+   ADDITIONAL COMPONENTS (Migrated Phase 18, 43 etc)
+   ========================================= */
+
+/* Audio Player UI */
+#audio-player {
+    display: none;
+    position: absolute;
+    bottom: 90px;
+    right: 0px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    border-radius: 20px;
+    padding: 5px 10px;
+    gap: 10px;
+    z-index: 2000;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: opacity 0.3s;
+}
+
+#audio-player.visible {
+    display: flex;
+    animation: fadeIn 0.3s;
+}
+
+#audio-player button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Consolas', monospace;
+    padding: 2px 5px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+#audio-player button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#audio-stop-btn {
+    color: #ff4444;
+}
+
+/* Modal UI */
+#log-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#log-modal.visible {
+    opacity: 1;
+}
+
+.modal-card {
+    width: 600px;
+    max-width: 90%;
+    height: 80%;
+    background: rgba(30, 30, 30, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    transform: translateY(20px);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+#log-modal.visible .modal-card {
+    transform: translateY(0);
+}
+
+.modal-header {
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #ddd;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.close-btn:hover {
+    color: #fff;
+}
+
+#log-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Rich Link Cards */
+.link-card {
+    display: flex;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    margin-top: 5px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: background 0.2s;
+    max-width: 100%;
+}
+
+.link-card:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.link-card-thumb {
+    width: 80px;
+    height: 80px;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+    background-color: #000;
+}
+
+.link-card-content {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    flex: 1;
+}
+
+.link-card-title {
+    font-weight: bold;
+    font-size: 0.95em;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #eee;
+}
+
+.link-card-url {
+    font-size: 0.75em;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --- Mobile Optimization (Phase 18.5 - Override) --- */
+/* Strict Mobile Mode: Only active when .mobile-mode class is present (Added via JS) */
+
+/* Full screen layout */
+.mobile-mode #app-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Character: Positioned at Top, anchored to top */
+.mobile-mode #character-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10;
+    background: transparent;
+    pointer-events: none;
+}
+
+/* Canvas: Focus on Head/Upper Body */
+.mobile-mode #character-area canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
+    object-position: top center;
+    transform: none;
+}
+
+/* Chat Panel: Bottom Sheet */
+.mobile-mode #right-panel {
+    width: 100vw;
+    height: 35vh;
+    z-index: 50;
+    position: relative;
+    margin: 0;
+    opacity: 1 !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.mobile-mode #right-panel.open {
+    width: 100vw;
+}
+
+/* Make sure Input Area is visible and not cut off */
+.mobile-mode #input-area {
+    padding-bottom: max(15px, env(safe-area-inset-bottom));
+    flex-shrink: 0;
+}
+
+/* Overlays: Compact Top Positioning */
+.mobile-mode #clock-display {
+    z-index: 2000;
+    top: 10px;
+    left: 10px;
+    bottom: auto;
+    border-left: 5px solid #ff4444;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.mobile-mode #status-bar {
+    z-index: 2000;
+    top: 55px;
+    left: 10px;
+    bottom: auto;
+    transform: none;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+/* Debug Btn (Hammer) */
+.mobile-mode #debug-btn {
+    z-index: 2000;
+    top: 10px;
+    right: 10px;
+    bottom: auto;
+}
+
+/* Settings Btn (Gear) - Mobile Only */
+.mobile-mode #mobile-settings-btn {
+    display: flex !important;
+    position: absolute;
+    top: 10px;
+    right: 50px;
+    width: 30px;
+    height: 30px;
+    background: rgba(100, 100, 100, 0.5);
+    border-radius: 50%;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* Full Screen Log Panel */
+.mobile-mode #left-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 3000;
+    margin: 0;
+    border-radius: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.mobile-mode #left-panel.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Suggestion Popup Mobile */
+.mobile-mode #suggestion-popup {
+    position: fixed;
+    bottom: 37vh;
+    right: 10px;
+    width: 85vw;
+    max-width: 350px;
+    z-index: 10000 !important;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    padding: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mobile-mode .suggestion-chip {
+    padding: 12px 16px;
+    border-radius: 20px;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #eee;
+}
+
+.mobile-mode #chat-toggle-btn {
+    display: none;
+}
+
+.mobile-mode #force-talk-btn {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+    position: fixed;
+    bottom: 37vh;
+    right: 20px;
+    z-index: 9999 !important;
+}
+
+.mobile-mode #chat-log-area {
+    height: calc(100% - 90px);
+    overflow-y: auto;
+}
+
+/* Phase 43: Balloon Features */
+.floating-balloon {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 28px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    animation: floatUp 3s ease-in-out infinite alternate;
+    z-index: 1000;
+    transition: transform 0.2s, box-shadow 0.2s;
+    backdrop-filter: blur(2px);
+}
+
+.floating-balloon:hover {
+    transform: scale(1.2);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    z-index: 1001;
+}
+
+.balloon-tech {
+    background: linear-gradient(135deg, rgba(161, 196, 253, 0.9) 0%, rgba(194, 233, 251, 0.9) 100%);
+    border: 2px solid #5599ff;
+}
+
+.balloon-philosophy {
+    background: linear-gradient(135deg, rgba(224, 195, 252, 0.9) 0%, rgba(142, 197, 252, 0.9) 100%);
+    border: 2px solid #9b59b6;
+}
+
+.balloon-news {
+    background: linear-gradient(135deg, rgba(255, 154, 158, 0.9) 0%, rgba(254, 207, 239, 0.9) 99%);
+    border: 2px solid #ff6b6b;
+}
+
+.balloon-fun {
+    background: linear-gradient(135deg, rgba(246, 211, 101, 0.9) 0%, rgba(253, 160, 133, 0.9) 100%);
+    border: 2px solid #f39c12;
+}
+
+.balloon-casual {
+    background: linear-gradient(135deg, rgba(132, 250, 176, 0.9) 0%, rgba(143, 211, 244, 0.9) 100%);
+    border: 2px solid #2ecc71;
+}
+
+@keyframes floatUp {
+    from {
+        margin-top: 0;
+    }
+
+    to {
+        margin-top: -15px;
+    }
+}
+
+/* Custom Context Menu */
+#context-menu {
+    position: fixed;
+    /* ★画面に対して絶対配置にする */
+    top: 0;
+    left: 0;
+    /* 初期位置 */
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 5px 0;
+    min-width: 150px;
+    z-index: 10000;
+    display: none;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+#context-menu.visible {
+    display: block;
+    animation: fadeInMenu 0.1s ease-out;
+}
+
+.ctx-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    color: #ddd;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.ctx-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.ctx-icon {
+    font-size: 14px;
+    color: #8cf;
+}
+
+@keyframes fadeInMenu {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 修正: .log-entry */
+.log-entry {
+    margin-bottom: 4px;
+    border-bottom: 1px solid #222;
+    padding-bottom: 2px;
+
+    /* ★追加: 長い文字を強制的に折り返す */
+    white-space: pre-wrap;
+    /* 改行は維持しつつ折り返す */
+    overflow-wrap: break-word;
+    /* 単語の途中でも折り返す */
+    word-break: break-word;
+    /* 互換性のため */
+    max-width: 100%;
+    /* 親要素を超えない */
+}
+
+/* --- Custom Scrollbar (Dark & Slim) --- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* --- Bubble Category Colors (Fixed) --- */
+/* 複数形や揺らぎに対応 */
+.soul-bubble.bubble-topic,
+.soul-bubble.bubble-topics,
+.soul-bubble.topic {
+    background: #3498db;
+    color: white;
+}
+
+.soul-bubble.bubble-news,
+.soul-bubble.news {
+    background: #2ecc71;
+    color: white;
+}
+
+.soul-bubble.bubble-weather,
+.soul-bubble.weather {
+    background: #f1c40f;
+    color: white;
+}
+
+.soul-bubble.bubble-fun,
+.soul-bubble.bubble-game,
+.soul-bubble.fun {
+    background: #9b59b6;
+    color: white;
+}
+
+.soul-bubble.bubble-health,
+.soul-bubble.health {
+    background: #e74c3c;
+    color: white;
+}
+
+.soul-bubble.bubble-suggestion,
+.soul-bubble.suggestion {
+    background: #e67e22;
+    color: white;
+}
+
+.soul-bubble.bubble-force_talk,
+.soul-bubble.bubble-bond,
+.soul-bubble.force_talk {
+    background: #ff79c6;
+    color: white;
+}
+
+.soul-bubble.bubble-search,
+.soul-bubble.search {
+    background: #1abc9c;
+    color: white;
+}
+
+/* Icon size adjustment inside bubble */
+.soul-bubble {
+    font-size: 24px;
+    /* Icon size */
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    /* Ensure only one icon/text centers properly */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 1;
+}
+
+/* --- Custom Scrollbar (Force Apply) --- */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Exclude interactive elements from drag */
+button,
+input,
+textarea,
+.no-drag,
+.log-tab,
+.suggestion-chip,
+.soul-bubble {
+    -webkit-app-region: no-drag;
+    cursor: pointer;
+}
+
+/* --- Expanded Bubble Style (Above Head) --- */
+.soul-bubble.expanded {
+    /* 固定位置: キャラクターの頭上 (中央揃え) */
+    position: absolute !important;
+    top: 20px !important;
+    /* 上端近く */
+    left: 50% !important;
+    /* 横方向中央 */
+    margin-left: -140px !important;
+    /* width=280pxの半分を引いて中央寄せ */
+
+    /* サイズ設定 */
+    width: 280px !important;
+    height: auto !important;
+    min-height: 60px;
+    max-height: 300px;
+    /* 頭上なのであまり長くならないように */
+
+    /* デザイン */
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #222 !important;
+    border: 2px solid #ccc !important;
+    border-radius: 15px !important;
+    border-top-left-radius: 0 !important;
+    /* 左上を尖らせて吹き出しっぽく */
+    padding: 15px !important;
+
+    /* テキスト設定 */
+    font-size: 14px !important;
+    font-weight: bold !important;
+    line-height: 1.4 !important;
+    text-align: left !important;
+    white-space: pre-wrap !important;
+    overflow-y: auto !important;
+
+    /* その他 */
+    transform: none !important;
+    animation: none !important;
+    z-index: 20000 !important;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3) !important;
+    cursor: pointer;
+}
+
+/* 「クリックしてチャット開始」のガイド */
+.soul-bubble.expanded::after {
+    content: "▶ Click to Start";
+    display: block;
+    margin-top: 8px;
+    font-size: 10px;
+    color: #666;
+    text-align: right;
+    border-top: 1px solid #eee;
+    padding-top: 4px;
+}

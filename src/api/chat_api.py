@@ -33,21 +33,30 @@ class ChatApiMixin(BaseApiMixin):
             return None
             
         try:
+            import time
+            start_ts = time.time()
+            result_path = None
             # VoiceService Check (VOICEVOX or Gemini)
             if provider in ['voicevox', 'gemini'] and getattr(self, 'voice_service', None):
                  # For Gemini, we trust validation is done in VoiceService or Settings
-                 return self.voice_service.generate_voice(tts_text.strip(), voice_name=voice_name, provider=provider)
+                 result_path = self.voice_service.generate_voice(tts_text.strip(), voice_name=voice_name, provider=provider)
             
             # Google Fallback
             elif getattr(self, 'tts_engine', None):
                  if provider == 'google' and len(str(voice_name)) < 3:
                      voice_name = 'ja-JP-Neural2-B'
                      
-                 return self.tts_engine.generate_voice(
+                 result_path = self.tts_engine.generate_voice(
                     tts_text, 
                     output_dir=os.path.join(base_dir, 'dist/audio'), 
                     voice_name=voice_name
                 )
+            
+            if result_path:
+                duration = time.time() - start_ts
+                self.log_to_debug(f"TTS ({provider}) Time: {duration:.3f}s", 'info')
+                
+            return result_path
         except Exception as e:
             self.log_to_debug(f"TTS Error: {e}", 'error')
             return None

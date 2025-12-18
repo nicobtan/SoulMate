@@ -7,6 +7,20 @@ logger = logging.getLogger(__name__)
 import time
 
 class BubbleService:
+    def _infer_category(self, text: str) -> str:
+        """Infer category based on keywords in text."""
+        text_lower = text.lower()
+        if any(w in text_lower for w in ["宇宙", "星", "スペース", "深海"]): return "space"
+        if any(w in text_lower for w in ["ガジェット", "スマホ", "pc", "技術", "ai", "tech"]): return "tech"
+        if any(w in text_lower for w in ["動物", "アニマル", "ペット", "猫", "犬"]): return "fun"
+        if any(w in text_lower for w in ["ゲーム", "game", "遊び"]): return "game"
+        if any(w in text_lower for w in ["ニュース", "news", "情勢"]): return "news"
+        if any(w in text_lower for w in ["健康", "運動", "サプリ", "睡眠"]): return "health"
+        if any(w in text_lower for w in ["映画", "ドラマ", "アニメ"]): return "movie"
+        if any(w in text_lower for w in ["音楽", "ライブ", "フェス"]): return "music"
+        if any(w in text_lower for w in ["絶景", "旅行", "温泉"]): return "travel"
+        return "topics"
+
     def __init__(self, services_container=None):
         self.services = services_container
         self._active_bubbles = {} # Map action_id -> bubble_packet
@@ -175,8 +189,8 @@ class BubbleService:
             selected_cat = msg["cat"]
             selected_text = msg["text"]
         elif dynamic_topics and strategy_roll < 0.7:
-             selected_cat = "topics"
              selected_text = random.choice(dynamic_topics)
+             selected_cat = self._infer_category(selected_text)
         else:
              slot_data = candidates.get(slot, candidates["daytime"])
              available_cats = list(slot_data.keys())
