@@ -341,32 +341,48 @@ You must output a JSON object with the following structure:
              # Run in thread
              import threading
              def run_talk():
+                 from src.services.ai_engine import logger as ai_logger # Use logger
                  try:
-                     response_text = api._ai_engine.generate_response(prompt)
+                     logger.info(f"Bubble Trigger: Generating response for: {text_content}")
+                     response_payload = api._ai_engine.generate_response(prompt)
                      
-                     # Check if response_text is already a dict
-                     payload = {}
-                     if isinstance(response_text, dict):
-                         payload = response_text
+                     # 1. Normalize Payload
+                     final_payload = {}
+                     
+                     if isinstance(response_payload, dict):
+                         # It's already valid JSON-like dict from AIEngine (RAG enabled)
+                         final_payload = response_payload
+                         # Validation
+                         if "response" not in final_payload and "text" in final_payload:
+                             final_payload["response"] = final_payload["text"]
                      else:
-                         # Try to parse JSON from string
+                         # String fallback (Legacy or Error String)
                          import json
                          import re
                          try:
-                             # Clean code blocks if present
-                             clean_text = re.sub(r'```json\s*', '', str(response_text))
+                             # Clean code blocks
+                             clean_text = re.sub(r'```json\s*', '', str(response_payload))
                              clean_text = re.sub(r'```', '', clean_text)
-                             payload = json.loads(clean_text)
+                             final_payload = json.loads(clean_text)
                          except:
-                             # Fallback to plain text
-                             payload = {"response": str(response_text), "emotion": "happy"}
+                             # Plain text fallback
+                             final_payload = {"response": str(response_payload), "emotion": "happy"}
 
+                     # 2. Add Grounding Info if missing (Safety)
+                     if "grounding_info" not in final_payload:
+                         final_payload["grounding_info"] = None
+
+                     # 3. Push to UI
                      import json
-                     api.push_message_callback(json.dumps(payload, ensure_ascii=False))
+                     # We use json.dumps to ensure it's a string for the callback, 
+                     # but main.py's push_message_callback expects a JSON string or raw string.
+                     api.push_message_callback(json.dumps(final_payload, ensure_ascii=False))
 
-                         
                  except Exception as e:
-                     logger.error(f"Bubble Talk Failed: {e}")
+                     logger.error(f"Bubble Talk Failed: {e}", exc_info=True)
+                     # Fallback Message to UI so it doesn't hang
+                     error_payload = {"response": "ごめんなさい、ちょっと考えがまとまらなかったわ。", "emotion": "sad"}
+                     api.push_message_callback(json.dumps(error_payload, ensure_ascii=False))
 
              threading.Thread(target=run_talk, daemon=True).start()
 

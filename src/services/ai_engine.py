@@ -256,6 +256,16 @@ Please answer the user's request based on the image.
             except Exception as e:
                 logging.warning(f"[Grounding] Extract Error: {e}")
 
+            # 3. Explicit Logging for No-Search Scenario
+            if grounding_info is None and self.use_search:
+                logging.info("[Grounding] No search performed by AI (Dynamic Retrieval decision).")
+                # Optional: Pass this state to frontend so it's not just "empty"
+                grounding_info = {
+                    "queries": [],
+                    "sources": [],
+                    "status": "No search performed (Knowledge used)"
+                }
+
             # レスポンスの構築
             result = self._parse_json_response(raw_text)
             
@@ -270,6 +280,13 @@ Please answer the user's request based on the image.
         except Exception as e:
             logging.error(f"Generation Error: {e}")
             return {"response": f"エラー: {str(e)}", "emotion": "sad", "suggestions": []}
+
+    def generate_proactive_message(self, context=None):
+        """Generates a proactive message (Active Talk)."""
+        prompt = "User is idle. Initiate a conversation naturally. Check the time and suggest a topic."
+        if context:
+            prompt += f"\nContext: {context}"
+        return self.generate_response(prompt)
 
     def reset_chat(self):
         self.chat_session = None

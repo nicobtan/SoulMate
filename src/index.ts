@@ -1071,6 +1071,35 @@ updateStatus("Idle", true);
 // 3. Soul Bubble Logic
 const soulBubbleManager = new SoulBubbleManager();
 
+// --- Manual Bubble Trigger ---
+const spawnBalloonBtn = document.getElementById('spawn-balloon-btn');
+if (spawnBalloonBtn) {
+    const trigger = async (e: Event) => {
+        e.preventDefault();
+
+        // Visual Feedback
+        spawnBalloonBtn.style.transform = "scale(0.9)";
+        setTimeout(() => spawnBalloonBtn.style.transform = "", 150);
+
+        try {
+            // Request manual bubble (Smart Generation)
+            const packet = await api.generate_bubble();
+            if (packet && packet.action_id) {
+                soulBubbleManager.addBubble(packet.category, packet.text, packet.action_id, packet.type || 'normal');
+                // @ts-ignore
+                if (window.logToDebug) window.logToDebug("Manual Bubble Spawned", 'info', 'sys');
+            } else if (packet && packet.status === 'skipped') {
+                // @ts-ignore
+                if (window.logToDebug) window.logToDebug("Bubble Generation Skipped (Limit Reached or Duplicate)", 'warn', 'sys');
+            }
+        } catch (err: any) {
+            console.error("Spawn Bubble Error:", err);
+        }
+    };
+    spawnBalloonBtn.addEventListener('click', trigger);
+    spawnBalloonBtn.addEventListener('touchstart', trigger, { passive: false });
+}
+
 // Exposed for Python
 // @ts-ignore
 (window as any).showSoulBubble = function (category: string, text: string, actionId: string, type: string = 'normal') {

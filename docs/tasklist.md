@@ -491,3 +491,11 @@
 - [x] **Gemini TTS 400エラー修正**
     - [x] **原因特定**: Gemini TTSモデルがテキスト生成を試みて `INVALID_ARGUMENT` になっていた問題を特定。
     - [x] **修正適用**: `voice_service.py` のconfigに `response_modalities=["AUDIO"]` を追加し、音声出力のみを強制。
+
+## Phase 43: Bubble & RAG Regression Fixes [完了]
+- [x] **Manual Bubble Fix (Regression)**
+    - [x] **原因**: AIEngine改修時のレスポンス形式変更(Dict化)により、BubbleServiceが誤作動。
+    - [x] **Frontend**: `spawn-balloon-btn` のイベント設定漏れを修正。
+    - [x] **Backend**: `api.generate_bubble` エンドポイントを新設し、`get_smart_bubble` (文脈認識生成) を呼び出すよう修正。
+- [x] **Active Engine Fix**
+    - [x] **Crash Fix**: `ActiveEngine` が依存する `generate_proactive_message` メソッドを `AIEngine` に実装。

@@ -212,16 +212,16 @@ export class ApiClient {
         }
     }
 
-    async get_manual_bubble(category: string, text: string): Promise<any> {
-        if (this.desktopApi && this.desktopApi.get_manual_bubble) {
-            return await this.desktopApi.get_manual_bubble(category, text);
+    async generate_bubble(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.generate_bubble) {
+            return await this.desktopApi.generate_bubble();
         } else {
             // Web Mock
             return {
-                category,
-                text,
+                category: 'topics',
+                text: 'Web Mock Topic',
                 action_id: 'MOCK_' + Date.now(),
-                type: 'manual'
+                type: 'discovery'
             };
         }
     }
