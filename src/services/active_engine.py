@@ -78,8 +78,12 @@ class ActiveEngine:
         self.has_triggered_idle = True # Only trigger once per idle session
         
         try:
-            # Generate Proactive Message (Topics: Time, General, Night, etc.)
-            result = self.ai_engine.generate_proactive_message(context="System: User Idle Timeout")
+            # Generate Proactive Message
+            # Context is now heavily enforced by System Prompt (Deep Context),
+            # so we just need to trigger the "Topic Selection" behavior.
+            result = self.ai_engine.generate_proactive_message(
+                context="Situation: User is idle. You want to chat. Check [User Profile] and suggest a topic they LOVE (e.g. Games, Tech). Do not be generic."
+            )
             
             # The result is a DICT {response, emotion, suggestions}.
             # We need to serialize this to JSON string so the frontend 'receiveMessage' can parse it?

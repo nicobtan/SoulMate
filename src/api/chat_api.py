@@ -64,8 +64,14 @@ class ChatApiMixin(BaseApiMixin):
 
         # Retrieve Context (RAG)
         context = ""
+        # 0. User Profile Context (Dynamic Injection for Amnesia Fix)
+        if hasattr(self, 'user_manager') and self.user_manager:
+            profile_context = self.user_manager.get_profile_context()
+            if profile_context:
+                context += f"{profile_context}\n"
+
         if self._memory_manager:
-            context = self._memory_manager.retrieve_context(message)
+            context += self._memory_manager.retrieve_context(message)
             
         # Active Topic Context
         if self.active_engine and getattr(self.active_engine, 'current_active_topic', None):

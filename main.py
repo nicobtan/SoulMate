@@ -111,42 +111,70 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         model = settings.get('model_name', 'gemini-2.5-flash-lite')
         persona_id = settings.get('current_persona_id', 'default')
 
-        # 1. Base Prompt (Persona)
-        base_prompt = ""
-        if self._persona_manager:
-            data = self._persona_manager.load_persona(persona_id)
-            if data:
-                base_prompt = data.get('system_prompt', '')
-            else:
-                base_prompt = "You are a helpful AI."
-
-        # 2. User Profile Context
-        user_context = ""
+        # 1. Load Real Data (Deep Context)
+        user_profile = {}
         if self.user_manager:
-            user_context = self.user_manager.get_profile_context()
+            user_profile = self.user_manager.profile_data # Direct Access
+            
+        persona_data = {}
+        if self._persona_manager:
+            persona_data = self._persona_manager.load_persona(persona_id) or {}
+            
+        # 2. Extract Key Fields
+        user_name = user_profile.get('name', 'User')
+        user_gender = user_profile.get('gender', 'Unknown')
+        user_job = user_profile.get('job_title', 'Unknown')
+        user_mbti = user_profile.get('mbti', 'Unknown')
+        
+        # Merge lists for Interests
+        user_interests = []
+        if 'games' in user_profile: user_interests.extend(user_profile['games'])
+        if 'tech_stack' in user_profile: user_interests.extend(user_profile['tech_stack'])
+        if 'likes' in user_profile: user_interests.extend(user_profile['likes'])
+        if 'hobbies' in user_profile: user_interests.extend(user_profile['hobbies'])
+        user_interests_str = ", ".join(user_interests)
+        
+        user_dislikes = ", ".join(user_profile.get('dislikes', []))
 
-        # 3. Topic Guidance
-        topic_instruction = """
-Guidance for conversation:
-- Use the [User Profile] information to proactively suggest topics when the user is silent or asks for a topic.
-- E.g., If the user likes 'Arknights', ask about their favorite character.
-- E.g., If they are working on 'SoulMate project', ask about the specific progress.
-"""
+        persona_name = persona_data.get('name', 'SoulMate')
+        persona_role = persona_data.get('system_prompt', 'You are a helpful AI.')
 
-        # 4. JSON Mode Instruction (Required for frontend to work properly with suggestion chips)
-        json_instruction = """
+        # 3. Construct Deep Context Prompt
+        deep_context_prompt = f"""
+[CRITICAL INSTRUCTION]
+You are NOT a generic AI. You are {persona_name}.
+You are speaking to {user_name} (Gender: {user_gender}).
+[Your Personality & Tone] 
+{persona_role}
+
+[User Profile - WHO YOU ARE TALKING TO]
+Name: {user_name} (Call them exactly this. NEVER use "〇〇さん" or "User-san")
+Job: {user_job}
+Loves: {user_interests_str}
+Hates: {user_dislikes}
+MBTI: {user_mbti}
+
+[Action Requirement]
+FILTER the topic through the User's Interests. (e.g., If news is about AI, mention it's relevant to his Dev work. If it's gossip, IGNORE it as he dislikes it.)
+REACT using your Persona. (Use plant metaphors if Lena. Be motherly/strict about health.)
+DO NOT summarize the news. Give your OPINION based on your persona.
+
+[Self-Expression & Opinion] (Priority)
+- When asked for YOUR opinion, preference, or desire:
+   1. Do NOT just summarize facts.
+   2. Adopt your Persona and imagine what you would enjoy physically.
+   3. Explain WHY you chose it emotionally.
+
 Response Format: JSON
 You MUST respond in the following JSON format:
-{
+{{
     "response": "Your spoken response text here.",
     "suggestions": ["Option 1", "Option 2", "Option 3"]
-}
+}}
 """
         
-        full_system_prompt = f"{base_prompt}\\n{user_context}\\n{topic_instruction}\\n\\n{json_instruction}"
-        
         if self._ai_engine:
-            self._ai_engine.set_system_prompt(full_system_prompt)
+            self._ai_engine.set_system_prompt(deep_context_prompt)
             self._ai_engine.configure(
                 api_key=api_key, 
                 model_name=model
@@ -156,7 +184,7 @@ You MUST respond in the following JSON format:
             if self.voice_service and api_key:
                 self.voice_service.set_api_key(api_key)
 
-            print(f"[System] AI Configured: {model} with User Profile")
+            print(f"[System] AI Configured: {model} with Deep Context ({user_name})")
 
     def force_talk(self):
         """ピンクボタンの処理: 検索ベースの話題提供 (Grounding)"""
