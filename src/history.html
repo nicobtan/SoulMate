@@ -44,39 +44,79 @@
         }
 
         .session-item {
-            padding: 12px 15px;
-            cursor: pointer;
+            padding: 10px 15px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            transition: background 0.2s;
-            font-size: 13px;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .session-item:hover {
-            background-color: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         .session-item.active {
-            background-color: rgba(74, 144, 226, 0.1);
+            background: rgba(74, 144, 226, 0.1);
             border-left: 3px solid var(--accent-color);
         }
 
+        .session-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
         .session-date {
-            font-size: 11px;
+            font-size: 10px;
             color: #888;
-            margin-bottom: 3px;
         }
 
         .session-title {
+            font-size: 13px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        /* Content: Chat View */
+        /* Item Actions */
+        .session-actions {
+            display: flex;
+            gap: 5px;
+            opacity: 0.5;
+        }
+
+        .session-item:hover .session-actions {
+            opacity: 1;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            padding: 2px;
+            font-size: 14px;
+        }
+
+        .icon-btn:hover {
+            color: white;
+        }
+
+        .icon-btn.fav-btn.active {
+            color: #ffd700;
+        }
+
+        .icon-btn.del-btn:hover {
+            color: #ff4444;
+        }
+
+        /* Content Area */
         .content {
             flex: 1;
             display: flex;
             flex-direction: column;
+            background: var(--bg-color);
         }
 
         .chat-view {
@@ -90,9 +130,9 @@
 
         .footer {
             padding: 15px;
-            background-color: var(--sidebar-color);
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid #444;
             text-align: right;
+            background: var(--sidebar-color);
         }
 
         /* Messages */
@@ -119,26 +159,26 @@
             border-radius: 4px;
             border: none;
             cursor: pointer;
-            background-color: var(--accent-color);
+            background: var(--accent-color);
             color: white;
-            font-weight: bold;
         }
 
         .btn:disabled {
-            background-color: #555;
+            background: #555;
             cursor: not-allowed;
-            opacity: 0.7;
-        }
-
-        .btn:hover:not(:disabled) {
-            opacity: 0.9;
         }
     </style>
 </head>
 
 <body>
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">Memories 📖</div>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="header-title">Memories 📖</div>
+            <div class="search-row">
+                <input type="text" id="search-input" placeholder="キーワード検索...">
+                <button id="fav-filter-btn" title="お気に入りのみ">★</button>
+            </div>
+        </div>
         <div id="session-list">
             <div style="padding:20px; color:#888;">Loading...</div>
         </div>

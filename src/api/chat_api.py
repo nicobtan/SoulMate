@@ -528,15 +528,35 @@ Output ONLY the suggested text.
         return {'status': 'success'}
 
     # --- History API (Database) ---
-    def get_sessions(self, limit=50):
-        """Returns list of sessions from DB."""
+    def get_history_sessions(self, keyword=None, favorites_only=False):
+        """Returns list of sessions from DB (filtered)."""
         from src import core_instance
         db = core_instance.get_db()
         if db:
-            # Row objects to dict
-            sessions = db.get_sessions(limit)
+            # Handle empty string from JS
+            if keyword == "": keyword = None
+            
+            sessions = db.get_sessions(limit=100, keyword=keyword, favorites_only=favorites_only)
             return [dict(s) for s in sessions]
         return []
+
+    def toggle_history_favorite(self, session_id, is_favorite):
+        """Toggles the favorite status of a session."""
+        from src import core_instance
+        db = core_instance.get_db()
+        if db:
+            new_state = db.toggle_favorite(session_id, is_favorite)
+            return {'status': 'success', 'is_favorite': bool(new_state)}
+        return {'status': 'error'}
+
+    def delete_history_session(self, session_id):
+        """Deletes a session and its messages."""
+        from src import core_instance
+        db = core_instance.get_db()
+        if db:
+            db.delete_session(session_id)
+            return {'status': 'success'}
+        return {'status': 'error'}
 
     def get_session_detail(self, session_id):
         """Returns messages for a specific session."""

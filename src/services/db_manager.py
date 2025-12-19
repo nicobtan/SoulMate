@@ -17,81 +17,119 @@ class DatabaseManager:
         self.conn.row_factory = sqlite3.Row  # カラム名でアクセス可能にする
 
     def init_db(self):
-        """テーブルの初期化（初回起動時のみ実行される）"""
+        """Initializes the database table."""
+        try:
+            if not self.conn:
+                self.connect()
+            cursor = self.conn.cursor()
+            
+            # Sessions Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT DEFAULT 'New Session',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Messages Table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id INTEGER,
+                    role TEXT,
+                    content TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    meta_json TEXT, -- For storing extra data like suggestions
+                    FOREIGN KEY(session_id) REFERENCES sessions(id)
+                )
+            """)
+            
+            # ★追加: マイグレーション (既存DBにカラム追加)
+            try:
+                cursor.execute("ALTER TABLE sessions ADD COLUMN is_favorite BOOLEAN DEFAULT 0")
+                self.conn.commit()
+            except:
+                pass # すでに存在する場合はエラーになるので無視
+            
+            self.conn.commit()
+            print("[DatabaseManager] DB Initialized.")
+        except Exception as e:
+            print(f"[DatabaseManager] DB Init Error: {e}")
+
+    def create_session(self, title="New Session"):
+        """Creates a new session and returns its ID."""
         if not self.conn:
             self.connect()
-        
-        cursor = self.conn.cursor()
-        
-        # 1. Sessions Table (会話のセッション管理)
-        # 再起動しても「どの会話の続きか」を管理します
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS sessions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                is_active BOOLEAN DEFAULT 1
-            )
-        """)
-
-        # 2. Messages Table (実際の会話ログ)
-        # チャット画面の表示用にテキストをそのまま保存します
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER,
-                role TEXT NOT NULL, -- 'user' or 'ai'
-                content TEXT,
-                meta_json TEXT, -- 感情やRAG使用ログなどのメタデータ
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(session_id) REFERENCES sessions(id)
-            )
-        """)
-        
-        # 3. Memories Table (将来的な「思い出」機能用)
-        # 特に重要な情報を要約して保存する場所（今回は枠だけ作成）
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS memories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                category TEXT,
-                content TEXT,
-                importance INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        self.conn.commit()
-        print(f"[Database] Initialized: {self.db_path}")
-
-    # --- Session Methods ---
-    def create_session(self, title: str = None) -> int:
-        if not title:
-            title = datetime.now().strftime("%Y-%m-%d %H:%M の会話")
-        
         cursor = self.conn.cursor()
         cursor.execute("INSERT INTO sessions (title) VALUES (?)", (title,))
         self.conn.commit()
         return cursor.lastrowid
 
-    def get_sessions(self, limit=20) -> List[dict]:
+    # ★更新: 検索(keyword)とフィルタ(favorites_only)に対応
+    def get_sessions(self, limit=50, keyword=None, favorites_only=False):
+        if not self.conn: self.connect()
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM sessions ORDER BY updated_at DESC LIMIT ?", (limit,))
+        
+        query = "SELECT DISTINCT s.* FROM sessions s"
+        params = []
+        conditions = []
+
+        # キーワード検索 (タイトル または メッセージ内容)
+        if keyword:
+            query += " LEFT JOIN messages m ON s.id = m.session_id"
+            conditions.append("(s.title LIKE ? OR m.content LIKE ?)")
+            params.extend([f"%{keyword}%", f"%{keyword}%"])
+        
+        if favorites_only:
+            conditions.append("s.is_favorite = 1")
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        
+        query += " ORDER BY s.updated_at DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(query, tuple(params))
         return [dict(row) for row in cursor.fetchall()]
 
+    # ★追加: 削除機能
+    def delete_session(self, session_id):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        try:
+            # メッセージを先に削除
+            cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+            # セッションを削除
+            cursor.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            self.conn.commit()
+            return True
+        except Exception as e:
+            print(f"[DB] Delete Error: {e}")
+            return False
+
+    # ★追加: お気に入り切替
+    def toggle_favorite(self, session_id, is_favorite):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        val = 1 if is_favorite else 0
+        cursor.execute("UPDATE sessions SET is_favorite = ? WHERE id = ?", (val, session_id))
+        self.conn.commit()
+        return val
+
     def get_active_session(self) -> Optional[dict]:
-        """最後に使っていたセッションを取得（続きから話す用）"""
+        """最後に使っていたセッションを取得(続きから話す用)"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM sessions ORDER BY updated_at DESC LIMIT 1")
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def get_session(self, session_id: int) -> Optional[dict]:
-        """ID指定でセッションを取得"""
+    def get_session(self, session_id):
+        if not self.conn: self.connect()
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        return cursor.fetchone()
 
     def update_session_timestamp(self, session_id: int):
         cursor = self.conn.cursor()
@@ -107,10 +145,8 @@ class DatabaseManager:
     def add_message(self, session_id: int, role: str, content: str, meta: dict = None):
         meta_json = json.dumps(meta, ensure_ascii=False) if meta else "{}"
         cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO messages (session_id, role, content, meta_json)
-            VALUES (?, ?, ?, ?)
-        """, (session_id, role, content, meta_json))
+        query = "INSERT INTO messages (session_id, role, content, meta_json) VALUES (?, ?, ?, ?)"
+        cursor.execute(query, (session_id, role, content, meta_json))
         
         self.update_session_timestamp(session_id)
         self.conn.commit()
@@ -119,11 +155,8 @@ class DatabaseManager:
     def get_messages(self, session_id: int, limit=100) -> List[dict]:
         """チャット画面復元用"""
         cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT * FROM messages 
-            WHERE session_id = ? 
-            ORDER BY created_at ASC
-        """, (session_id,))
+        query = "SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC"
+        cursor.execute(query, (session_id,))
         
         rows = cursor.fetchall()
         results = []

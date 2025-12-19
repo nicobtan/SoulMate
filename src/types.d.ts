@@ -46,9 +46,11 @@ declare global {
 
                 // History Window
                 open_history_window: () => void;
-                get_history_sessions: () => Promise<any[]>;
+                get_history_sessions: (keyword?: string, favorites_only?: boolean) => Promise<any[]>;
                 get_history_messages: (sessionId: number) => Promise<any[]>;
                 resume_history_session: (sessionId: number) => Promise<any>;
+                toggle_history_favorite: (id: number, state: boolean) => Promise<any>;
+                delete_history_session: (id: number) => Promise<any>;
             };
         };
     }
