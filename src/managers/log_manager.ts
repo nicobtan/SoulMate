@@ -14,7 +14,7 @@ export class LogManager {
     // Layout Config (Widths + Margins)
     private readonly CHAR_WIDTH = 500;
     private readonly LOG_TOTAL_WIDTH = 410; // 400px width + 10px margin
-    private readonly CHAT_TOTAL_WIDTH = 490; // 450px width + 40px margin
+    private readonly CHAT_TOTAL_WIDTH = 455; // 450px width + 5px margin
 
     private constructor() {
         this.debugContent = document.getElementById('debug-content');

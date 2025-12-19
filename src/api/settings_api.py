@@ -121,22 +121,74 @@ class SettingsApiMixin(BaseApiMixin):
         if not self._config_manager or not self._ai_engine or not self._persona_manager:
             return
 
-        api_key = settings.get('api_key')
-        model = settings.get('model_name', 'gemini-2.5-flash-lite')
+        api_key = settings.get('api_key') or self._config_manager.get('api_key')
+        model = settings.get('model_name') or self._config_manager.get('model_name', 'gemini-2.5-flash-lite')
         
         # Get Persona Content
-        persona_id = settings.get('current_persona_id', 'default')
+        persona_id = settings.get('current_persona_id') or self._config_manager.get('current_persona_id', 'default')
         # Handle legacy 'current_persona_file' if present (strip extension)
         if 'current_persona_file' in settings:
             persona_id = settings['current_persona_file'].replace('.yaml', '').replace('.yml', '')
             
-        profile = self._persona_manager.load_persona(persona_id)
+        persona_data = self._persona_manager.load_persona(persona_id)
         
         # Update AI
         self._ai_engine.configure(api_key, model)
         
-        if profile:
-            self._ai_engine.set_system_prompt(profile.get('system_prompt', ''))
+        if persona_data:
+            # --- Deep Context Injection (User Name Fix) ---
+            # Retrieve User Profile from Config
+            user_profile = self._config_manager.get('user_profile', {})
+            # Fallback for flatten config
+            user_name = user_profile.get('name') or self._config_manager.get('user_name', 'User')
+            user_job = user_profile.get('job') or self._config_manager.get('user_job', 'Unknown')
+            user_interests = user_profile.get('interests') or self._config_manager.get('user_interests', [])
+            user_interests_str = ", ".join(user_interests) if isinstance(user_interests, list) else str(user_interests)
+            user_dislikes = user_profile.get('dislikes') or self._config_manager.get('user_dislikes', 'None')
+            user_mbti = user_profile.get('mbti') or self._config_manager.get('user_mbti', 'Unknown')
+
+            persona_name = persona_data.get('name', 'SoulMate')
+            persona_role = persona_data.get('system_prompt', '')
+
+            # Construct Deep Context Prompt with Sandwich Rule
+            deep_context_prompt = f"""
+[CRITICAL INSTRUCTION: IDENTITY LOCK]
+You are NOT a generic AI. You are {persona_name}.
+You are speaking to {user_name}.
+**RULE: You MUST call the user "{user_name}". NEVER use "〇〇さん", "User-san", or "あなた".**
+
+[User Profile]
+Name: {user_name} (Target Name)
+Job: {user_job}
+Loves: {user_interests_str}
+Hates: {user_dislikes}
+MBTI: {user_mbti}
+
+[Your Personality & Tone] 
+{persona_role}
+
+[Action Requirement]
+FILTER the topic through the User's Interests.
+REACT using your Persona.
+DO NOT summarize the news. Give your OPINION based on your persona.
+Talk to {user_name} naturally.
+
+[Self-Expression & Opinion]
+1. Do NOT just summarize facts.
+2. Adopt your Persona and imagine what you would enjoy physically.
+3. Explain WHY you chose it emotionally.
+
+[FINAL REMINDER]
+Your partner's name is "{user_name}". Use it naturally in conversation.
+Do NOT use placeholders like "〇〇さん".
+
+Response Format: JSON
+{{
+    "response": "Your spoken response text here.",
+    "suggestions": ["Option 1", "Option 2", "Option 3"]
+}}
+"""
+            self._ai_engine.set_system_prompt(deep_context_prompt)
 
     
     def get_search_topics(self):

@@ -67,35 +67,37 @@ class AIEngine:
         return self.chat_session
 
     def _parse_json_response(self, raw_text):
-        """Extracts JSON from text even if there is conversational filler."""
+        """Extracts JSON from text even if there is conversational filler or Markdown."""
         if not raw_text:
             return {"response": "...", "emotion": "neutral", "suggestions": []}
 
-        try:
-            # 1. Try to find code block first
-            json_match = re.search(r'```json\s*(.*?)\s*```', raw_text, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-            else:
-                # 2. Fallback: Try to find the first '{' and last '}'
-                # This handles cases where code blocks are missing but JSON is present
-                start = raw_text.find('{')
-                end = raw_text.rfind('}')
-                if start != -1 and end != -1:
-                    json_str = raw_text[start:end+1]
-                else:
-                    # No JSON found, treat as plain text if it looks like a response
-                    return {"response": raw_text.strip(), "emotion": "neutral", "suggestions": []}
+        # 1. Clean Markdown Code Blocks
+        clean_text = raw_text.strip()
+        # Regex to find ```json ... ``` or just ``` ... ```
+        match = re.search(r"```(?:json)?\s*(.*)\s*```", clean_text, re.DOTALL | re.IGNORECASE)
+        if match:
+            clean_text = match.group(1).strip()
 
-            return json.loads(json_str)
+        try:
+            # 2. Try to find JSON object bounds if mixed with text
+            start = clean_text.find('{')
+            end = clean_text.rfind('}')
+            
+            if start != -1 and end != -1:
+                json_str = clean_text[start:end+1]
+                return json.loads(json_str)
+            else:
+                # No JSON braces found, treat as plain text
+                # Use clean_text to ensure ``` are removed
+                return {"response": clean_text, "emotion": "neutral", "suggestions": []}
 
         except (json.JSONDecodeError, ValueError) as e:
             logging.warn(f"JSON Parse Failed: {e}. Raw: {raw_text[:50]}...")
-            # Fallback: Treat entire text as response
-            clean_text = raw_text.strip()
-            # Remove markdown code blocks if any remain
-            clean_text = clean_text.replace("```json", "").replace("```", "")
-            return {"response": clean_text, "emotion": "neutral", "suggestions": []}
+            # Fallback: Treat as plain text
+            # Use clean_text (without backticks) as the response content
+            # Remove any lingering "json" tag if strict regex didn't catch it but it caused decode error
+            fallback_text = clean_text.replace("```json", "").replace("```", "").strip()
+            return {"response": fallback_text, "emotion": "neutral", "suggestions": []}
 
     def generate_response(self, message, context=None, image=None):
         """Generates a JSON response for the given message."""
