@@ -6,6 +6,7 @@ import { ConfigManager } from './managers/config_manager.js';
 import { ChatManager } from './managers/chat_manager.js';
 import { SoulBubbleManager } from './soul_bubble.js'; // Keep if used directly or move to manager
 import { api } from './api_client.js';
+import { HistoryManager } from './managers/history_manager.js';
 
 // --- Global Initialization ---
 window.addEventListener('DOMContentLoaded', async () => {
@@ -47,7 +48,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Expose for global calls (from python)
     // Expose for global calls (from python)
     // Expose for global calls (from python)
+    // Expose for global calls (from python)
     (window as any).soulBubbleManager = bubbleManager;
+
+    // --- History Manager (Step 4) ---
+    const historyManager = HistoryManager.getInstance();
+    const histBtn = document.getElementById('history-btn');
+    if (histBtn) {
+        histBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            historyManager.open();
+        });
+    }
 
     // ★ Restore Global Bubble Hook
     (window as any).showSoulBubble = function (cat: string, txt: string, aid: string, type: string) {

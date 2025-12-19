@@ -47,6 +47,30 @@ export class ChatManager {
         console.log("ChatManager Initialized");
     }
 
+    // ★追加: 会話ログを丸ごと置き換えるメソッド
+    public loadConversation(messages: any[]) {
+        if (!this.chatLogArea) return;
+
+        // 1. クリア
+        this.chatLogArea.innerHTML = '';
+
+        // 2. 再描画
+        messages.forEach(msg => {
+            // DBのカラム名と合わせる (msg.content)
+            const text = msg.content || "";
+            const role = msg.role || "user";
+
+            // 既存のaddLogはタイムスタンプを現在時刻にするため、
+            // ここでは簡易的にaddLogを使う（タイムスタンプは現在になるが許容範囲）
+            this.addLog(text, role as 'user' | 'ai');
+        });
+
+        // 3. 最下部へスクロール
+        this.chatLogArea.scrollTop = this.chatLogArea.scrollHeight;
+
+        console.log(`[ChatManager] Loaded ${messages.length} messages.`);
+    }
+
     private initAudioListeners() {
         const am = AudioManager.getInstance();
 

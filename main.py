@@ -318,4 +318,25 @@ def create_app():
     webview.start(debug=True)
 
 if __name__ == '__main__':
+    # 1. Initialize Database
+    print("Initializing Database (soulmate.db)...")
+    from src.services.db_manager import DatabaseManager
+    
+    db = DatabaseManager()
+    db.init_db()
+    
+    # 2. Register to Core
+    from src import core_instance
+    core_instance.set_db(db)
+    
+    # 3. Migrate Legacy History (JSON -> DB)
+    from src.services.migration_service import MigrationService
+    migration = MigrationService(db)
+    migration.migrate_json_to_db()
+
+    # 4. Ensure session exists
+    if not db.get_active_session():
+        print("Creating initial session...")
+        db.create_session("はじめまして")
+        
     create_app()

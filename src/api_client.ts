@@ -225,6 +225,44 @@ export class ApiClient {
             };
         }
     }
+
+    // --- History API (Step 4) ---
+    async get_sessions(): Promise<any[]> {
+        if (this.desktopApi && this.desktopApi.get_sessions) {
+            return await this.desktopApi.get_sessions();
+        } else {
+            // Web Fetch
+            try {
+                const res = await fetch('/api/history/sessions');
+                if (res.ok) return await res.json();
+            } catch (e) { console.error(e); }
+            return [];
+        }
+    }
+
+    async get_session_detail(id: number): Promise<any> {
+        if (this.desktopApi && this.desktopApi.get_session_detail) {
+            return await this.desktopApi.get_session_detail(id);
+        } else {
+            try {
+                const res = await fetch(`/api/history/${id}`);
+                if (res.ok) return await res.json();
+            } catch (e) { console.error(e); }
+            return {};
+        }
+    }
+
+    async resume_session(id: number): Promise<any> {
+        if (this.desktopApi && this.desktopApi.resume_session) {
+            return await this.desktopApi.resume_session(id);
+        } else {
+            try {
+                const res = await fetch(`/api/history/${id}/resume`, { method: 'POST' });
+                if (res.ok) return await res.json();
+            } catch (e) { console.error(e); }
+            return {};
+        }
+    }
 }
 
 export const api = new ApiClient();

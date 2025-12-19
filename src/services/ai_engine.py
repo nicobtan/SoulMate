@@ -78,26 +78,37 @@ class AIEngine:
         if match:
             clean_text = match.group(1).strip()
 
-        try:
-            # 2. Try to find JSON object bounds if mixed with text
-            start = clean_text.find('{')
-            end = clean_text.rfind('}')
-            
-            if start != -1 and end != -1:
-                json_str = clean_text[start:end+1]
-                return json.loads(json_str)
-            else:
-                # No JSON braces found, treat as plain text
-                # Use clean_text to ensure ``` are removed
-                return {"response": clean_text, "emotion": "neutral", "suggestions": []}
+        # 2. Try to find JSON object bounds if mixed with text
+        # (AI might output "Here is the JSON: { ... }")
+        if '{' in clean_text:
+            first_brace = clean_text.find('{')
+            last_brace = clean_text.rfind('}')
+            if last_brace > first_brace:
+                # Extract potential JSON part
+                clean_text = clean_text[first_brace : last_brace + 1]
 
+        try:
+            return json.loads(clean_text)
         except (json.JSONDecodeError, ValueError) as e:
             logging.warn(f"JSON Parse Failed: {e}. Raw: {raw_text[:50]}...")
-            # Fallback: Treat as plain text
-            # Use clean_text (without backticks) as the response content
-            # Remove any lingering "json" tag if strict regex didn't catch it but it caused decode error
+            
+            # 4. Fallback: Return CLEANED text as response
+            # This ensures users don't see "```json" or braces if parsing failed but text is readable.
+            # Convert any potential JSON-like string back to text if it failed parsing? 
+            # If it failed parsing, it's likely just text or broken JSON.
+            # If it was broken JSON, displaying it might be ugly, but better than crashing.
+            # However, usually the failure is due to trailing commas or quotes.
+            # Let's try to be smart: if it looks like JSON info, maybe just output it?
+            # Or just return the string.
+            
+            # Ensure "```" are definitely gone
             fallback_text = clean_text.replace("```json", "").replace("```", "").strip()
-            return {"response": fallback_text, "emotion": "neutral", "suggestions": []}
+            
+            return {
+                "response": fallback_text, 
+                "emotion": "neutral", 
+                "suggestions": []
+            }
 
     def generate_response(self, message, context=None, image=None):
         """Generates a JSON response for the given message."""

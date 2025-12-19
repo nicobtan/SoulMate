@@ -2,64 +2,76 @@
 
 ## Summary
 - **Total Source Files**: ~40
-- **Largest File**: `src/index.ts` (1525 lines) [CRITICAL]
-- **Second Largest**: `server.py` (580 lines) [WARNING]
+- **Major Achievement**: `src/index.ts` successfully split into Managers. Current size: **85 lines**.
+- **Largest File**: `src/css/style.css` (678 lines) - Reflects rich UI styling.
+- **Second Largest**: `server.py` (641 lines) [WARNING] - Next Refactoring Target?
 
 ## Analysis
-The folder structure is generally well-organized (Service-oriented architecture + API Mixins). However, the **Frontend Entry Point (`index.ts`)** has become a "God Object," handling initialization, UI events, Live2D logic, and debug logging.
+The **Frontend Refactoring Phase** is complete. The "God Object" `index.ts` has been dismantled into modular Managers (`UIManager`, `ChatManager`, `Live2DManager`, `LogManager`). This significantly improves maintainability.
+
+The **Backend** `server.py` and `bubble_service.py` are growing larger and may need attention in the next phase.
 
 ## File Line Counts (Source Only)
 
-### Frontend (`src/`)
-- [CRITICAL] `index.ts`: 1525 lines (Requires Splitting)
-- `settings.html`: 564 lines
-- `api_client.ts`: 210 lines
-- `soul_bubble.ts`: 176 lines
+### Frontend Core (`src/`)
+- `index.ts`: 85 lines (Entry Point) [OPTIMIZED]
+- `api_client.ts`: 230 lines
+- `soul_bubble.ts`: 216 lines
+- `settings.ts`: 96 lines
+- `constants.ts`: 66 lines
+- `types.d.ts`: 49 lines
 - `index.html`: 173 lines
-- `settings.ts`: 85 lines
-- `types.d.ts`: 41 lines
+
+### Frontend Managers (`src/managers/`) [NEW]
+- `chat_manager.ts`: 397 lines (Chat, Audio, Vision)
+- `ui_manager.ts`: 311 lines (DOM, Clock, Buttons)
+- `live2d_manager.ts`: 257 lines (Model, Motion, LipSync)
+- `log_manager.ts`: 145 lines (Logging, Debug)
+- `config_manager.ts`: 133 lines (Settings I/O)
+
+### Styles
+- `src/css/style.css`: 678 lines [Dark Mode / Animations]
 
 ### Backend Core (`src/services/`)
-- `ai_engine.py`: 217 lines
-- `calendar_manager.py`: 176 lines
-- `voice_service.py`: 151 lines
-- `memory_service.py`: 144 lines
-- `memory_manager.py`: 116 lines
-- `news_collector.py`: 113 lines
-- `user_manager.py`: 104 lines
-- `persona_manager.py`: 60 lines
-- `tts_engine.py`: 58 lines
-- `interest_manager.py`: 50 lines
-- `metadata_fetcher.py`: 43 lines
-- `history_manager.py`: 166 lines
+- `bubble_service.py`: 403 lines
+- `ai_engine.py`: 308 lines (w/ JSON Fix)
+- `calendar_manager.py`: 195 lines
+- `voice_service.py`: 164 lines
+- `memory_service.py`: 163 lines
+- `active_engine.py`: 143 lines
+- `memory_manager.py`: 122 lines
+- `news_collector.py`: 121 lines
+- `user_manager.py`: 116 lines
+- `tts_engine.py`: 68 lines
+- `persona_manager.py`: 66 lines
+- `interest_manager.py`: 56 lines
+- `metadata_fetcher.py`: 45 lines
+- `history_manager.py`: 174 lines
 
 ### Backend API (`src/api/` & Root)
-- [WARNING] `server.py`: 580 lines
-- `main.py`: 287 lines
+- [WARNING] `server.py`: 641 lines (FastAPI/SocketIO)
+- `main.py`: 321 lines
 - `src/api/chat_api.py`: ~400 lines
-- `src/api/window_api.py`: 66 lines
-- `src/api/base.py`: 23 lines
+- `src/api/window_api.py`: ~70 lines
+- `src/api/settings_api.py`: ~160 lines
 
 ### Documentation (`docs/`)
 - `tasklist.md`: 532 lines
-- `realtime_reaction_spec.md`: 49 lines
-- `fix_name_placeholder.md`: 56 lines
+- `project_structure_report.md`: ~70 lines
 
-## Recommendations for Refactoring
+## Recommendations for Next Phase
 
-### 1. Split `src/index.ts`
-This file is too large and risky to maintain. Suggest splitting into:
-- `src/managers/ui_manager.ts`: Handling DOM elements and generic UI toggle logic.
-- `src/managers/event_manager.ts`: Central event bus or listener setup.
-- `src/managers/live2d_manager.ts`: Move more Live2D logic here completely.
+### 1. Refactor `server.py`
+The `server.py` file is now the largest backend component (640+ lines).
+- **Action**: Split routes into `src/routers/*.py`.
+- **Method**: Use FastAPI `APIRouter` to modularize endpoints (e.g., `routers/chat.py`, `routers/settings.py`).
 
-### 2. Modularize `server.py`
-If `server.py` contains many route definitions, verify if they can be moved to `src/routers/` using FastAPI's `APIRouter` (if used) or separate blueprints.
+### 2. Refactor `bubble_service.py`
+Growing large (400+ lines).
+- **Action**: Consider splitting Generation logic and Scheduling/Event logic.
 
-### 3. Folder Structure Check
-The current structure is **Good**.
-- `src/services/`: Clear separation of business logic.
-- `src/api/`: Mixins for desktop app API.
-- `dist/`: Build artifacts.
+### 3. CSS Maintenance
+`style.css` is large.
+- **Action**: Consider splitting into `base.css`, `components.css`, `layout.css` if it grows further.
 
-**Verdict**: Focus strictly on splitting `src/index.ts` in the near future.
+**Verdict**: Frontend Refactoring successful. Focus shifts to Backend Modularization.

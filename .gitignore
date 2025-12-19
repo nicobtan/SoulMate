@@ -32,3 +32,7 @@ key.json
 # Soulmate Specific
 logs/
 temp/
+soulmate.db
+history.json
+history.json.bak
+chat_history.jsonl
