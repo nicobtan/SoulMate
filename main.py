@@ -290,8 +290,93 @@ The user is silent. You want to start a conversation about something NEW and EXC
         print(f"[CLIENT LOG] {message}")
         return {"status": "ok"}
 
+# --- Background Task for Auto-Titling ---
+def start_background_title_fixer(api_instance):
+    """起動後に裏でこっそりタイトルを直すお掃除タスク (直近の話題で上書き版)"""
+    import time
+    def _run():
+        import time
+        time.sleep(5) # 起動待ち (少し待ってから開始)
+        
+        if not api_instance: return
+        print("[TitleFixer] Starting background title generation (Latest Topic)...")
+        
+        # main.py runs in same process
+        from src import core_instance
+        db = core_instance.get_db()
+        if not db: return
+
+        # 修正対象: "インポートされた...", "[Situation]...", "無題の会話", "New Session", "すでに使っている", "AI:"
+        # 取得
+        sessions = db.get_sessions(limit=100) # 最近の100件をチェック
+        
+        target_prefixes = [
+            "インポートされた", 
+            "[Situation]", 
+            "無題の会話", 
+            "New Session", 
+            "すでに使っている",
+            "AI:", # AI発言がそのままタイトルになったものも修正
+        ]
+        
+        for sess in sessions:
+            s_id = sess['id']
+            title = sess['title']
+            
+            # 条件に一致するかチェック
+            is_target = any(title.startswith(p) for p in target_prefixes)
+            if not is_target:
+                continue
+                
+            # メッセージ取得
+            msgs = db.get_messages(s_id)
+            if not msgs: continue
+            
+            # ★修正: 「最初」ではなく「最後」の会話を使う
+            # 会話が長い場合は、直近の10件を取得
+            recent_msgs = msgs[-10:] if len(msgs) > 10 else msgs
+            
+            context = ""
+            for m in recent_msgs:
+                role = m['role']
+                content = m['content']
+                if not content: continue
+                
+                # システムコマンド除外
+                if content.strip().startswith('['): continue
+                
+                if role == 'user':
+                    context += f"User: {content}\n"
+                elif role == 'ai':
+                    context += f"AI: {content}\n"
+            
+            if len(context) < 10: continue
+
+            print(f"[TitleFixer] Regenerating title for session {s_id} using LAST conversations...")
+            
+            # AI要約実行
+            # api_instance._ai_engine access
+            if hasattr(api_instance, '_ai_engine') and api_instance._ai_engine:
+                 new_title = api_instance._ai_engine.generate_title_summary(context)
+                 
+                 if new_title:
+                     # 引用符などが残っていたら削除
+                     new_title = new_title.replace('"', '').replace("'", "").strip()
+                     print(f"[TitleFixer] Updated: '{title}' -> '{new_title}'")
+                     db.update_session_title(s_id, new_title)
+                
+            # APIレート制限考慮 
+            time.sleep(2)
+        print("[TitleFixer] Finished.")
+
+    # スレッド起動
+    threading.Thread(target=_run, daemon=True).start()
+
 def create_app():
     api = Api()
+    
+    # ★ Start Background Title Fixer
+    start_background_title_fixer(api)
     
     initial_width = 500 
     initial_height = 500
@@ -333,6 +418,12 @@ if __name__ == '__main__':
     from src.services.migration_service import MigrationService
     migration = MigrationService(db)
     migration.migrate_json_to_db()
+    
+    # 3.4 Clean Internal Logs (Force Talk pollution)
+    migration.clean_internal_logs()
+    
+    # 3.5 Fix Legacy Titles (Imported sessions with default titles)
+    migration.fix_legacy_titles()
 
     # 4. Ensure session exists
     if not db.get_active_session():

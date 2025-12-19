@@ -66,49 +66,45 @@ class AIEngine:
             )
         return self.chat_session
 
-    def _parse_json_response(self, raw_text):
-        """Extracts JSON from text even if there is conversational filler or Markdown."""
-        if not raw_text:
-            return {"response": "...", "emotion": "neutral", "suggestions": []}
-
-        # 1. Clean Markdown Code Blocks
-        clean_text = raw_text.strip()
-        # Regex to find ```json ... ``` or just ``` ... ```
-        match = re.search(r"```(?:json)?\s*(.*)\s*```", clean_text, re.DOTALL | re.IGNORECASE)
+    def _parse_ai_response(self, raw_text: str) -> dict:
+        """
+        AIの応答からJSONを抽出する堅牢なパーサー。
+        Markdown記法、余分な空白、説明文などを除去してパースを試みる。
+        """
+        text = raw_text.strip()
+        
+        # 1. Markdownコードブロックの除去 (```json ... ```)
+        # 大文字小文字無視、改行含む
+        match = re.search(r"```(?:json)?\s*(.*)\s*```", text, re.DOTALL | re.IGNORECASE)
         if match:
-            clean_text = match.group(1).strip()
-
-        # 2. Try to find JSON object bounds if mixed with text
-        # (AI might output "Here is the JSON: { ... }")
-        if '{' in clean_text:
-            first_brace = clean_text.find('{')
-            last_brace = clean_text.rfind('}')
+            text = match.group(1).strip()
+        
+        # 2. それでもパースできない場合、最初と最後の {} を探して抽出する
+        # (AIがコードブロックの外に余計な挨拶などを書いた場合への対策)
+        if "{" in text:
+            first_brace = text.find("{")
+            last_brace = text.rfind("}")
             if last_brace > first_brace:
-                # Extract potential JSON part
-                clean_text = clean_text[first_brace : last_brace + 1]
+                text = text[first_brace : last_brace + 1]
 
+        # 3. JSONパースの試行
         try:
-            return json.loads(clean_text)
-        except (json.JSONDecodeError, ValueError) as e:
-            logging.warn(f"JSON Parse Failed: {e}. Raw: {raw_text[:50]}...")
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            logging.warn(f"[AI Engine] JSON Parse Error: {e}")
+            logging.warn(f"[AI Engine] Failed Text: {raw_text[:100]}...")
             
-            # 4. Fallback: Return CLEANED text as response
-            # This ensures users don't see "```json" or braces if parsing failed but text is readable.
-            # Convert any potential JSON-like string back to text if it failed parsing? 
-            # If it failed parsing, it's likely just text or broken JSON.
-            # If it was broken JSON, displaying it might be ugly, but better than crashing.
-            # However, usually the failure is due to trailing commas or quotes.
-            # Let's try to be smart: if it looks like JSON info, maybe just output it?
-            # Or just return the string.
-            
-            # Ensure "```" are definitely gone
-            fallback_text = clean_text.replace("```json", "").replace("```", "").strip()
+            # 4. 最終手段: パース失敗時は、テキスト全体をresponseとして扱う（生JSONを見せるよりマシ）
+            # ただし、元の raw_text ではなく、クリーニング済みの text を使う
+            # Markdownタグ (```) が残っている場合は除去
+            info_text = text.replace("```json", "").replace("```", "").strip()
             
             return {
-                "response": fallback_text, 
-                "emotion": "neutral", 
-                "suggestions": []
+                "response": info_text, # ここが重要。タグが消えた状態のテキストを出す
+                "suggestions": [],
+                "emotion": "neutral"
             }
+
 
     def generate_response(self, message, context=None, image=None):
         """Generates a JSON response for the given message."""
@@ -280,7 +276,7 @@ Please answer the user's request based on the image.
                 }
 
             # レスポンスの構築
-            result = self._parse_json_response(raw_text)
+            result = self._parse_ai_response(raw_text)
             
             # Frontend expects 'text' key (based on user snippet and index.ts)
             # Map 'response' from JSON to 'text' for frontend compatibility
@@ -300,6 +296,35 @@ Please answer the user's request based on the image.
         if context:
             prompt += f"\nContext: {context}"
         return self.generate_response(prompt)
+
+    def generate_title_summary(self, conversation_text):
+        """会話履歴から短いタイトルを生成する"""
+        if not self.client: # client check instead of model
+            return None
+            
+        prompt = f"""
+Task: Generate a very short title (max 20 chars) for the following conversation in Japanese.
+- Ignore system prompts like [Situation] or [User Profile].
+- Focus on the main topic.
+- Output ONLY the title text. No quotes.
+
+Conversation:
+{conversation_text[:1000]} 
+"""
+        # API呼び出し (generate_content)
+        try:
+            # client.models.generate_content using self.model_name
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt
+            )
+            title = response.text.strip().replace('"', '').replace('「', '').replace('」', '')
+            # Newlines removal just in case
+            title = title.replace('\n', ' ')
+            return title
+        except Exception as e:
+            logging.error(f"[AIEngine] Title generation failed: {e}")
+            return None
 
     def reset_chat(self):
         self.chat_session = None

@@ -446,3 +446,40 @@ export class ChatManager {
         console.error("Failed to restore chat:", e);
     }
 };
+
+// ★ 新しい復元用フック (restoreChatV2)
+(window as any).restoreChatV2 = (jsonStr: string) => {
+    console.log("[Restore V2] Received data");
+    try {
+        const data = JSON.parse(jsonStr);
+        const { title, messages, suggestions } = data;
+
+        const cm = ChatManager.getInstance();
+        const ui = UIManager.getInstance();
+        const log = LogManager.getInstance();
+
+        // 1. チャットログ復元
+        cm.loadConversation(messages);
+
+        // 2. パネルを開く
+        ui.openChatPanel(true);
+
+        // 3. サジェスト復元
+        if (suggestions && suggestions.length > 0) {
+            ui.updateSuggestions(suggestions, (t) => cm.sendMessage(t));
+        } else {
+            // Default suggestions if none
+            ui.updateSuggestions(['何ができる？', '今日の運勢は？'], (t) => cm.sendMessage(t));
+        }
+
+        // 4. システムログ出力
+        // "YYYY/MM/DD HH:MM Title talk is loaded."
+        const now = new Date();
+        const timeStr = `${now.getFullYear()}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+        log.log(`${timeStr} "${title}" talk is loaded.`, "info", "sys");
+
+    } catch (e) {
+        console.error("Failed to restore chat V2:", e);
+    }
+};

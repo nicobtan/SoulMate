@@ -86,9 +86,21 @@ class DatabaseManager:
         row = cursor.fetchone()
         return dict(row) if row else None
 
+    def get_session(self, session_id: int) -> Optional[dict]:
+        """ID指定でセッションを取得"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
     def update_session_timestamp(self, session_id: int):
         cursor = self.conn.cursor()
         cursor.execute("UPDATE sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (session_id,))
+        self.conn.commit()
+
+    def update_session_title(self, session_id: int, title: str):
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE sessions SET title = ? WHERE id = ?", (title, session_id))
         self.conn.commit()
 
     # --- Message Methods ---

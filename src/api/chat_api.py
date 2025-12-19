@@ -62,7 +62,7 @@ class ChatApiMixin(BaseApiMixin):
             return None
 
 
-    def chat(self, message):
+    def chat(self, message, save_user_log=True):
         """Sends a message to the AI Engine and returns the response object {text, audio}."""
         # Log input
         self.log_to_debug(f"Chat Received: {message}", 'info')
@@ -149,23 +149,16 @@ class ChatApiMixin(BaseApiMixin):
         else:
             response_text = "AI Engine is not initialized."
 
-        # DB Saving (Desktop App Logic using get_db via core_instance or self.db if injected?
-        # main.py injects self.db? No, but we can use core_instance here too.)
+        # DB Saving (Desktop App Logic)
         from src import core_instance
         db = core_instance.get_db()
         if db:
             active = db.get_active_session()
             session_id = active['id'] if active else db.create_session()
             
-            # Save User
-            # User message was already in 'message' arg.
-            # But ChatApiMixin doesn't know for sure if it's new msg or re-try? 
-            # Assuming 'chat' is called for NEW messages.
-            # But duplicate saving if main.py calls it? 
-            # main.py (Api) inherits ChatApiMixin. 
-            # Before this update, main.py did NOT save to DB. 
-            # So we SHOULD save here.
-            db.add_message(session_id, "user", message)
+            # Save User (Only if flag is True)
+            if save_user_log:
+                db.add_message(session_id, "user", message)
             
             # Save AI
             meta = {"suggestions": suggestions_list}
@@ -212,6 +205,35 @@ class ChatApiMixin(BaseApiMixin):
         # Append Static Suggestion
         suggestions_list.append("別の話題はある？")
         
+        # --- Title Auto-Generation (Post-Chat) ---
+        if db and session_id:
+            try:
+                current_session = db.get_session(session_id)
+                current_title = current_session['title'] if current_session else ""
+                
+                target_prefixes = ["インポートされた", "[Situation]", "無題の会話", "New Session", "すでに使っている"]
+                is_target = any(current_title.startswith(p) for p in target_prefixes)
+                
+                if is_target:
+                    # ★修正: 今回のやり取りだけでなく、直近の数ターンを含めて要約する
+                    # 履歴を取得 (今保存した分も含めて最新5件程度)
+                    recent_msgs = db.get_messages(session_id)[-6:]
+                    
+                    context = ""
+                    for m in recent_msgs:
+                         if not m['content'].startswith('['):
+                            context += f"{m['role']}: {m['content']}\n"
+                    
+                    # AI生成
+                    if self._ai_engine:
+                        new_title = self._ai_engine.generate_title_summary(context)
+                        if new_title:
+                             new_title = new_title.replace('"', '').strip()
+                             db.update_session_title(session_id, new_title)
+                             self.log_to_debug(f"Title Updated: {new_title}", 'info')
+            except Exception as e:
+                self.log_to_debug(f"Title Gen Error: {e}", 'warn')
+
         return {
             "text": response_text,
             "audio": audio_path,
@@ -219,17 +241,7 @@ class ChatApiMixin(BaseApiMixin):
             "grounding_info": raw_result.get("grounding_info") if isinstance(raw_result, dict) else None
         }
 
-    def chat_with_vision(self, message, mode="screen"):
-        # ... (unchanged) ...
-        # (Actually, we should also save to DB for Vision?)
-        # For now focus on main Chat.
-        
-        # ... (copy original vision code or skip if using tool to replace chunk?) ...
-        # Can't skip inside replace_file_content chunk. Wait, I should target specific chunk.
-        # But 'chat' method is huge.
-        pass
-        
-    # ... (other methods) ...
+
     
     def resume_session(self, session_id):
         """Resumes a past session and returns messages & suggestions."""
@@ -371,64 +383,11 @@ class ChatApiMixin(BaseApiMixin):
         """Force the AI to initiate conversation (Proactive)."""
         self.log_to_debug("Force Talk Triggered", 'info')
         
-        if self.active_engine:
-            self.active_engine.update_interaction()
-            
-        # Context (Context retrieval might be less relevant if user didn't say anything, but Time is handled in Engine)
-        # We can pass empty context or last known context? Engine handles Time.
+        # Prompt Construction
+        prompt = "User is idle. Initiate a conversation naturally. Check the time and suggest a topic."
         
-        response_text = ""
-        suggestions_list = []
-        emotion = None
-        audio_path = None
-        
-        if self._ai_engine:
-            # Call Proactive Generation
-            raw_result = self._ai_engine.generate_proactive_message()
-            
-            # Use same processing logic as Chat (Simplified Copy)
-            if isinstance(raw_result, dict):
-                response_text = raw_result.get("response", "")
-                emotion = raw_result.get("emotion")
-                suggestions_list = raw_result.get("suggestions", [])
-                self.log_to_debug(f"AI Proactive JSON: {response_text}", 'info')
-            else:
-                # String response - Try robust extraction
-                extracted_data = _extract_json_from_text(raw_result)
-                
-                if extracted_data and "response" in extracted_data:
-                    # Extraction Success
-                    response_text = extracted_data.get("response", "")
-                    emotion = extracted_data.get("emotion")
-                    suggestions_list = extracted_data.get("suggestions", [])
-                    self.log_to_debug(f"AI Proactive JSON (Extracted): {response_text}", 'info')
-                else:
-                    # Extraction Failed - Fallback logic
-                    if '{' in raw_result:
-                        response_text = raw_result.split('{')[0].strip()
-                        self.log_to_debug(f"AI Proactive Text (Fallback Split): {response_text}", 'warn')
-                    else:
-                        response_text = raw_result
-                        self.log_to_debug(f"AI Proactive Text: {response_text}", 'info')
-        else:
-            response_text = "AI Engine is not initialized."
-
-        # Memory Log (System Trigger)
-        if self._memory_manager and self._config_manager:
-            current_persona = self._config_manager.get('current_persona_file', 'default')
-            self._memory_manager.log_interaction("[System:ForceTalk]", response_text, current_persona)
-            
-        # TTS
-        audio_path = self.generate_tts_audio(response_text)
-        
-        # Static Suggestion
-        suggestions_list.append("別の話題はある？")
-        
-        return {
-            "text": response_text,
-            "audio": audio_path,
-            "suggestions": suggestions_list
-        }
+        # Call chat with save_user_log=False to prevent DB pollution
+        return self.chat(prompt, save_user_log=False)
 
     def suggest_reply(self):
         """Generates a suggested user reply based on history."""
@@ -494,27 +453,63 @@ Output ONLY the suggested text.
         """指定セッションをアクティブにし、メインウィンドウに反映させる"""
         print(f"DEBUG: resume_history_session called with id={session_id}")
         import webview
+        import json
         from src.core_instance import get_db
         from src.api.window_api import HISTORY_WINDOW_REF
         
         db = get_db()
         # 1. DB更新
         db.update_session_timestamp(session_id)
+
+        # Session Info & Messages
+        session = db.get_session(session_id)
+        title = session['title'] if session else "History"
+        messages = db.get_messages(session_id)
+
+        # Extract last suggestions
+        last_suggestions = []
+        for msg in reversed(messages):
+            if msg['role'] == 'ai':
+                try:
+                    meta_json = msg.get('meta_json')
+                    if meta_json:
+                        meta = json.loads(meta_json)
+                        if meta and 'suggestions' in meta:
+                            last_suggestions = meta['suggestions']
+                            break
+                except:
+                    pass
+
+        # Construct Payload
+        payload = {
+            "title": title,
+            "messages": [dict(m) for m in messages],
+            "suggestions": last_suggestions
+        }
         
-        # 2. メインウィンドウを探してJSを実行 (Signal Only)
+        # 2. メインウィンドウを探してJSを実行 (Robust Escaping)
         target_window = None
-        print(f"DEBUG: Current Windows: {[w.title for w in webview.windows]}")
+        # print(f"DEBUG: Current Windows: {[w.title for w in webview.windows]}")
         
         for w in webview.windows:
-            if w.title == 'SoulMate AI': # Main window title
+            # タイトルは環境によって 'SoulMate AI' か 'Soulmate' の可能性があるため柔軟に
+            if 'SoulMate' in w.title and 'Memories' not in w.title and 'Settings' not in w.title: 
                 target_window = w
                 break
         
         if target_window:
-            print("DEBUG: Main Window found. Sending reloadSession...")
-            # Send signal to reload logic in main window (safer than passing huge JSON)
-            # We pass session_id so main window can fetch it.
-            target_window.evaluate_js(f"window.reloadSession({session_id})")
+            print("DEBUG: Main Window found. Sending restoreChatV2...")
+            
+            # JSON Dump
+            payload_json = json.dumps(payload, ensure_ascii=False)
+            
+            # ★修正: JavaScriptの文字列リテラルとして安全にするためのエスケープ処理
+            # 1. バックスラッシュをエスケープ (\\ -> \\\\)
+            # 2. シングルクォートをエスケープ (' -> \')
+            # 3. 改行をエスケープ (\n -> \\n)
+            safe_json = payload_json.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "")
+            
+            target_window.evaluate_js(f"window.restoreChatV2('{safe_json}')")
             
             try:
                 target_window.restore()
