@@ -492,6 +492,7 @@ Output ONLY the suggested text.
 
     def resume_history_session(self, session_id):
         """指定セッションをアクティブにし、メインウィンドウに反映させる"""
+        print(f"DEBUG: resume_history_session called with id={session_id}")
         import webview
         from src.core_instance import get_db
         from src.api.window_api import HISTORY_WINDOW_REF
@@ -502,12 +503,15 @@ Output ONLY the suggested text.
         
         # 2. メインウィンドウを探してJSを実行 (Signal Only)
         target_window = None
+        print(f"DEBUG: Current Windows: {[w.title for w in webview.windows]}")
+        
         for w in webview.windows:
-            if w.title == 'Soulmate': # Main window title
+            if w.title == 'SoulMate AI': # Main window title
                 target_window = w
                 break
         
         if target_window:
+            print("DEBUG: Main Window found. Sending reloadSession...")
             # Send signal to reload logic in main window (safer than passing huge JSON)
             # We pass session_id so main window can fetch it.
             target_window.evaluate_js(f"window.reloadSession({session_id})")

@@ -435,3 +435,14 @@ export class ChatManager {
         if (el) el.remove();
     }
 }
+
+// ★ Pythonから呼ばれる関数を定義 (User Request / Legacy Support)
+(window as any).restoreChat = (messagesJson: string) => {
+    console.log("[Restore] Received data from Python (restoreChat)");
+    try {
+        const messages = JSON.parse(messagesJson);
+        ChatManager.getInstance().loadConversation(messages);
+    } catch (e) {
+        console.error("Failed to restore chat:", e);
+    }
+};

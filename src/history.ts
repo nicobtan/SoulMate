@@ -81,6 +81,9 @@ function renderMessages(messages: any[]) {
 
 if (resumeBtn) {
     resumeBtn.onclick = async () => {
+        // Debug Alert
+        alert(`Resume Clicked. Session: ${selectedSessionId}`);
+
         if (!selectedSessionId) return;
 
         if (!window.pywebview) {

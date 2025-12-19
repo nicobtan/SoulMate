@@ -67,6 +67,7 @@ class WindowApiMixin(BaseApiMixin):
 
     def open_history_window(self):
         """履歴ウィンドウを別プロセス(別ウィンドウ)として開く"""
+        print("DEBUG: open_history_window called")
         import webview
         import os
 
@@ -74,8 +75,8 @@ class WindowApiMixin(BaseApiMixin):
         history_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'dist', 'history.html'))
 
         # Check existing instance or just open new one? 
-        # Check existing instance or just open new one? 
         if HISTORY_WINDOW_REF["window"]:
+             print(f"DEBUG: Existing History Window found (State: {HISTORY_WINDOW_REF['window']})")
              if HISTORY_WINDOW_REF["window"] == "OPENING":
                  return
              try:
