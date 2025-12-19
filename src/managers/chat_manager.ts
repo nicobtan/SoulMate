@@ -32,6 +32,22 @@ export class ChatManager {
 
         // Expose global hook for Backend Push
         (window as any).receiveMessage = this.handlePushMessage.bind(this);
+
+        // Expose global hook for History Restoration (Signal)
+        (window as any).reloadSession = async (sessionId: number) => {
+            console.log(`[ChatManager] Reloading session ${sessionId}...`);
+            try {
+                UIManager.getInstance().openChatPanel(true);
+                // Fetch fresh data from API
+                const data: any = await api.get_session_detail(sessionId);
+                if (data.messages) {
+                    this.loadConversation(data.messages);
+                }
+            } catch (e) {
+                console.error("Failed to reload session:", e);
+                this.addLog("セッションの復元に失敗しました", 'ai');
+            }
+        };
     }
 
     public static getInstance(): ChatManager {

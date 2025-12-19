@@ -3,6 +3,7 @@ from .base import BaseApiMixin
 
 # Global reference to prevent recursion in pywebview serialization
 SETTINGS_WINDOW_REF = {"window": None}
+HISTORY_WINDOW_REF = {"window": None}
 
 class WindowApiMixin(BaseApiMixin):
     def resize_window(self, width, height):
@@ -63,3 +64,41 @@ class WindowApiMixin(BaseApiMixin):
     
     def close_app(self):
         self.close_window()
+
+    def open_history_window(self):
+        """履歴ウィンドウを別プロセス(別ウィンドウ)として開く"""
+        import webview
+        import os
+
+        # src/api/window_api.py -> src/api -> src -> root -> dist/history.html
+        history_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'dist', 'history.html'))
+
+        # Check existing instance or just open new one? 
+        # Check existing instance or just open new one? 
+        if HISTORY_WINDOW_REF["window"]:
+             if HISTORY_WINDOW_REF["window"] == "OPENING":
+                 return
+             try:
+                 HISTORY_WINDOW_REF["window"].restore()
+                 HISTORY_WINDOW_REF["window"].focus()
+                 return
+             except:
+                 HISTORY_WINDOW_REF["window"] = None
+        
+        # Set Lock
+        HISTORY_WINDOW_REF["window"] = "OPENING"
+
+        try:
+            new_window = webview.create_window(
+                'SoulMate Memories', 
+                url=history_path,
+                js_api=self, # Share API instance so it can call get_history_sessions
+                width=800, 
+                height=600,
+                resizable=True,
+                on_top=True
+            )
+            HISTORY_WINDOW_REF["window"] = new_window
+        except:
+            HISTORY_WINDOW_REF["window"] = None
+            raise

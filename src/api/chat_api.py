@@ -478,6 +478,56 @@ Output ONLY the suggested text.
             return {'status': 'error', 'message': 'Service unavailable'}
         return self.services.bubble_service.register_manual_bubble(category, text)
 
+    # --- History Window Methods (Standalone) ---
+
+    def get_history_sessions(self):
+        """DBからセッション一覧を返す (History Window用)"""
+        from src.core_instance import get_db
+        return get_db().get_sessions()
+
+    def get_history_messages(self, session_id):
+        """DBからメッセージ詳細を返す (History Window用)"""
+        from src.core_instance import get_db
+        return get_db().get_messages(session_id)
+
+    def resume_history_session(self, session_id):
+        """指定セッションをアクティブにし、メインウィンドウに反映させる"""
+        import webview
+        from src.core_instance import get_db
+        from src.api.window_api import HISTORY_WINDOW_REF
+        
+        db = get_db()
+        # 1. DB更新
+        db.update_session_timestamp(session_id)
+        
+        # 2. メインウィンドウを探してJSを実行 (Signal Only)
+        target_window = None
+        for w in webview.windows:
+            if w.title == 'Soulmate': # Main window title
+                target_window = w
+                break
+        
+        if target_window:
+            # Send signal to reload logic in main window (safer than passing huge JSON)
+            # We pass session_id so main window can fetch it.
+            target_window.evaluate_js(f"window.reloadSession({session_id})")
+            
+            try:
+                target_window.restore()
+                target_window.focus()
+            except:
+                pass
+            
+        # 3. 履歴ウィンドウのみを閉じる
+        if HISTORY_WINDOW_REF["window"]:
+            try:
+                HISTORY_WINDOW_REF["window"].destroy()
+            except:
+                pass
+            HISTORY_WINDOW_REF["window"] = None
+        
+        return {'status': 'success'}
+
     # --- History API (Database) ---
     def get_sessions(self, limit=50):
         """Returns list of sessions from DB."""

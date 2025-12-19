@@ -43,6 +43,12 @@ declare global {
                 restore_history: () => Promise<any[]>;
                 dismiss_bubble: (actionId: string) => Promise<any>;
                 change_persona: (id: string) => Promise<any>;
+
+                // History Window
+                open_history_window: () => void;
+                get_history_sessions: () => Promise<any[]>;
+                get_history_messages: (sessionId: number) => Promise<any[]>;
+                resume_history_session: (sessionId: number) => Promise<any>;
             };
         };
     }
