@@ -65,29 +65,57 @@ class MigrationService:
                     lines = f.readlines()
                 
                 if lines:
-                    session_id = self.db.create_session("インポートされた会話履歴 (Log)")
-                    count = 0
-                    for line in lines:
+                    # --- 重複チェックロジック ---
+                    # ファイルの最後の有効な行を取得
+                    last_entry = None
+                    for line in reversed(lines):
                         try:
-                            entry = json.loads(line)
-                            # Entry keys: user, ai, timestamp
-                            if "user" in entry and entry["user"]:
-                                self.db.add_message(session_id, "user", entry["user"])
-                                count += 1
-                            if "ai" in entry and entry["ai"]:
-                                self.db.add_message(session_id, "ai", entry["ai"])
-                                count += 1
+                            last_entry = json.loads(line)
+                            if "user" in last_entry or "ai" in last_entry or "text" in last_entry:
+                                break
                         except:
                             continue
-                            
-                    migrated_count += count
+                    
+                    # DBの最新ログを取得
+                    last_db_msg = self.db.get_last_message()
+                    
+                    is_duplicate = False
+                    if last_entry and last_db_msg:
+                        # 内容比較 (改行などはnormalizeして比較)
+                        file_content = (last_entry.get("ai") or last_entry.get("user") or last_entry.get("text") or "").strip()
+                        db_content = (last_db_msg.get("content") or "").strip()
+                        
+                        if file_content and file_content == db_content:
+                            is_duplicate = True
+                            print("[Migration] Duplicate detected (Last message matches). Skipping import.")
+
+                    if not is_duplicate:
+                        session_id = self.db.create_session("インポートされた会話履歴 (Log)")
+                        count = 0
+                        for line in lines:
+                            try:
+                                entry = json.loads(line)
+                                # Entry keys: user, ai, timestamp
+                                if "user" in entry and entry["user"]:
+                                    self.db.add_message(session_id, "user", entry["user"])
+                                    count += 1
+                                if "ai" in entry and entry["ai"]:
+                                    self.db.add_message(session_id, "ai", entry["ai"])
+                                    count += 1
+                            except:
+                                continue
+                                
+                        migrated_count += count
+                        print(f"[Migration] JSONL Import Success: {count} messages.")
                     
                 # Rename to prevent re-import (or keep as backup?)
                 # Rename is safer to avoid duplicates on every boot.
                 # But since it's a log, maybe we should archive it?
                 # Rename effectively archives it from the active path.
-                os.rename(HISTORY_JSONL, f"{HISTORY_JSONL}.bak")
-                print(f"[Migration] JSONL Import Success: {count} messages.")
+                try:
+                    os.rename(HISTORY_JSONL, f"{HISTORY_JSONL}.bak")
+                except Exception as e:
+                    print(f"[Migration] Rename failed: {e}")
 
             except Exception as e:
                 print(f"[Migration] JSONL Error: {e}")

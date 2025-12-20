@@ -49,9 +49,13 @@ class DatabaseManager:
             # ★追加: マイグレーション (既存DBにカラム追加)
             try:
                 cursor.execute("ALTER TABLE sessions ADD COLUMN is_favorite BOOLEAN DEFAULT 0")
-                self.conn.commit()
             except:
-                pass # すでに存在する場合はエラーになるので無視
+                pass
+            
+            try:
+                cursor.execute("ALTER TABLE sessions ADD COLUMN is_active BOOLEAN DEFAULT 0")
+            except:
+                pass
             
             self.conn.commit()
             print("[DatabaseManager] DB Initialized.")
@@ -59,11 +63,15 @@ class DatabaseManager:
             print(f"[DatabaseManager] DB Init Error: {e}")
 
     def create_session(self, title="New Session"):
-        """Creates a new session and returns its ID."""
+        """Creates a new session, sets it as active, and returns its ID."""
         if not self.conn:
             self.connect()
         cursor = self.conn.cursor()
-        cursor.execute("INSERT INTO sessions (title) VALUES (?)", (title,))
+        
+        # Deactivate others
+        cursor.execute("UPDATE sessions SET is_active = 0")
+        
+        cursor.execute("INSERT INTO sessions (title, is_active) VALUES (?, 1)", (title,))
         self.conn.commit()
         return cursor.lastrowid
 
@@ -119,11 +127,36 @@ class DatabaseManager:
         return val
 
     def get_active_session(self) -> Optional[dict]:
-        """最後に使っていたセッションを取得(続きから話す用)"""
+        """アクティブなセッションを取得(is_active=1)。なければNone"""
+        cursor = self.conn.cursor()
+        # まず is_active を見る
+        cursor.execute("SELECT * FROM sessions WHERE is_active = 1 LIMIT 1")
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_last_message(self):
+        """DB内の全履歴の中で、最も新しいメッセージを取得する"""
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT role, content FROM messages ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_last_session(self):
+        """最も最近更新されたセッションを取得する"""
+        if not self.conn: self.connect()
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM sessions ORDER BY updated_at DESC LIMIT 1")
         row = cursor.fetchone()
         return dict(row) if row else None
+        
+    def set_session_active(self, session_id):
+        """指定したセッションをアクティブにし、他を非アクティブにする"""
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE sessions SET is_active = 0")
+        cursor.execute("UPDATE sessions SET is_active = 1 WHERE id = ?", (session_id,))
+        self.conn.commit()
 
     def get_session(self, session_id):
         if not self.conn: self.connect()

@@ -21,6 +21,8 @@ The **Backend** `server.py` and `bubble_service.py` are growing larger and may n
 - `constants.ts`: 66 lines
 - `types.d.ts`: 49 lines
 - `index.html`: 173 lines
+- `history.ts`: ~140 lines [NEW]
+- `history.html`: ~200 lines [NEW]
 
 ### Frontend Managers (`src/managers/`) [NEW]
 - `chat_manager.ts`: 397 lines (Chat, Audio, Vision)
@@ -47,6 +49,7 @@ The **Backend** `server.py` and `bubble_service.py` are growing larger and may n
 - `interest_manager.py`: 56 lines
 - `metadata_fetcher.py`: 45 lines
 - `history_manager.py`: 174 lines
+- `db_manager.py`: ~160 lines [CORE]
 
 ### Backend API (`src/api/` & Root)
 - [WARNING] `server.py`: 641 lines (FastAPI/SocketIO)

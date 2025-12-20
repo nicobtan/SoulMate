@@ -425,9 +425,20 @@ if __name__ == '__main__':
     # 3.5 Fix Legacy Titles (Imported sessions with default titles)
     migration.fix_legacy_titles()
 
-    # 4. Ensure session exists
-    if not db.get_active_session():
-        print("Creating initial session...")
-        db.create_session("はじめまして")
+    # 4. Ensure session exists (Resume Logic)
+    active_session = db.get_active_session()
+    
+    if active_session:
+        print(f"Resuming active session: ID {active_session['id']} ({active_session['title']})")
+    else:
+        # アクティブがない場合、最新のセッションを探して復帰させる
+        last_session = db.get_last_session()
+        if last_session:
+            print(f"Resuming last session: ID {last_session['id']} ({last_session['title']})")
+            db.set_session_active(last_session['id'])
+        else:
+            # 履歴が全くない場合のみ新規作成
+            print("Creating initial session...")
+            db.create_session("はじめまして")
         
     create_app()

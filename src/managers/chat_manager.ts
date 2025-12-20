@@ -395,7 +395,8 @@ export class ChatManager {
     private addLog(text: string, type: 'user' | 'ai', isThinking = false): string {
         if (!this.chatLogArea) return '';
         const div = document.createElement('div');
-        const id = 'msg-' + Date.now();
+        // ★修正: Date.now() だけでは高速処理時に衝突するため、ランダム値を付与
+        const id = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
         div.id = id;
         div.className = `message ${type}`;
 

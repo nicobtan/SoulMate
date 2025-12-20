@@ -37,11 +37,11 @@ export class LogManager {
 
     private initButtons() {
         const debugBtn = document.getElementById('debug-btn');
-        const historyBtn = document.getElementById('history-btn');
+        // const historyBtn = document.getElementById('history-btn'); // Handled by HistoryManager now
         const closeBtn = document.getElementById('close-debug');
 
-        if (debugBtn) debugBtn.addEventListener('click', () => this.togglePanel('debug'));
-        if (historyBtn) historyBtn.addEventListener('click', () => this.togglePanel('history'));
+        if (debugBtn) debugBtn.addEventListener('click', () => this.togglePanel());
+        // if (historyBtn) historyBtn.addEventListener('click', () => this.togglePanel('history'));
         if (closeBtn) closeBtn.addEventListener('click', () => this.closePanel());
     }
 
@@ -75,39 +75,32 @@ export class LogManager {
         this.debugContent.scrollTop = this.debugContent.scrollHeight;
     }
 
-    public async togglePanel(mode: 'debug' | 'history') {
+    public async togglePanel() {
         if (!this.leftPanel) return;
 
-        // Check if currently open in same mode
-        const currentMode = this.panelTitle?.innerText.includes('HISTORY') ? 'history' : 'debug';
         const isOpen = this.leftPanel.classList.contains('open');
 
-        if (isOpen && currentMode === mode) {
+        if (isOpen) {
             await this.closePanel();
         } else {
-            await this.openPanel(mode);
+            await this.openPanel();
         }
     }
 
-    private async openPanel(mode: 'debug' | 'history') {
+    private async openPanel() {
         if (!this.leftPanel) return;
 
         this.isLogOpen = true;
         this.leftPanel.classList.add('open');
 
-        // UI Update
-        if (this.debugContent) this.debugContent.style.display = (mode === 'debug') ? 'block' : 'none';
-        if (this.historyContent) this.historyContent.style.display = (mode === 'history') ? 'block' : 'none';
-        if (this.debugTabs) this.debugTabs.style.display = (mode === 'debug') ? 'flex' : 'none';
+        // UI Update (Debug Mode Only)
+        if (this.debugContent) this.debugContent.style.display = 'block';
+        if (this.debugTabs) this.debugTabs.style.display = 'flex';
+        // Remove historyContent refs if strictly needed, but styling handles it if we don't open 'history' mode.
 
         if (this.panelTitle) {
-            this.panelTitle.innerText = (mode === 'debug') ? 'SYSTEM LOGS' : 'CHAT HISTORY';
-            this.panelTitle.style.color = (mode === 'debug') ? '#0f0' : '#0ff';
-        }
-
-        // Load History Callback
-        if (mode === 'history' && (window as any).loadHistorySystematic) {
-            (window as any).loadHistorySystematic();
+            this.panelTitle.innerText = 'SYSTEM LOGS';
+            this.panelTitle.style.color = '#0f0';
         }
 
         await this.resizeWindow();

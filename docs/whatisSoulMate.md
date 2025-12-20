@@ -94,9 +94,13 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
     - **Audio Player (Mini Player)**:
         - **概要**: チャット入力欄の上に浮かぶ小さな音声操作パネル。
         - **機能**: 音声の停止(■)と再生速度の切り替え(x1.0/x1.2/x1.5)が可能。
-    - **Session Restore (Experimental)**:
-        - **概要**: アプリ起動時に前回の会話履歴を復元する機能。
-        - **現状**: *現在調整中 (On Hold)*
+    - **Session Restore & History Window**:
+        - **概要**: 独立したウィンドウで過去の会話履歴を管理・閲覧可能。
+        - **機能**:
+            - **検索**: キーワードでタイトルや会話内容を検索。
+            - **お気に入り**: 大切な会話を★マークで保存し、フィルタリング表示。
+            - **削除**: 不要な履歴を完全削除（ゴミ箱アイコン）。
+            - **復元**: 選択した会話の続きからチャットを再開可能。
 
 
 ## 技術スタック (Update)
@@ -104,7 +108,7 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **GUI:** HTML/CSS/TypeScript (Frontend)
 - **キャラクター描画:** Live2D Cubism SDK for Web + PixiJS
 - **AIエンジン (Brain):** Gemini API (Agentic Workflow)
-- **音声合成 (Voice):** Google Cloud TTS API / **Gemini 2.5 Flash TTS (Preview)** / VOICEVOX (Local)
+- **音声合成 (Voice):** Google Cloud TTS API / **Gemini 2.5 Flash TTS** / VOICEVOX (Local)
 - **連携API:** Google Calendar API, Google Docs API
 - **Others:** pywebview (Python-JS Bridge)
 
