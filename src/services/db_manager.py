@@ -230,3 +230,22 @@ class DatabaseManager:
                 pass
         return None
 
+    def get_memory_by_emotion(self, emotion: str):
+        """指定された感情タグを持つ過去のAIメッセージをランダムに1件取得する"""
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        
+        # metaカラムはJSON文字列なので、json_extractでemotionフィールドを探す
+        # SQLiteの RANDOM() でランダム取得
+        query = """
+            SELECT content, created_at FROM messages 
+            WHERE role = 'ai' 
+            AND json_extract(meta_json, '$.emotion') = ? 
+            ORDER BY RANDOM() LIMIT 1
+        """
+        cursor.execute(query, (emotion,))
+        row = cursor.fetchone()
+        
+        if row:
+            return {"content": row[0], "created_at": row[1]}
+        return None

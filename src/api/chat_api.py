@@ -15,6 +15,25 @@ class ChatApiMixin(BaseApiMixin):
             return self._ai_engine.configure(api_key) is not None
         return False
 
+    # ★追加: 想起機能 (テスト・将来の自律発話用)
+    def recall_memory(self, emotion='happy'):
+        """過去の指定された感情の記憶を呼び起こす"""
+        from src import core_instance
+        db = core_instance.get_db()
+        if not db: return None
+        
+        self.log_to_debug(f"🔍 [RECALL] Searching for '{emotion}' memories...", 'info')
+        
+        memory = db.get_memory_by_emotion(emotion)
+        if memory:
+            content = memory['content']
+            date = memory['created_at']
+            self.log_to_debug(f"💡 [RECALL] Found: \"{content[:20]}...\" ({date})", 'info')
+            return memory
+        else:
+            self.log_to_debug(f"💨 [RECALL] No memories found for '{emotion}'.", 'info')
+            return None
+
     def generate_tts_audio(self, text):
         """Helper to generate audio using configured provider (VOICEVOX or Google)."""
         if not self._config_manager:
@@ -183,8 +202,11 @@ class ChatApiMixin(BaseApiMixin):
                 meta["emotion"] = emotion
             db.add_message(session_id, "ai", response_text, meta=meta)
             
+            # ★追加: 可視化ログ (Emotional Log)
             if emotion:
-                 self.log_to_debug(f"Saved Emotional Memory: {emotion}", 'info')
+                # ログ用にテキストを短く切る
+                preview = (response_text[:30] + '...') if len(response_text) > 30 else response_text
+                self.log_to_debug(f"💾 [MEMORY] Saved with tag '{emotion}': \"{preview}\"", 'info')
 
         # ... (rest of logic) ...
         
