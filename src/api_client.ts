@@ -22,17 +22,24 @@ export class ApiClient {
     /**
      * Send chat message
      */
-    async chat(text: string): Promise<any> {
+    async chat(text: string, image_data?: string): Promise<any> {
         if (this.isDesktop || (window as any).pywebview) {
-            return await (window as any).pywebview.api.chat(text);
+            return await (window as any).pywebview.api.chat(text, image_data);
         } else {
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: text })
+                body: JSON.stringify({ text: text, image_data: image_data })
             });
             return await res.json();
         }
+    }
+
+    async take_screenshot_for_preview(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.take_screenshot_for_preview) {
+            return await this.desktopApi.take_screenshot_for_preview();
+        }
+        return { status: "error", message: "Not supported" };
     }
 
     async chat_with_vision(text: string, mode: string = "screen"): Promise<any> {

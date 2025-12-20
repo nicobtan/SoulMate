@@ -20,8 +20,9 @@ declare global {
                 get_voice_types: () => Promise<any>;
 
                 // Chat & Logic
-                chat: (message: string) => Promise<any>;
-                chat_with_vision: (message: string) => Promise<any>;
+                chat: (message: string, image_data?: string) => Promise<any>;
+                chat_with_vision: (message: string, mode?: string) => Promise<any>;
+                take_screenshot_for_preview: () => Promise<any>;
                 force_talk: () => Promise<any>;
                 suggest_reply: () => Promise<string>;
                 get_personas: () => Promise<string[]>;
@@ -53,9 +54,6 @@ declare global {
                 delete_history_session: (id: number) => Promise<any>;
                 manual_save_session: () => Promise<any>;
                 start_new_session: () => Promise<any>;
-                get_history_sessions: (keyword?: string, favorites_only?: boolean) => Promise<any[]>;
-                get_history_messages: (sessionId: number) => Promise<any[]>;
-                resume_history_session: (sessionId: number) => Promise<any>;
             };
         };
     }

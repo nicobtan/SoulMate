@@ -10,8 +10,11 @@ export class ChatManager {
     private static instance: ChatManager;
     private chatInput: HTMLTextAreaElement | null;
     private chatLogArea: HTMLElement | null;
+    private previewArea: HTMLElement | null; // ★追加
+    private previewContainer: HTMLElement | null; // ★追加
     private isVisionProcessing: boolean = false;
     private soulBubbleManager: any = null; // Reference
+    private pendingAttachment: string | null = null; // ★追加
 
     // Audio Controls
     private audioPlayer: HTMLElement | null;
@@ -27,6 +30,9 @@ export class ChatManager {
         this.audioPlayer = document.getElementById('audio-player');
         this.audioSpeedBtn = document.getElementById('audio-speed-btn');
         this.audioStopBtn = document.getElementById('audio-stop-btn');
+
+        this.previewArea = document.getElementById('attachment-preview-area');
+        this.previewContainer = document.getElementById('preview-thumbnail-container');
 
         this.initListeners();
 
@@ -227,17 +233,30 @@ export class ChatManager {
         Live2DManager.getInstance().ensureAudioContext();
 
         const text = overrideText || this.chatInput?.value.trim();
-        if (!text) return;
+        if (!text && !this.pendingAttachment) return; // 何もなければ送信しない
 
         // UI Updates
-        this.addLog(text, 'user');
+        // 画像がある場合はログに表示
+        if (this.pendingAttachment) {
+            const imgHtml = `<img src="${this.pendingAttachment}" style="max-width: 200px; border-radius: 8px; margin: 5px 0; display: block;">`;
+            this.addRawLog(imgHtml, 'user');
+        }
+
+        if (text) {
+            this.addLog(text, 'user');
+        }
+
+        const currentAttachment = this.pendingAttachment;
+        this.clearAttachment(); // 送信開始時にクリア
+
         if (this.chatInput) this.chatInput.value = '';
 
         const thinkingId = this.addLog('考え中...', 'ai', true);
         UIManager.getInstance().updateStatus("Thinking...");
 
         try {
-            const response = await api.chat(text);
+            // chat APIを画像付きで呼ぶ
+            const response = await api.chat(text || "", currentAttachment || undefined);
             this.removeLog(thinkingId);
             UIManager.getInstance().updateStatus("Active");
 
@@ -274,35 +293,54 @@ export class ChatManager {
     public async chatWithVision(mode: string) {
         if (this.isVisionProcessing) return;
         this.isVisionProcessing = true;
-        Live2DManager.getInstance().ensureAudioContext();
 
-        const message = this.chatInput?.value.trim() || "";
-        const label = mode === "clipboard" ? "📋 [Clipboard]" : "📷 [Screen]";
-
-        this.addLog(`${label} ${message}`, 'user');
-        if (this.chatInput) this.chatInput.value = '';
-
-        const thinkingId = this.addLog('視覚情報を解析中...', 'ai', true);
-        UIManager.getInstance().updateStatus("Seeing...");
+        UIManager.getInstance().updateStatus("Capturing...");
 
         try {
-            const response = await api.chat_with_vision(message, mode);
-            this.removeLog(thinkingId);
-            UIManager.getInstance().updateStatus("Active");
-
-            // Handle Image Preview
-            if (response.image) {
-                const imgHtml = `<img src="data:image/jpeg;base64,${response.image}" style="max-width: 200px; border-radius: 8px; margin: 10px 0;">`;
-                this.addRawLog(imgHtml, 'ai');
+            // 即時送信せず、プレビュー用に取得するだけにする
+            const res = await (window as any).pywebview.api.take_screenshot_for_preview();
+            if (res.status === 'success' && res.image_data) {
+                this.attachImage(res.image_data);
+                UIManager.getInstance().openChatPanel(true);
+            } else {
+                this.addLog("画像の取得に失敗しました", 'ai');
             }
-            this.handleResponseObject(response);
-
         } catch (e: any) {
-            this.removeLog(thinkingId);
+            console.error(e);
             this.addLog(`Error: ${e.message}`, 'ai');
-            UIManager.getInstance().updateStatus("Error", false);
         } finally {
             this.isVisionProcessing = false;
+            UIManager.getInstance().updateStatus("Active");
+        }
+    }
+
+    // --- Attachment Helper Methods ---
+    public attachImage(dataUrl: string) {
+        this.pendingAttachment = dataUrl;
+        this.updatePreviewUI();
+    }
+
+    public clearAttachment() {
+        this.pendingAttachment = null;
+        this.updatePreviewUI();
+    }
+
+    private updatePreviewUI() {
+        if (!this.previewArea || !this.previewContainer) return;
+
+        if (this.pendingAttachment) {
+            this.previewArea.style.display = 'flex';
+            this.previewContainer.innerHTML = `
+                <img src="${this.pendingAttachment}" class="preview-thumb">
+                <button class="preview-close" id="preview-close-btn">×</button>
+            `;
+            // 閉じるボタンのイベント
+            document.getElementById('preview-close-btn')?.addEventListener('click', () => {
+                this.clearAttachment();
+            });
+        } else {
+            this.previewArea.style.display = 'none';
+            this.previewContainer.innerHTML = '';
         }
     }
 

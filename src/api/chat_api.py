@@ -82,10 +82,13 @@ class ChatApiMixin(BaseApiMixin):
             return None
 
 
-    def chat(self, message, save_user_log=True):
-        """Sends a message to the AI Engine and returns the response object {text, audio}."""
+    # ★修正: chatメソッドが画像を受け取れるように引数を追加
+    def chat(self, message, image_data=None, save_user_log=True):
+        """Sends a message (and optional image) to the AI Engine and returns the response object {text, audio}."""
         # Log input
-        self.log_to_debug(f"Chat Received: {message}", 'info')
+        log_msg = f"Chat Received: {message}"
+        if image_data: log_msg += " [with image]"
+        self.log_to_debug(log_msg, 'info')
 
         # Update Active Engine Interaction Time
         if self.active_engine:
@@ -109,7 +112,7 @@ class ChatApiMixin(BaseApiMixin):
             except Exception as e:
                 self.log_to_debug(f"Memory Recall Error: {e}", 'warn')
 
-        # 0. User Profile Context (Dynamic Injection for Amnesia Fix)
+        # 0. User Profile Context
         if hasattr(self, 'user_manager') and self.user_manager:
             profile_context = self.user_manager.get_profile_context()
             if profile_context:
@@ -128,15 +131,12 @@ class ChatApiMixin(BaseApiMixin):
         
         if is_calendar_intent and self._calendar_manager:
             self.log_to_debug("Calendar Intent Detected", 'info')
-            
-            # Fetch events if authenticated
             if self._calendar_manager.is_authenticated:
                 events = self._calendar_manager.get_upcoming_events(max_results=20)
                 events_str = "\n".join(events)
                 calendar_context = f"\n[System Data: User's Upcoming Schedule]\n{events_str}\n"
                 context += calendar_context
             else:
-                 # If not authenticated... (keep existing auth logic)
                  if "予定" in message or "schedule" in message.lower():
                       def auth_callback(msg, type):
                            if type == 'auth_url':
@@ -146,7 +146,7 @@ class ChatApiMixin(BaseApiMixin):
                                    self._window.evaluate_js(f"receiveMessage('{safe}', null)")
                            else:
                                self.log_to_debug(msg, type)
-
+                      import threading
                       threading.Thread(target=self._calendar_manager.authenticate, args=(auth_callback,), daemon=True).start()
 
         # Generate Response
@@ -155,67 +155,77 @@ class ChatApiMixin(BaseApiMixin):
         emotion = None
         
         if self._ai_engine:
-            raw_result = self._ai_engine.generate_response(message, context=context)
+            # Prepare image if present
+            image_obj = None
+            if image_data:
+                from io import BytesIO
+                import base64
+                from PIL import Image
+                try:
+                    if "," in image_data:
+                        header, base64_str = image_data.split(",", 1)
+                        image_bytes = base64.b64decode(base64_str)
+                        image_obj = Image.open(BytesIO(image_bytes))
+                        if image_obj.mode in ("RGBA", "P"):
+                            image_obj = image_obj.convert("RGB")
+                except Exception as e:
+                    self.log_to_debug(f"Image Data Processing Error: {e}", 'error')
+
+            raw_result = self._ai_engine.generate_response(message, context=context, image=image_obj)
             
-            # Check if JSON dict or String
+            # Extract results
             if isinstance(raw_result, dict):
                 response_text = raw_result.get("response", "")
                 emotion = raw_result.get("emotion") 
                 suggestions_list = raw_result.get("suggestions", [])
                 self.log_to_debug(f"AI JSON: {response_text} (Emo: {emotion})", 'info')
             else:
-                # String response - Try robust extraction
                 extracted_data = _extract_json_from_text(raw_result)
-                
                 if extracted_data and "response" in extracted_data:
-                    # Extraction Success
                     response_text = extracted_data.get("response", "")
                     emotion = extracted_data.get("emotion")
                     suggestions_list = extracted_data.get("suggestions", [])
-                    self.log_to_debug(f"AI JSON (Extracted): {response_text}", 'info')
                 else:
-                    # Extraction Failed - Fallback logic
-                    # If text contains '{', it might be broken JSON. Split and take pre-JSON part.
-                    if '{' in raw_result:
-                        response_text = raw_result.split('{')[0].strip()
-                        self.log_to_debug(f"AI Text (Fallback Split): {response_text}", 'warn')
-                    else:
-                        response_text = raw_result
-                        self.log_to_debug(f"AI Text: {response_text}", 'info')
+                    response_text = raw_result
         else:
             response_text = "AI Engine is not initialized."
 
-        # DB Saving (Desktop App Logic)
+        # DB Saving
         from src import core_instance
         db = core_instance.get_db()
         if db:
             active = db.get_active_session()
             session_id = active['id'] if active else db.create_session()
             
-            # Save User (Only if flag is True)
             if save_user_log:
                 db.add_message(session_id, "user", message)
-                # ★追加: JSONLへの保存
                 if hasattr(self, 'history_manager') and self.history_manager:
                     self.history_manager.add_message("user", message)
             
-            # Save AI
             meta = {"suggestions": suggestions_list}
-            if emotion:
-                meta["emotion"] = emotion
+            if emotion: meta["emotion"] = emotion
             db.add_message(session_id, "ai", response_text, meta=meta)
 
-            # ★追加: JSONLへの保存 (AI)
             if hasattr(self, 'history_manager') and self.history_manager:
                 self.history_manager.add_message("ai", response_text)
             
-            # ★追加: 可視化ログ (Emotional Log)
             if emotion:
-                # ログ用にテキストを短く切る
                 preview = (response_text[:30] + '...') if len(response_text) > 30 else response_text
                 self.log_to_debug(f"💾 [MEMORY] Saved with tag '{emotion}': \"{preview}\"", 'info')
 
-        # ... (rest of logic) ...
+        # Logic to Memory
+        if self._memory_manager and self._config_manager:
+            current_persona = self._config_manager.get('current_persona_file', 'default')
+            self._memory_manager.log_interaction(message, response_text, current_persona)
+
+        # TTS
+        audio_path = self.generate_tts_audio(response_text)
+        
+        return {
+            "text": response_text,
+            "audio": audio_path,
+            "suggestions": suggestions_list
+        }
         
         # --- ACTION PARSING (Legacy/Fallback support if AI outputs string) ---
         # 1. Open Calendar
@@ -678,3 +688,32 @@ Output ONLY the suggested text.
             target_window.evaluate_js("if(window.clearChatLog) window.clearChatLog();")
             
         return {'status': 'success', 'new_session_id': new_id}
+    # ★追加: プレビュー用にスクショだけ撮って返すAPI
+    def take_screenshot_for_preview(self):
+        self.log_to_debug("Taking screenshot for preview...", 'info')
+        try:
+            from PIL import ImageGrab
+            from io import BytesIO
+            import base64
+
+            # Capture Logic (Standard Screen)
+            try:
+                image = ImageGrab.grab(all_screens=True)
+            except TypeError:
+                image = ImageGrab.grab()
+
+            if image:
+                if image.mode in ("RGBA", "P"):
+                    image = image.convert("RGB")
+                    
+                buffered = BytesIO()
+                image.save(buffered, format="JPEG", quality=70) # Lightweight
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                
+                data_url = f"data:image/jpeg;base64,{img_str}"
+                return {'status': 'success', 'image_data': data_url}
+            else:
+                return {'status': 'error', 'message': 'Screenshot failed'}
+        except Exception as e:
+             self.log_to_debug(f"Screenshot Error: {e}", 'error')
+             return {'status': 'error', 'message': str(e)}
