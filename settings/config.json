@@ -18,5 +18,6 @@
     "window_y": 522,
     "active_talk_interval": 60,
     "max_balloons": 5,
-    "tts_provider": "gemini"
+    "tts_provider": "gemini",
+    "mind_vault_docs_id": "1XMApTco5_JWzj-Kij5RzqJsrLtKHy5knBdnebwtOUyo"
 }

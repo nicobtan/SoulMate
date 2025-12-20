@@ -25,6 +25,7 @@ class MemoryManager:
             os.makedirs(self.log_dir)
             
         self.history_file = os.path.join(self.log_dir, "chat_history.jsonl")
+        self.mind_vault_file = os.path.join(self.log_dir, "mind_vault.jsonl")
         
         # Initialize Vector DB
         self.chroma_client = None
@@ -120,3 +121,62 @@ class MemoryManager:
             logger.error(f"Failed to read history: {e}")
             
         return history
+
+    def save_mind_vault_entry(self, data: dict):
+        """Saves a MindVault entry (philosophy, quotes, etc.)"""
+        try:
+            # Add timestamp if missing
+            if 'timestamp' not in data:
+                data['timestamp'] = datetime.now().isoformat()
+
+            with open(self.mind_vault_file, 'a', encoding='utf-8') as f:
+                f.write(json.dumps(data, ensure_ascii=False) + "\n")
+            
+            # Vector Store
+            if self.collection:
+                # Store the raw text and analysis
+                text_block = f"[User Note] {data.get('source_text', '')}\n[Analysis] {json.dumps(data.get('analysis', {}), ensure_ascii=False)}"
+                doc_id = f"mv_{int(time.time()*1000)}"
+                
+                self.collection.add(
+                     documents=[text_block],
+                     metadatas=[{"timestamp": data['timestamp'], "type": "mind_vault"}],
+                     ids=[doc_id]
+                )
+            logger.info("MindVault entry saved.")
+        except Exception as e:
+            logger.error(f"Failed to save MindVault entry: {e}")
+
+    def get_mind_vault_context(self):
+        """Retrieves random or recent MindVault entries for context injection."""
+        context = ""
+        if not os.path.exists(self.mind_vault_file):
+            return context
+            
+        try:
+            entries = []
+            with open(self.mind_vault_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # Get last 5 for now
+                for line in lines[-5:]:
+                    try:
+                        entries.append(json.loads(line))
+                    except:
+                        pass
+            
+            if entries:
+                context += "[User MindVault (Recent Thoughts)]\n"
+                for e in entries:
+                    analysis = e.get('analysis', {})
+                    philosophy = analysis.get('Philosophy', [])
+                    quotes = analysis.get('Quotes', [])
+                    
+                    if philosophy:
+                         context += f"- Philosophy: {', '.join(philosophy)}\n"
+                    if quotes:
+                         context += f"- Quotes: {', '.join(quotes)}\n"
+        except Exception as e:
+            logger.error(f"Failed to read MindVault: {e}")
+            
+        return context
+

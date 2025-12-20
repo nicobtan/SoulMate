@@ -421,6 +421,16 @@
                     style="margin-top:10px; font-family: 'Consolas', monospace;"></textarea>
             </div>
 
+            <div style="background:#333; padding:15px; border-radius:5px; margin-bottom:15px; border:1px solid #444;">
+                <div style="font-weight:bold; font-size:14px;">🧠 MindVault (長期記憶) via Google Docs</div>
+                <div class="helper-text">
+                    Googleドキュメントを「思考ノート」として同期します。<br>
+                    対象のドキュメントURLの <code>/d/</code> と <code>/edit</code> の間のIDを入力してください。
+                </div>
+                <input type="text" id="mind-vault-id" placeholder="例: 1BxiMVs0XRA5nSMk..."
+                    style="margin-top:10px; font-family:'Consolas', monospace;">
+            </div>
+
         </div>
 
         <div style="height: 60px;"></div>
@@ -534,6 +544,8 @@
                     document.getElementById('search-topics').value = topicsRes;
                 }
 
+                document.getElementById('mind-vault-id').value = currentSettings.mind_vault_docs_id || '';
+
             } catch (e) {
                 console.error("Failed to load settings:", e);
                 alert("設定の読み込みに失敗しました: " + e);
@@ -551,7 +563,9 @@
                 voice_type: document.getElementById('voice-select').value,
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
+                active_talk_interval: parseInt(document.getElementById('active-interval').value),
                 max_balloons: parseInt(document.getElementById('max-balloons').value),
+                mind_vault_docs_id: document.getElementById('mind-vault-id').value.trim(),
                 // Add others
             };
 
