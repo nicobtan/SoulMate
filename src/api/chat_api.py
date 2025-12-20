@@ -195,12 +195,19 @@ class ChatApiMixin(BaseApiMixin):
             # Save User (Only if flag is True)
             if save_user_log:
                 db.add_message(session_id, "user", message)
+                # ★追加: JSONLへの保存
+                if hasattr(self, 'history_manager') and self.history_manager:
+                    self.history_manager.add_message("user", message)
             
             # Save AI
             meta = {"suggestions": suggestions_list}
             if emotion:
                 meta["emotion"] = emotion
             db.add_message(session_id, "ai", response_text, meta=meta)
+
+            # ★追加: JSONLへの保存 (AI)
+            if hasattr(self, 'history_manager') and self.history_manager:
+                self.history_manager.add_message("ai", response_text)
             
             # ★追加: 可視化ログ (Emotional Log)
             if emotion:
@@ -259,17 +266,18 @@ class ChatApiMixin(BaseApiMixin):
                 is_target = any(current_title.startswith(p) for p in target_prefixes)
                 
                 if is_target:
-                    # ★修正: 今回のやり取りだけでなく、直近の数ターンを含めて要約する
-                    # 履歴を取得 (今保存した分も含めて最新5件程度)
+                    # History Fetch
                     recent_msgs = db.get_messages(session_id)[-6:]
                     
                     context = ""
                     for m in recent_msgs:
-                         if not m['content'].startswith('['):
-                            context += f"{m['role']}: {m['content']}\n"
+                        role = m.get('role', '')
+                        content = m.get('content', '')
+                        if content and not content.startswith('['):
+                            context += f"{role}: {content}\n"
                     
                     # AI生成
-                    if self._ai_engine:
+                    if self._ai_engine and context:
                         new_title = self._ai_engine.generate_title_summary(context)
                         if new_title:
                              new_title = new_title.replace('"', '').strip()
@@ -619,3 +627,54 @@ Output ONLY the suggested text.
             db.update_session_timestamp(session_id)
             return {"status": "resumed", "session_id": session_id}
         return {"status": "error", "message": "DB not available"}
+
+    def manual_save_session(self):
+        """現在のセッションのタイトルを生成して保存（確定）する"""
+        from src import core_instance
+        db = core_instance.get_db()
+        if not db: return {'status': 'error'}
+
+        active = db.get_active_session()
+        if not active: return {'status': 'no_active_session'}
+
+        # タイトル自動生成 (AI)
+        # 直近の会話を取得して要約
+        msgs = db.get_messages(active['id'])[-10:]
+        if msgs:
+            context = ""
+            for m in msgs:
+                if not m['content'].startswith('['):
+                    context += f"{m['role']}: {m['content']}\n"
+            
+            if self._ai_engine and len(context.strip()) > 10:
+                new_title = self._ai_engine.generate_title_summary(context)
+                if new_title:
+                    new_title = new_title.replace('"', '').strip()
+                    db.update_session_title(active['id'], new_title)
+                    self.log_to_debug(f"Manual Save: Updated title to '{new_title}'", 'info')
+
+        return {'status': 'success'}
+
+    def start_new_session(self):
+        """現在の会話を終了し、新しいセッションを開始する"""
+        self.log_to_debug("Starting new session manually...", 'info')
+        from src import core_instance
+        import webview
+        db = core_instance.get_db()
+        if not db: return {'status': 'error'}
+        
+        # 1. 新規セッション作成 & アクティブ化
+        new_id = db.create_session("New Conversation")
+        db.set_session_active(new_id)
+        
+        # 2. メインウィンドウのチャットをクリア
+        target_window = None
+        for w in webview.windows:
+            if 'SoulMate' in w.title and 'Memories' not in w.title and 'Settings' not in w.title: 
+                target_window = w
+                break
+        
+        if target_window:
+            target_window.evaluate_js("if(window.clearChatLog) window.clearChatLog();")
+            
+        return {'status': 'success', 'new_session_id': new_id}

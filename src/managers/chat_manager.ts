@@ -484,3 +484,13 @@ export class ChatManager {
         console.error("Failed to restore chat V2:", e);
     }
 };
+// ★ Pythonから呼ばれてチャット画面をクリアする
+(window as any).clearChatLog = () => {
+    console.log("[ChatManager] Clearing chat log for new session...");
+    const logArea = document.getElementById('chat-log-area');
+    if (logArea) {
+        logArea.innerHTML = '';
+        // システムログにも出力
+        LogManager.getInstance().log("Session cleared. Started new conversation.", "info", "sys");
+    }
+};

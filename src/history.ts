@@ -32,16 +32,25 @@ if (favFilterBtn) {
     });
 }
 
+const getApi = () => (window as any).pywebview?.api;
+
 async function loadSessions() {
-    if (!window.pywebview) return;
+    console.log("[History] loadSessions called. api ready?", !!getApi());
+    const api = getApi();
+    if (!api) {
+        // もしapiがまだなら少し待って再試行
+        setTimeout(loadSessions, 100);
+        return;
+    }
     const keyword = searchInput ? searchInput.value : "";
 
     try {
-        const sessions = await window.pywebview.api.get_history_sessions(keyword, isFavFilterOn);
+        const sessions = await api.get_history_sessions(keyword, isFavFilterOn);
+        console.log(`[History] Loaded ${sessions.length} sessions.`);
         renderSessionList(sessions);
     } catch (e) {
         if (sessionListEl) sessionListEl.innerText = "Error loading history.";
-        console.error(e);
+        console.error("[History] Load failed:", e);
     }
 }
 
@@ -50,7 +59,7 @@ function renderSessionList(sessions: any[]) {
     sessionListEl.innerHTML = '';
 
     if (sessions.length === 0) {
-        sessionListEl.innerHTML = '<div style="padding:20px; color:#888;">見つかりませんでした</div>';
+        sessionListEl.innerHTML = '<div style="padding:20px; text-align:center; color:#585b70;">思い出は見つかりませんでした</div>';
         return;
     }
 
@@ -59,54 +68,54 @@ function renderSessionList(sessions: any[]) {
         div.className = 'session-item';
         if (s.id === selectedSessionId) div.classList.add('active');
 
-        // Star Class
         const starClass = s.is_favorite ? 'active' : '';
+        const displayDate = new Date(s.updated_at || s.created_at).toLocaleString('ja-JP', {
+            month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        });
 
         div.innerHTML = `
-            <div class="session-info">
-                <div class="session-date">${new Date(s.created_at).toLocaleString()}</div>
-                <div class="session-title">${s.title || '無題の会話'}</div>
+            <div class="session-meta">
+                <span class="session-date">${displayDate}</span>
+                <div class="session-actions">
+                    <button class="icon-btn fav-btn ${starClass}" title="お気に入り">★</button>
+                    <button class="icon-btn del-btn" title="削除">🗑️</button>
+                </div>
             </div>
-            <div class="session-actions">
-                <button class="icon-btn fav-btn ${starClass}" title="お気に入り">★</button>
-                <button class="icon-btn del-btn" title="削除">🗑️</button>
-            </div>
+            <div class="session-title">${s.title || '無題の会話'}</div>
         `;
 
-        // Item Click (Select)
         div.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            if (target.classList.contains('icon-btn') || target.parentElement?.classList.contains('icon-btn')) return;
             loadDetail(s.id, div);
         });
 
-        // Favorite Click
         const favBtn = div.querySelector('.fav-btn') as HTMLElement;
         if (favBtn) {
             favBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!window.pywebview) return;
+                const api = getApi();
+                if (!api) return;
                 const newState = !s.is_favorite;
-                await window.pywebview.api.toggle_history_favorite(s.id, newState);
-                s.is_favorite = newState; // Optimistic update
+                await api.toggle_history_favorite(s.id, newState);
+                s.is_favorite = newState;
                 favBtn.classList.toggle('active', newState);
-                // If in filter mode, reload list might be needed, but UX-wise keeping it visible is ok
                 if (isFavFilterOn && !newState) loadSessions();
             });
         }
 
-        // Delete Click
         const delBtn = div.querySelector('.del-btn') as HTMLElement;
         if (delBtn) {
             delBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (confirm(`会話「${s.title}」を削除しますか？\nこの操作は取り消せません。`)) {
-                    if (!window.pywebview) return;
-                    await window.pywebview.api.delete_history_session(s.id);
-                    if (selectedSessionId === s.id) {
-                        if (chatViewEl) chatViewEl.innerHTML = '<div style="margin:auto; color:#888;">左のリストから会話を選択してください</div>';
-                        if (resumeBtn) resumeBtn.disabled = true;
-                        selectedSessionId = null;
-                    }
-                    loadSessions();
+                const api = getApi();
+                if (!api) return;
+                if (!confirm("この会話を削除してもいいかしら？")) return;
+                await api.delete_history_session(s.id);
+                loadSessions();
+                if (selectedSessionId === s.id) {
+                    if (chatViewEl) chatViewEl.innerHTML = '';
+                    if (resumeBtn) resumeBtn.disabled = true;
                 }
             });
         }
@@ -115,69 +124,95 @@ function renderSessionList(sessions: any[]) {
     });
 }
 
-async function loadDetail(id: number, el: HTMLElement) {
-    selectedSessionId = id;
+async function loadDetail(sessionId: number, element: HTMLElement) {
+    const api = getApi();
+    if (!api || !chatViewEl) return;
 
-    // UI Update
-    document.querySelectorAll('.session-item').forEach(i => i.classList.remove('active'));
-    el.classList.add('active');
+    // UI Feedback
+    document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
+    selectedSessionId = sessionId;
 
-    if (resumeBtn) resumeBtn.disabled = true;
-    if (chatViewEl) chatViewEl.innerHTML = '<div style="margin:auto;">Loading...</div>';
-
-    if (!window.pywebview) {
-        if (chatViewEl) chatViewEl.innerText = "Error: PyWebview not found.";
-        return;
-    }
+    chatViewEl.innerHTML = '<div style="margin:auto;">読み込み中...</div>';
 
     try {
-        const messages = await window.pywebview.api.get_history_messages(id);
+        const messages = await api.get_history_messages(sessionId);
         renderMessages(messages);
         if (resumeBtn) resumeBtn.disabled = false;
     } catch (e) {
-        if (chatViewEl) chatViewEl.innerText = "Error loading messages.";
-        console.error(e);
+        chatViewEl.innerHTML = 'Error loading messages.';
     }
 }
 
 function renderMessages(messages: any[]) {
     if (!chatViewEl) return;
     chatViewEl.innerHTML = '';
-    messages.forEach(msg => {
+
+    messages.forEach(m => {
         const div = document.createElement('div');
-        div.className = `msg ${msg.role}`;
-        div.innerText = msg.content;
+        div.className = `msg ${m.role}`;
+
+        const content = document.createElement('div');
+        content.innerText = m.content;
+        div.appendChild(content);
+
+        const time = document.createElement('span');
+        time.className = 'msg-time';
+        time.innerText = new Date(m.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        div.appendChild(time);
+
         chatViewEl.appendChild(div);
     });
-    // Scroll to bottom
-    setTimeout(() => {
-        chatViewEl.scrollTop = chatViewEl.scrollHeight;
-    }, 10);
+
+    chatViewEl.scrollTop = chatViewEl.scrollHeight;
 }
 
 // Resume Button Logic
 if (resumeBtn) {
-    resumeBtn.onclick = async () => {
-        if (!selectedSessionId) return;
+    resumeBtn.addEventListener('click', async () => {
+        const api = getApi();
+        if (!api || !selectedSessionId) return;
+        await api.resume_history_session(selectedSessionId);
+    });
+}
 
-        if (!window.pywebview) {
-            alert("PyWebview environment required.");
-            return;
-        }
+// --- Manual Save / Clear Buttons ---
+const manualSaveBtn = document.getElementById('manual-save-btn');
+const manualClearBtn = document.getElementById('manual-clear-btn');
 
-        resumeBtn.innerText = "復元中...";
-        resumeBtn.disabled = true;
+if (manualSaveBtn) {
+    manualSaveBtn.addEventListener('click', async () => {
+        const api = getApi();
+        if (!api) return;
+        const originalText = manualSaveBtn.innerHTML;
+        manualSaveBtn.innerHTML = "<span>⏳</span> 保存中...";
         try {
-            // Python側に再開を依頼
-            await window.pywebview.api.resume_history_session(selectedSessionId);
-            // Python側でメインウィンドウ操作＆このウィンドウを閉じる処理が行われるはず
-            // ここでは一応完了表示に戻す
-            resumeBtn.innerText = "復元しました";
+            await api.manual_save_session();
+            await loadSessions();
+            manualSaveBtn.innerHTML = "<span>✅</span> 完了!";
+            setTimeout(() => {
+                if (manualSaveBtn) manualSaveBtn.innerHTML = originalText;
+            }, 2000);
         } catch (e) {
-            alert("再開に失敗しました");
-            resumeBtn.disabled = false;
-            resumeBtn.innerText = "この会話の続きをする ⏩";
-            console.error(e);
+            alert("保存に失敗しました");
+            manualSaveBtn.innerHTML = originalText;
         }
-    };
+    });
+}
+
+if (manualClearBtn) {
+    manualClearBtn.addEventListener('click', async () => {
+        const api = getApi();
+        if (!api) return;
+        if (!confirm("現在の会話を終了して、新しく始めますか？\n（今の会話は履歴に残ります）")) return;
+        try {
+            await api.start_new_session();
+            await loadSessions();
+            if (chatViewEl) chatViewEl.innerHTML = '<div style="margin:auto; color:#888;">新しい会話を開始しました</div>';
+            if (resumeBtn) resumeBtn.disabled = true;
+            selectedSessionId = null;
+        } catch (e) {
+            alert("新規作成に失敗しました");
+        }
+    });
 }

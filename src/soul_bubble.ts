@@ -29,6 +29,12 @@ export class SoulBubbleManager {
         });
     }
 
+    // URL Linkifier Helper
+    private linkify(text: string): string {
+        const urlPattern = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+        return text.replace(urlPattern, '<a href="$1" target="_blank" style="color: cyan; text-decoration: underline;">$1</a>');
+    }
+
     public collapseAll() {
         this.activeBubbles.forEach(b => {
             if (b.classList.contains('expanded')) {
@@ -60,7 +66,13 @@ export class SoulBubbleManager {
 
         // 初期配置
         const randomX = 180 + Math.random() * 140;
-        const randomY = 60 + Math.random() * 100;
+
+        // ★修正: Manual/Debug生成の場合、キャラの頭上(Y < 100)に制限
+        let randomY = 60 + Math.random() * 100;
+        if (type === 'manual' || type === 'debug') {
+            randomY = 30 + Math.random() * 50; // 30px ~ 80px (Head area)
+        }
+
         bubble.style.left = `${randomX}px`;
         bubble.style.top = `${randomY}px`;
 
@@ -174,11 +186,28 @@ export class SoulBubbleManager {
             this.collapseAll(); // 他を開いているなら閉じるする
 
             bubble.classList.add('expanded');
-            bubble.innerText = bubble.dataset.fullText || ''; // テキストを表示
+            // ★修正: URLリンク化 (innerHTMLを使用)
+            const rawText = bubble.dataset.fullText || '';
+            bubble.innerHTML = this.linkify(rawText);
+
             bubble.style.animation = 'none'; // 停止
 
         } else {
             // --- 2回目のクリック: アクション実行 ---
+            // リンククリックの場合はここに来ないようにしたいが、
+            // バブリングで来る可能性がある。
+            // しかし、<a>タグをクリックした場合、ブラウザが別ウィンドウを開く動作をするはず。
+            // ここではバブリングストップ等はしていないが、target="_blank"なら問題ないことが多い。
+            // もしクリックで閉じてしまうなら e.target.tagName チェックが必要。
+            // (handleClickはClickハンドラではなく、endDragから呼ばれるカスタムメソッドなのでEventオブジェクトがない)
+            // 実装上、リンククリック = mousedown -> mouseup -> click イベント
+            // ここでは endDrag -> handleClick なので、ドラッグ判定による擬似クリック。
+            // <a>タグの上でマウスダウン->アップした場合もここに来る。
+
+            // 簡易対策: リンククリック時はバブルを閉じないように変更するのは難しい（eventがないため）。
+            // ただし、ユーザーは「リンクを開いた後、バブルが消えてもいい」場合が多い。
+            // あるいは「リンクを開く」動作と「バブルのアクション」が競合する。
+
             const actionId = bubble.dataset.actionId;
             if (!actionId) return;
 

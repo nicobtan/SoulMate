@@ -263,6 +263,20 @@ export class ApiClient {
             return {};
         }
     }
+
+    async manual_save_session(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.manual_save_session) {
+            return await this.desktopApi.manual_save_session();
+        }
+        return { status: "ignored" };
+    }
+
+    async start_new_session(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.start_new_session) {
+            return await this.desktopApi.start_new_session();
+        }
+        return { status: "ignored" };
+    }
 }
 
 export const api = new ApiClient();

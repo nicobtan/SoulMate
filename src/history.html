@@ -170,28 +170,326 @@
     </style>
 </head>
 
+<style>
+    :root {
+        --bg-color: #1e1e2e;
+        /* Sleek Dark */
+        --text-color: #cdd6f4;
+        --accent-color: #89b4fa;
+        --sidebar-color: #181825;
+        --border-color: #313244;
+        --card-bg: #313244;
+        --btn-save: #a6e3a1;
+        --btn-new: #fab387;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Outfit', 'Segoe UI', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    /* Top Bar */
+    .top-bar {
+        height: 70px;
+        padding: 0 20px;
+        background: var(--sidebar-color);
+        border-bottom: 2px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        z-index: 100;
+    }
+
+    .header-logo {
+        font-size: 1.2rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 150px;
+    }
+
+    .controls-group {
+        display: flex;
+        gap: 10px;
+        flex: 1;
+        justify-content: flex-end;
+    }
+
+    /* Search input style */
+    .search-container {
+        position: relative;
+        width: 300px;
+        display: flex;
+        gap: 5px;
+    }
+
+    .search-container input {
+        width: 100%;
+        padding: 8px 12px;
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        color: var(--text-color);
+        outline: none;
+        transition: 0.2s;
+    }
+
+    .search-container input:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 5px rgba(137, 180, 250, 0.3);
+    }
+
+    /* Main Area */
+    .main-container {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+    }
+
+    /* Sidebar: List */
+    .sidebar {
+        width: 320px;
+        background: var(--sidebar-color);
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .session-item {
+        padding: 15px;
+        border-bottom: 1px solid var(--border-color);
+        cursor: pointer;
+        transition: 0.2s;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .session-item:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .session-item.active {
+        background: rgba(137, 180, 250, 0.1);
+        border-left: 4px solid var(--accent-color);
+    }
+
+    .session-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .session-date {
+        font-size: 10px;
+        color: #9399b2;
+    }
+
+    .session-title {
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .icon-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #585b70;
+        font-size: 16px;
+        transition: 0.2s;
+    }
+
+    .icon-btn:hover {
+        color: #f5e0dc;
+    }
+
+    .icon-btn.fav-btn.active {
+        color: #f9e2af;
+    }
+
+    /* Detail Area */
+    .detail-view {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg-color);
+        position: relative;
+    }
+
+    .chat-log {
+        flex: 1;
+        padding: 30px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    /* Messages */
+    .msg {
+        max-width: 85%;
+        padding: 12px 16px;
+        border-radius: 15px;
+        font-size: 14px;
+        line-height: 1.5;
+        position: relative;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .msg.user {
+        align-self: flex-end;
+        background: #89b4fa;
+        color: #11111b;
+        border-bottom-right-radius: 2px;
+    }
+
+    .msg.ai {
+        align-self: flex-start;
+        background: var(--card-bg);
+        color: var(--text-color);
+        border-bottom-left-radius: 2px;
+    }
+
+    .msg-time {
+        font-size: 9px;
+        opacity: 0.6;
+        margin-top: 5px;
+        display: block;
+        text-align: right;
+    }
+
+    .detail-footer {
+        height: 70px;
+        padding: 0 20px;
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--sidebar-color);
+    }
+
+    /* Buttons */
+    .action-btn {
+        padding: 10px 20px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: 0.2s;
+    }
+
+    .action-btn:active {
+        transform: scale(0.95);
+    }
+
+    .btn-save {
+        background: var(--btn-save);
+        color: #11111b;
+    }
+
+    .btn-new {
+        background: var(--btn-new);
+        color: #11111b;
+    }
+
+    .btn-resume {
+        background: var(--accent-color);
+        color: #11111b;
+        width: 60%;
+    }
+
+    .btn-flat {
+        background: transparent;
+        color: #585b70;
+        border: 1px solid var(--border-color);
+        padding: 5px 10px;
+        border-radius: 50%;
+    }
+
+    .btn-flat.active {
+        color: #f9e2af;
+        border-color: #f9e2af;
+    }
+
+    .action-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #45475a;
+        border-radius: 10px;
+    }
+</style>
+</head>
+
 <body>
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <div class="header-title">Memories 📖</div>
-            <div class="search-row">
-                <input type="text" id="search-input" placeholder="キーワード検索...">
-                <button id="fav-filter-btn" title="お気に入りのみ">★</button>
+    <div class="top-bar">
+        <div class="header-logo">
+            <span style="font-size:1.5rem;">📖</span> Memories
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="キーワードで思い出を検索...">
+            <button id="fav-filter-btn" class="btn-flat" title="お気に入りのみ">★</button>
+        </div>
+
+        <div class="controls-group">
+            <button id="manual-save-btn" class="action-btn btn-save" title="現在の会話を保存します">
+                <span>💾</span> 保存 (Save)
+            </button>
+            <button id="manual-clear-btn" class="action-btn btn-new" title="新しい会話を始めます">
+                <span>🧹</span> 新規 (New)
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar" id="session-list">
+            <div style="padding:20px; text-align:center; color:#585b70;">読み込み中...</div>
+        </div>
+
+        <div class="detail-view">
+            <div class="chat-log" id="chat-view">
+                <div style="margin:auto; text-align:center; color:#585b70;">
+                    <span style="font-size:3rem; display:block; margin-bottom:10px;">💬</span>
+                    左のリストから会話を選択してください
+                </div>
+            </div>
+
+            <div class="detail-footer">
+                <button id="resume-btn" class="action-btn btn-resume" disabled>
+                    この会話の続きをする ⏩
+                </button>
             </div>
         </div>
-        <div id="session-list">
-            <div style="padding:20px; color:#888;">Loading...</div>
-        </div>
     </div>
-    <div class="content">
-        <div class="chat-view" id="chat-view">
-            <div style="color:#888; margin:auto;">左のリストから会話を選択してください</div>
-        </div>
-        <div class="footer">
-            <button id="resume-btn" class="btn" disabled>この会話の続きをする ⏩</button>
-        </div>
-    </div>
+
     <script type="module" src="history.js"></script>
 </body>
+
+</html>
 
 </html>

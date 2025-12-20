@@ -293,14 +293,54 @@ The user is silent. You want to start a conversation about something NEW and EXC
 
     # --- Session Restore & Debugging (Phase 35) ---
     def restore_history(self):
-        """API: Restore session history."""
-        print(f"[Api] restore_history called.")
-        if hasattr(self, 'history_manager') and self.history_manager:
-            history = self.history_manager.get_session_history()
-            print(f"[Api] Returning {len(history)} messages for restore.")
-            return history
-        print("[Api] History manager not initialized.")
-        return []
+        """API: Restore session history from DB (Desktop Logic)."""
+        # ★ User Request: Log start of restore
+        self.log_to_debug("🚀 [History] Restoring active session...", 'info')
+        
+        from src import core_instance
+        db = core_instance.get_db()
+        
+        if not db:
+            self.log_to_debug("❌ [History] DB not available/initialized.", 'error')
+            return []
+
+        # 1. Get Active Session
+        active_session = db.get_active_session()
+        
+        # If no active session, try to get last valid one
+        if not active_session:
+             last = db.get_last_session()
+             if last:
+                 db.set_session_active(last['id'])
+                 active_session = last
+                 self.log_to_debug(f"⚠️ [History] No active session found. Resumed last session: '{last.get('title')}'", 'warn')
+        
+        if not active_session:
+            self.log_to_debug("💨 [History] No sessions found to restore.", 'info')
+            return []
+
+        # 2. Get Messages
+        try:
+            messages = db.get_messages(active_session['id'])
+            
+            # 3. Format for Frontend
+            # Frontend expects: { role, content } (mapped from ChatManager logic)
+            history_data = []
+            for m in messages:
+                if not m['content']: continue
+                
+                history_data.append({
+                    "role": m['role'],
+                    "content": m['content']
+                })
+            
+            # ★ User Request: Log completion
+            self.log_to_debug(f"✅ [History] Restored {len(history_data)} messages from '{active_session.get('title')}'.", 'info')
+            return history_data
+
+        except Exception as e:
+            self.log_to_debug(f"❌ [History] Restore Failed: {e}", 'error')
+            return []
 
     def debug_log(self, message: str):
         """Exposed for frontend logging via pywebview."""
@@ -472,4 +512,8 @@ if __name__ == '__main__':
             print("Creating initial session...")
             db.create_session("はじめまして")
         
+    # --- JSONL -> SQL Synchronize ---
+    print("Synchronizing JSONL logs to active session...")
+    migration.sync_jsonl_to_db()
+
     create_app()

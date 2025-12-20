@@ -78,7 +78,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         const history = await api.restore_history();
         if (history && history.length > 0) {
             LogManager.getInstance().log(`Restored ${history.length} messages`, 'info', 'sys');
-            // Inject into Chat Log? Or just History Panel?
+            ChatManager.getInstance().loadConversation(history);
+            // Ensure panel is open if there is history? maybe not force it.
+            // UIManager.getInstance().openChatPanel(true);
         }
     } catch (e) {
         console.warn("Session Restore skipped", e);
@@ -86,8 +88,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 };
 
 window.addEventListener('pywebviewready', async () => {
-    // Auto-restore on boot if needed, or just let context menu do it.
-    // (window as any).restoreSession(); 
+    // Auto-restore on boot
+    (window as any).restoreSession();
 
     // ★ Force Initial Resize to prevent UI clipping
     try {

@@ -51,6 +51,11 @@ declare global {
                 resume_history_session: (sessionId: number) => Promise<any>;
                 toggle_history_favorite: (id: number, state: boolean) => Promise<any>;
                 delete_history_session: (id: number) => Promise<any>;
+                manual_save_session: () => Promise<any>;
+                start_new_session: () => Promise<any>;
+                get_history_sessions: (keyword?: string, favorites_only?: boolean) => Promise<any[]>;
+                get_history_messages: (sessionId: number) => Promise<any[]>;
+                resume_history_session: (sessionId: number) => Promise<any>;
             };
         };
     }
