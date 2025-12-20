@@ -341,15 +341,21 @@ Consider the current time (Morning/Night/Weekday/Weekend) in your tone.
 {grounding_instruction}
 
 [Output Requirement]
-You must output a JSON object with the following structure:
-{{
-    "response": "Your friendly response here...",
-    "suggestions": ["Option 1", "Option 2", "Option 3"]
-}}
-- "suggestions": Provide 2-3 short follow-up options or questions for the user to choose from.
-- Be friendly and engaging.
+Response Format: **TOON (Token-Oriented Object Notation)**
+- Use your Persona's tone.
+- Friendly and engaging.
 - If it's a question, wait for user answer.
-- If it's a topic, start with the latest info you found.
+- Provide EXACTLY 5 suggestions (4 specific follow-ups + "他の話題について").
+
+response:
+  text: Your friendly response here...
+emotion: happy
+suggestions:
+  - Option 1
+  - Option 2
+  - Option 3
+  - Option 4
+  - 他の話題について
 """
              
              # Run in thread

@@ -244,7 +244,7 @@ suggestions:
             return {"response": f"エラー: {str(e)}", "emotion": "sad", "suggestions": []}
 
     def generate_proactive_message(self, context=None):
-        prompt = "User is idle. Initiate a conversation naturally."
+        prompt = "User is idle. Initiate a conversation naturally. Suggest a topic for the user."
         if context: prompt += f"\nContext: {context}"
         return self.generate_response(prompt)
 

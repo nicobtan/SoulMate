@@ -191,7 +191,8 @@ Do NOT use placeholders like "〇〇さん".
 Response Format: TOON (Token-Oriented Object Notation)
 You MUST respond in the following TOON format:
 
-response: Your spoken response here.
+response:
+  text: Your spoken response here.
 emotion: (happy/sad/etc)
 suggestions:
   - Option 1
@@ -254,9 +255,20 @@ The user is silent. You want to start a conversation about something NEW and EXC
 {search_topic_instruction}
 
 [Output Requirement]
+Response Format: TOON (Token-Oriented Object Notation)
 - Use your Persona's tone.
 - Keep it concise (2-3 sentences).
-- Ask a follow-up question.
+- Provide EXACTLY 5 suggestions (4 specific follow-ups + "他の話題について").
+
+response:
+  text: Your spoken response here.
+emotion: happy
+suggestions:
+  - Option 1
+  - Option 2
+  - Option 3
+  - Option 4
+  - 他の話題について
 """
         
         # 4. チャットとして処理 (AI Engine側でツール呼び出しが自動で行われる)
