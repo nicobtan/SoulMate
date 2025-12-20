@@ -83,23 +83,40 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         threading.Thread(target=auto_auth, daemon=True).start()
 
         # Test Bubble Timer (Validation)
+        # Test Bubble Timer (Validation)
         # Main Bubble Loop (Safe)
         def bubble_loop():
             import time
             time.sleep(5) # Wait for startup
             
+            # Wait for JS Readiness
             while True:
                 if self._window:
-                    # Use refill_bubbles() which respects MAX limits and Time Intervals
-                    # Returns a list of new bubbles
-                    packets = self.bubble_service.refill_bubbles()
-                    if packets:
-                        for packet in packets:
-                            # JS Call
-                            b_type = packet.get('type', 'normal')
-                            js = f"showSoulBubble('{packet['category']}', '{packet['text']}', '{packet['action_id']}', '{b_type}')"
-                            self._window.evaluate_js(js)
-                            print(f"[System] Bubble Injected: {packet['text']} ({b_type})")
+                    try:
+                        # Check if function exists
+                        is_ready = self._window.evaluate_js("typeof showSoulBubble === 'function'")
+                        if is_ready:
+                            print("[System] Frontend JS Ready.")
+                            break
+                    except Exception:
+                        pass
+                time.sleep(1)
+
+            while True:
+                if self._window:
+                    try:
+                        # Use refill_bubbles() which respects MAX limits and Time Intervals
+                        # Returns a list of new bubbles
+                        packets = self.bubble_service.refill_bubbles()
+                        if packets:
+                            for packet in packets:
+                                # JS Call
+                                b_type = packet.get('type', 'normal')
+                                js = f"showSoulBubble('{packet['category']}', '{packet['text']}', '{packet['action_id']}', '{b_type}')"
+                                self._window.evaluate_js(js)
+                                print(f"[System] Bubble Injected: {packet['text']} ({b_type})")
+                    except Exception as e:
+                         print(f"[System] Bubble Loop Error: {e}")
                     
                 time.sleep(5) # Check frequently (Service handles 5min throttling)
         

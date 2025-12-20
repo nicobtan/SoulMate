@@ -16,7 +16,7 @@
     "model_name": "gemini-3-flash-preview",
     "window_x": 666,
     "window_y": 522,
-    "active_talk_interval": 5,
+    "active_talk_interval": 60,
     "max_balloons": 5,
     "tts_provider": "gemini"
 }

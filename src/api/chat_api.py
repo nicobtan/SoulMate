@@ -1,5 +1,6 @@
 import os
 import threading
+import random
 import webbrowser
 import re
 import json
@@ -73,6 +74,22 @@ class ChatApiMixin(BaseApiMixin):
 
         # Retrieve Context (RAG)
         context = ""
+
+        # 0.5. Emotional Memory Recall (10% Chance)
+        if random.random() < 0.1:
+            try:
+                from src import core_instance
+                db = core_instance.get_db()
+                if db:
+                    memory = db.get_random_memory()
+                    if memory:
+                        emo = memory.get('emotion', 'unknown')
+                        mem_content = memory.get('content', '')
+                        context += f"\n[Context: You suddenly recall a past memory (Emotion: {emo}): \"{mem_content}\". You may mention this naturally if it connects to the conversation.]\n"
+                        self.log_to_debug(f"Emotional Memory Recalled: {emo}", 'info')
+            except Exception as e:
+                self.log_to_debug(f"Memory Recall Error: {e}", 'warn')
+
         # 0. User Profile Context (Dynamic Injection for Amnesia Fix)
         if hasattr(self, 'user_manager') and self.user_manager:
             profile_context = self.user_manager.get_profile_context()
@@ -162,7 +179,12 @@ class ChatApiMixin(BaseApiMixin):
             
             # Save AI
             meta = {"suggestions": suggestions_list}
+            if emotion:
+                meta["emotion"] = emotion
             db.add_message(session_id, "ai", response_text, meta=meta)
+            
+            if emotion:
+                 self.log_to_debug(f"Saved Emotional Memory: {emotion}", 'info')
 
         # ... (rest of logic) ...
         

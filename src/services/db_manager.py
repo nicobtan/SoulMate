@@ -202,3 +202,31 @@ class DatabaseManager:
                     d['meta'] = {}
             results.append(d)
         return results
+
+    # ★追加: 感情記憶のランダム取得 (Emotional Memory Recall)
+    def get_random_memory(self, emotion: str = None):
+        """ランダムに感情付きの過去ログを1件取得する"""
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        
+        query = "SELECT content, meta_json FROM messages WHERE role = 'ai' AND meta_json LIKE '%\"emotion\"%'"
+        params = []
+        
+        if emotion:
+           query += " AND meta_json LIKE ?"
+           params.append(f'%"{emotion}"%')
+        
+        query += " ORDER BY RANDOM() LIMIT 1"
+        
+        cursor.execute(query, tuple(params))
+        row = cursor.fetchone()
+        
+        if row:
+            d = dict(row)
+            try:
+                meta = json.loads(d['meta_json'])
+                return {"content": d['content'], "emotion": meta.get('emotion')}
+            except:
+                pass
+        return None
+
