@@ -188,12 +188,17 @@ DO NOT summarize the news. Give your OPINION based on your persona.
 Your partner's name is "{user_name}". Use it naturally in conversation.
 Do NOT use placeholders like "〇〇さん".
 
-Response Format: JSON
-You MUST respond in the following JSON format:
-{{
-    "response": "Your spoken response text here.",
-    "suggestions": ["Option 1", "Option 2", "Option 3"]
-}}
+Response Format: TOON (Token-Oriented Object Notation)
+You MUST respond in the following TOON format:
+
+response: Your spoken response here.
+emotion: (happy/sad/etc)
+suggestions:
+  - Option 1
+  - Option 2
+  - Option 3
+  - Option 4
+  - 他の話題について
 """
         
         if self._ai_engine:

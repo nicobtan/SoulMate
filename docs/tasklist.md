@@ -526,3 +526,14 @@
 - [x] **UI/UX の洗練**
     - [x] 送信ボタン押下時に画像とテキストをセットで送信するロジック
     - [x] TypeScript 型定義の更新とビルドエラーの解消
+
+## フェーズ48: TOON形式の導入 (TOON Standard Implementation) [完了]
+- [x] **フォーマットの刷新**
+    - [x] 通信形式をJSONからTOON (Token-Oriented Object Notation) へ変更
+    - [x] トークン消費量の削減 (30-60%) と応答速度の向上
+- [x] **堅牢なパースロジック**
+    - [x] `AIEngine` への正規表現ベースのTOONパーサー実装
+    - [x] 後方互換性のためのハイブリッドパースロジック (TOON & JSON)
+- [x] **コードベースのクリーンアップ**
+    - [x] `server.py` の重複排除とリファクタリング
+    - [x] `main.py` および `chat_api.py` のプロンプト更新

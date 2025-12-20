@@ -5,7 +5,7 @@ import webbrowser
 import re
 import json
 from .base import BaseApiMixin
-from .json_helper import _extract_json_from_text
+# from .json_helper import _extract_json_from_text # TOON化により不要
 from PIL import ImageGrab
 
 class ChatApiMixin(BaseApiMixin):
@@ -173,20 +173,17 @@ class ChatApiMixin(BaseApiMixin):
 
             raw_result = self._ai_engine.generate_response(message, context=context, image=image_obj)
             
-            # Extract results
+            # Extract results (AIEngine now returns a parsed Dict)
             if isinstance(raw_result, dict):
-                response_text = raw_result.get("response", "")
-                emotion = raw_result.get("emotion") 
+                response_text = raw_result.get("text", raw_result.get("response", ""))
+                emotion = raw_result.get("emotion", "neutral") 
                 suggestions_list = raw_result.get("suggestions", [])
-                self.log_to_debug(f"AI JSON: {response_text} (Emo: {emotion})", 'info')
+                grounding_info = raw_result.get("grounding_info")
+                
+                log_tag = "TOON" if "text" in raw_result else "AI JSON"
+                self.log_to_debug(f"{log_tag}: {response_text[:30]}... (Emo: {emotion})", 'info')
             else:
-                extracted_data = _extract_json_from_text(raw_result)
-                if extracted_data and "response" in extracted_data:
-                    response_text = extracted_data.get("response", "")
-                    emotion = extracted_data.get("emotion")
-                    suggestions_list = extracted_data.get("suggestions", [])
-                else:
-                    response_text = raw_result
+                response_text = str(raw_result)
         else:
             response_text = "AI Engine is not initialized."
 
@@ -224,7 +221,9 @@ class ChatApiMixin(BaseApiMixin):
         return {
             "text": response_text,
             "audio": audio_path,
-            "suggestions": suggestions_list
+            "suggestions": suggestions_list,
+            "emotion": emotion,
+            "grounding_info": grounding_info
         }
         
         # --- ACTION PARSING (Legacy/Fallback support if AI outputs string) ---
