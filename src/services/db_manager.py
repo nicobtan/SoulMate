@@ -203,31 +203,35 @@ class DatabaseManager:
             results.append(d)
         return results
 
-    # ★追加: 感情記憶のランダム取得 (Emotional Memory Recall)
-    def get_random_memory(self, emotion: str = None):
-        """ランダムに感情付きの過去ログを1件取得する"""
+    def get_random_memory(self):
+        """
+        過去のAIの発言の中から、感情タグ(emotion)が付いているものをランダムに1件取得する。
+        """
         if not self.conn: self.connect()
         cursor = self.conn.cursor()
         
-        query = "SELECT content, meta_json FROM messages WHERE role = 'ai' AND meta_json LIKE '%\"emotion\"%'"
-        params = []
-        
-        if emotion:
-           query += " AND meta_json LIKE ?"
-           params.append(f'%"{emotion}"%')
-        
-        query += " ORDER BY RANDOM() LIMIT 1"
-        
-        cursor.execute(query, tuple(params))
-        row = cursor.fetchone()
-        
-        if row:
-            d = dict(row)
-            try:
-                meta = json.loads(d['meta_json'])
-                return {"content": d['content'], "emotion": meta.get('emotion')}
-            except:
-                pass
+        # metaカラムに "emotion" が含まれているレコードを探す
+        query = """
+            SELECT content, meta_json FROM messages 
+            WHERE role = 'ai' 
+            AND json_extract(meta_json, '$.emotion') IS NOT NULL 
+            ORDER BY RANDOM() LIMIT 1
+        """
+        try:
+            cursor.execute(query)
+            row = cursor.fetchone()
+            if row:
+                content = row[0]
+                meta_json = row[1]
+                import json
+                meta = json.loads(meta_json) if meta_json else {}
+                return {
+                    "content": content,
+                    "emotion": meta.get("emotion", "neutral")
+                }
+        except Exception as e:
+            print(f"[DB] get_random_memory error: {e}")
+            
         return None
 
     def get_memory_by_emotion(self, emotion: str):
