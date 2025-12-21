@@ -89,7 +89,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 window.addEventListener('pywebviewready', async () => {
     // Auto-restore on boot
-    (window as any).restoreSession();
+    // ★修正: ユーザー要望により自動履歴読み込みを無効化
+    // (window as any).restoreSession();
 
     // ★ Force Initial Resize to prevent UI clipping
     try {

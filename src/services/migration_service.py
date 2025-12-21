@@ -143,12 +143,29 @@ class MigrationService:
         db_messages = self.db.get_messages(session_id)
         
         # 比較用のセットを作成 (role + content)
-        existing_msgs = { (m['role'], m['content'].strip()) for m in db_messages }
+        # 比較用のセットを作成 (role + content)
+        # DB内のcontentが辞書型の場合も考慮して安全に文字列化
+        existing_msgs = set()
+        for m in db_messages:
+            c = m['content']
+            if isinstance(c, dict):
+                import json
+                c = json.dumps(c, ensure_ascii=False)
+            elif not isinstance(c, str):
+                c = str(c)
+            existing_msgs.add((m['role'], c.strip()))
         
         added_count = 0
         for entry in json_history:
             role = entry.get('role')
-            content = entry.get('content', '').strip()
+            raw_content = entry.get('content', '')
+            if isinstance(raw_content, dict):
+                import json
+                content = json.dumps(raw_content, ensure_ascii=False)
+            else:
+                content = str(raw_content)
+            
+            content = content.strip()
             
             if not role or not content:
                 continue

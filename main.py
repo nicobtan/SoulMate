@@ -206,7 +206,7 @@ suggestions:
             self._ai_engine.set_system_prompt(deep_context_prompt)
             self._ai_engine.configure(
                 api_key=api_key, 
-                model_name=model
+                reasoning_model=model
             )
             
             # Pass API Key to VoiceService (for Gemini TTS)
