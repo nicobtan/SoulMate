@@ -396,7 +396,10 @@ class ChatApiMixin(BaseApiMixin):
         return {"status": "error", "message": "DB not available"}
 
     def chat_with_vision(self, message, mode="screen"):
-        """Captures a screenshot or clipboard and sends it with the message to the AI Engine."""
+        """
+        Captures a screenshot or clipboard and sends it with the message to the AI Engine.
+        mode: "screen" (Full), "clipboard" (Copy), "capture" (Right Click alias)
+        """
         self.log_to_debug(f"Vision Chat Received: {message} Mode: {mode}", 'info')
         
         # Capture Logic
@@ -404,17 +407,23 @@ class ChatApiMixin(BaseApiMixin):
         img_str = None
         
         try:
-            if mode == "clipboard":
+            # ★修正: "capture" モードもクリップボードとして扱うように条件を追加
+            if mode in ["clipboard", "capture"]:
                 # Windows: grabclipboard() returns Image or list of filenames
                 image = ImageGrab.grabclipboard()
+                
+                # 画像がない場合の親切なエラーメッセージ
                 if image is None:
+                    # もし "capture" (右クリック) だったら、ユーザーにヒントを出す
+                    hint = "（Win+Shift+S で範囲選択してから、もう一度右クリックしてみてね）" if mode == "capture" else ""
                     return {
-                        "text": "クリップボードに画像が見当たりません。\nWin+Shift+S (領域指定) や Alt+PrtSc (ウィンドウ) でコピーしてから、もう一度右クリックしてください。", 
+                        "text": f"クリップボードに画像が見当たりません。{hint}", 
                         "audio": None, 
                         "suggestions": []
                     }
+                
+                # ファイルパスがコピーされている場合の対応
                 if isinstance(image, list):
-                    # Handle file paths in clipboard
                     from PIL import Image
                     try:
                         image = Image.open(image[0])
@@ -748,18 +757,35 @@ Output ONLY the suggested text.
             
         return {'status': 'success', 'new_session_id': new_id}
     # ★追加: プレビュー用にスクショだけ撮って返すAPI
-    def take_screenshot_for_preview(self):
-        self.log_to_debug("Taking screenshot for preview...", 'info')
+    def take_screenshot_for_preview(self, mode="screen"):
+        self.log_to_debug(f"Taking screenshot for preview (Mode: {mode})...", 'info')
         try:
-            from PIL import ImageGrab
+            from PIL import ImageGrab, Image
             from io import BytesIO
             import base64
 
-            # Capture Logic (Standard Screen)
-            try:
-                image = ImageGrab.grab(all_screens=True)
-            except TypeError:
-                image = ImageGrab.grab()
+            # Capture Logic
+            image = None
+            
+            if mode in ["clipboard", "capture"]:
+                image = ImageGrab.grabclipboard()
+                
+                # Check for file path copy
+                if isinstance(image, list):
+                    try:
+                        image = Image.open(image[0])
+                    except:
+                        return {'status': 'error', 'message': 'Unsupported file type in clipboard'}
+                
+                if image is None:
+                     hint = "（Win+Shift+S で範囲選択してから、もう一度操作してください）" if mode == "capture" else ""
+                     return {'status': 'error', 'message': f'Clipboard is empty. {hint}'}
+            else:
+                # Screen (Default)
+                try:
+                    image = ImageGrab.grab(all_screens=True)
+                except TypeError:
+                    image = ImageGrab.grab()
 
             if image:
                 if image.mode in ("RGBA", "P"):
@@ -772,7 +798,7 @@ Output ONLY the suggested text.
                 data_url = f"data:image/jpeg;base64,{img_str}"
                 return {'status': 'success', 'image_data': data_url}
             else:
-                return {'status': 'error', 'message': 'Screenshot failed'}
+                return {'status': 'error', 'message': 'Capture failed'}
         except Exception as e:
              self.log_to_debug(f"Screenshot Error: {e}", 'error')
              return {'status': 'error', 'message': str(e)}

@@ -298,7 +298,7 @@ export class ChatManager {
 
         try {
             // 即時送信せず、プレビュー用に取得するだけにする
-            const res = await (window as any).pywebview.api.take_screenshot_for_preview();
+            const res = await (window as any).pywebview.api.take_screenshot_for_preview(mode);
             if (res.status === 'success' && res.image_data) {
                 this.attachImage(res.image_data);
                 UIManager.getInstance().openChatPanel(true);
