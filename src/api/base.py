@@ -24,3 +24,11 @@ class BaseApiMixin:
             safe_type = json.dumps(type)
             # safe_msg includes quotes, so we don't need to add them in f-string
             self._window.evaluate_js(f"logToDebug({safe_msg}, {safe_type})")
+
+    def log_to_mind(self, msg):
+        """Log AI thought process to the Mind tab."""
+        print(f"[MIND] {msg}")
+        if self._window:
+            import json
+            safe_msg = json.dumps(str(msg))
+            self._window.evaluate_js(f"logToMind({safe_msg})")

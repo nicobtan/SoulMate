@@ -117,13 +117,18 @@ body {
     justify-content: space-between;
 }
 
-#debug-content,
-#history-content {
+/* --- Content Areas --- */
+/* Old ID #debug-content replaced by class .log-content */
+.log-content {
+    display: none;
     flex: 1;
     overflow-y: auto;
     padding: 10px;
-    display: block;
     overflow-x: hidden;
+}
+
+.log-content.active {
+    display: block;
 }
 
 #history-content {
@@ -461,6 +466,72 @@ body {
     border-radius: 50%;
 }
 
+/* Buttons/* Mind Log Styling */
+#log-mind {
+    color: #E6E6FA;
+    /* Lavender */
+    font-family: 'Consolas', 'Monaco', monospace;
+    /* Monospace for thought process */
+    font-size: 0.9em;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    /* Preserve formatting */
+    padding: 10px;
+    background-color: rgba(30, 20, 60, 0.4);
+    /* Slightly purple tinted bg */
+    border-radius: 4px;
+}
+
+.mind-entry {
+    margin-bottom: 8px;
+    border-left: 3px solid #9370DB;
+    /* Medium Purple accent */
+    padding-left: 8px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.mind-timestamp {
+    color: #B0C4DE;
+    /* Light Steel Blue */
+    font-size: 0.8em;
+    margin-right: 5px;
+}
+
+/* Tab Button Styling (Restoring Legacy Look) */
+.tab-btn {
+    background: transparent;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 8px 0;
+    flex: 1;
+    /* Distribute width equally like before */
+    transition: color 0.2s, background 0.2s;
+}
+
+.tab-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+    color: #fff;
+    border-bottom: 2px solid #0f0;
+    /* Default Green for All/Sys */
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* Tab Button Styling for Mind */
+.tab-btn.mind-tab {
+    color: #E6E6FA;
+}
+
+.tab-btn.mind-tab.active {
+    border-bottom: 2px solid #9370DB;
+}
+
 /* Buttons & Context Menu */
 #chat-toggle-btn,
 #debug-btn,
@@ -610,23 +681,8 @@ textarea,
 }
 
 /* --- Log Filtering Logic (MISSING FIX) --- */
-/* view-sys: Hide RAG and Dbg */
-#debug-content.view-sys .cat-rag,
-#debug-content.view-sys .cat-dbg {
-    display: none;
-}
-
-/* view-rag: Hide Sys and Dbg */
-#debug-content.view-rag .cat-sys,
-#debug-content.view-rag .cat-dbg {
-    display: none;
-}
-
-/* view-dbg: Hide Sys and RAG */
-#debug-content.view-dbg .cat-sys,
-#debug-content.view-dbg .cat-rag {
-    display: none;
-}
+/* --- Log Filtering Logic (Replaced by Div Switching) --- */
+/* The visibility is now controlled by .log-content.active */
 
 /* view-all: Show everything (No display:none needed) */
 
@@ -655,7 +711,9 @@ textarea,
 
 /* ログエリアとチャットエリアでのテキスト選択を許可し、ウィンドウ移動を無効化 */
 #left-panel,
-#debug-content,
+#left-panel,
+.log-content,
+#history-content,
 #chat-log-area,
 .message,
 .log-entry {

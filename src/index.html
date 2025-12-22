@@ -34,15 +34,17 @@
                 <span id="close-debug" style="cursor:pointer; color:#888;">x</span>
             </div>
 
-            <div id="debug-tabs" class="log-tabs">
-                <div class="log-tab active" data-view="view-all">All</div>
-                <div class="log-tab" data-view="view-sys">Sys</div>
-                <div class="log-tab" data-view="view-rag">RAG</div>
-                <div class="log-tab" data-view="view-dbg">Dbg</div>
+            <div class="log-tabs">
+                <button class="tab-btn active" onclick="uiManager.switchLogTab('all')">All</button>
+                <button class="tab-btn" onclick="uiManager.switchLogTab('sys')">Sys</button>
+                <button class="tab-btn mind-tab" onclick="uiManager.switchLogTab('mind')">Mind</button>
+                <button class="tab-btn" onclick="uiManager.switchLogTab('rag')">RAG</button>
             </div>
 
-            <div id="debug-content" class="view-all">
-            </div>
+            <div id="log-all" class="log-content active"></div>
+            <div id="log-sys" class="log-content"></div>
+            <div id="log-mind" class="log-content"></div>
+            <div id="log-rag" class="log-content"></div>
 
         </div>
 
@@ -114,6 +116,22 @@
             <div id="attachment-preview-area" style="display: none;">
                 <div id="preview-thumbnail-container">
                     <!-- Thumbnail will be injected here -->
+                </div>
+                <!-- Tab Headers -->
+                <div class="log-tabs">
+                    <button class="tab-btn active" onclick="uiManager.switchLogTab('chat')">Chat</button>
+                    <button class="tab-btn" onclick="uiManager.switchLogTab('system')">System</button>
+                    <button class="tab-btn mind-tab" onclick="uiManager.switchLogTab('mind')">Mind</button>
+                    <button class="tab-btn" onclick="uiManager.switchLogTab('rag')">RAG</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div id="log-chat" class="log-content active"></div>
+                <div id="log-system" class="log-content"></div>
+                <!-- Mind Tab: AI's Inner Voice -->
+                <div id="log-mind" class="log-content"></div>
+                <div id="log-rag" class="log-content">
+                    <div class="rag-placeholder">No context retrieved yet.</div>
                 </div>
             </div>
 

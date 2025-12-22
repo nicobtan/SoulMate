@@ -55,6 +55,8 @@ export class UIManager {
         // Expose global helpers
         (window as any).openChatPanel = this.openChatPanel.bind(this);
         (window as any).updateStatusDisplay = this.updateStatus.bind(this);
+        // Expose instance for onclick access from HTML
+        (window as any).uiManager = this;
 
         // Global Click to close context menu
         window.addEventListener('click', () => {
@@ -243,6 +245,31 @@ export class UIManager {
         if (!this.suggestionPopup) return;
         const isVisible = this.suggestionPopup.style.display === 'flex';
         this.suggestionPopup.style.display = isVisible ? 'none' : 'flex';
+    }
+
+    public switchLogTab(tabName: string) {
+        // Tab Buttons
+        const btns = document.querySelectorAll('.tab-btn');
+        btns.forEach(btn => btn.classList.remove('active'));
+
+        // Find clicked button based on onclick attribute or class? 
+        // Index.html logic uses hardcoded onclicks.
+        // We can just rely on the onclick adding active class manually? 
+        // No, we need to find the specific button associated with tabName.
+        // Simplified: Loop and check mapping, or just query mapped button.
+        // Button Logic:
+        const targetBtn = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+
+        // Content
+        const Contents = document.querySelectorAll('.log-content');
+        Contents.forEach(content => content.classList.remove('active'));
+
+        const targetContent = document.getElementById(`log-${tabName}`);
+        if (targetContent) {
+            targetContent.classList.add('active');
+            targetContent.scrollTop = targetContent.scrollHeight;
+        }
     }
 
     private initContextMenus() {

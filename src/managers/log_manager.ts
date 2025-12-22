@@ -2,10 +2,8 @@ export type LogCategory = 'sys' | 'rag' | 'dbg';
 
 export class LogManager {
     private static instance: LogManager;
-    private debugContent: HTMLElement | null;
     private leftPanel: HTMLElement | null;
     private historyContent: HTMLElement | null;
-    private debugTabs: HTMLElement | null;
     private panelTitle: HTMLElement | null;
 
     // UI State
@@ -17,17 +15,15 @@ export class LogManager {
     private readonly CHAT_TOTAL_WIDTH = 455; // 450px width + 5px margin
 
     private constructor() {
-        this.debugContent = document.getElementById('debug-content');
         this.leftPanel = document.getElementById('left-panel');
         this.historyContent = document.getElementById('history-content');
-        this.debugTabs = document.getElementById('debug-tabs');
         this.panelTitle = document.getElementById('panel-title');
 
-        this.initTabs();
         this.initButtons();
 
         // Expose globally for legacy calls
         (window as any).logToDebug = this.log.bind(this);
+        (window as any).logToMind = this.logToMind.bind(this);
     }
 
     public static getInstance(): LogManager {
@@ -45,34 +41,61 @@ export class LogManager {
         if (closeBtn) closeBtn.addEventListener('click', () => this.closePanel());
     }
 
-    private initTabs() {
-        const tabs = document.querySelectorAll('.log-tab');
-        if (tabs && this.debugContent) {
-            tabs.forEach(tab => {
-                tab.addEventListener('click', (e) => {
-                    tabs.forEach(t => t.classList.remove('active'));
-                    (e.target as HTMLElement).classList.add('active');
-                    const viewMode = (e.target as HTMLElement).dataset.view;
-                    if (viewMode && this.debugContent) {
-                        this.debugContent.className = viewMode;
-                        this.debugContent.scrollTop = this.debugContent.scrollHeight;
-                    }
-                });
-            });
+
+
+    public log(msg: string, type: 'info' | 'warn' | 'error' = 'info', category: LogCategory = 'sys') {
+        // Target Containers
+        const logAll = document.getElementById('log-all');
+        const logTarget = document.getElementById(`log-${category === 'dbg' ? 'mind' : category}`);
+
+        // Ensure dbg maps to mind silently or sys? 
+        // User asked dbg -> mind. So we map dbg to mind if not explicit.
+        // Also map 'sys' to log-sys, 'rag' to log-rag.
+
+        const now = new Date();
+        const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+        const contentHtml = `<span class="log-time">${timeStr}</span> <span class="log-${type}">${msg}</span>`;
+
+        // 1. Append to All
+        if (logAll) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry cat-${category}`;
+            entry.innerHTML = contentHtml;
+            logAll.appendChild(entry);
+            logAll.scrollTop = logAll.scrollHeight;
+        }
+
+        // 2. Append to Specific Category
+        if (logTarget) {
+            // For Mind, we might use different styling (handled by CSS/logToMind), 
+            // but for standard log() calls just reuse entry style or redirect to logToMind if category is dbg?
+            if (category === 'dbg') {
+                // Redirect to structured mind log
+                this.logToMind(`[DBG] ${msg}`);
+            } else {
+                const entry = document.createElement('div');
+                entry.className = `log-entry cat-${category}`;
+                entry.innerHTML = contentHtml;
+                logTarget.appendChild(entry);
+                logTarget.scrollTop = logTarget.scrollHeight;
+            }
         }
     }
 
-    public log(msg: string, type: 'info' | 'warn' | 'error' = 'info', category: LogCategory = 'sys') {
-        if (!this.debugContent) return;
+    public logToMind(msg: string) {
+        const mindContent = document.getElementById('log-mind');
+        if (!mindContent) return;
 
         const entry = document.createElement('div');
-        entry.className = `log-entry cat-${category}`;
-        const now = new Date();
-        const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
-        entry.innerHTML = `<span class="log-time">${timeStr}</span> <span class="log-${type}">${msg}</span>`;
+        entry.className = 'mind-entry';
 
-        this.debugContent.appendChild(entry);
-        this.debugContent.scrollTop = this.debugContent.scrollHeight;
+        const now = new Date();
+        const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}]`;
+
+        entry.innerHTML = `<span class="mind-timestamp">${timeStr}</span> ${msg}`;
+
+        mindContent.appendChild(entry);
+        mindContent.scrollTop = mindContent.scrollHeight;
     }
 
     public async togglePanel() {
@@ -94,8 +117,9 @@ export class LogManager {
         this.leftPanel.classList.add('open');
 
         // UI Update (Debug Mode Only)
-        if (this.debugContent) this.debugContent.style.display = 'block';
-        if (this.debugTabs) this.debugTabs.style.display = 'flex';
+        // Tabs are managed by UIManager / CSS logic now
+        // if (this.debugContent) this.debugContent.style.display = 'block';
+        // if (this.debugTabs) this.debugTabs.style.display = 'flex';
         // Remove historyContent refs if strictly needed, but styling handles it if we don't open 'history' mode.
 
         if (this.panelTitle) {

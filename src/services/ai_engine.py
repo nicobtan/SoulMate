@@ -27,6 +27,14 @@ class AIEngine:
         
         self.system_instruction = "You are a helpful AI assistant."
         self.use_search = True
+        self.mind_logger = None # Callback for Mind Logs
+
+    def set_mind_logger(self, callback):
+        self.mind_logger = callback
+
+    def _log_thought(self, thought):
+        if self.mind_logger:
+            self.mind_logger(thought)
 
     def configure(self, api_key, reasoning_model=None, tts_model=None, system_instruction=None):
         self.api_key = api_key
@@ -68,6 +76,10 @@ class AIEngine:
             # コンテキスト構築
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             full_prompt = f"Current Time: {now}\n{context}\nUser: {message}"
+
+            # Log Thinking Process
+            self._log_thought(f"🤔 Input Analysis:\n- Time: {now}\n- Context: {len(str(context))} chars")
+            self._log_thought(f"🧠 Reasoning...\nTargeting Model: {self.reasoning_model}")
 
             # Config設定
             tools = [types.Tool(google_search=types.GoogleSearch())] if self.use_search and not image else []

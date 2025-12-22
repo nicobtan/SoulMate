@@ -479,6 +479,11 @@ def create_app():
     from src.services.google_auth_manager import GoogleAuthManager
     GoogleAuthManager().set_api_instance(api)
 
+    # ★ Inner Voice (Mind Logs) Wiring
+    # Set Mind Logger if Engine exists
+    if hasattr(api, '_ai_engine') and api._ai_engine:
+        api._ai_engine.set_mind_logger(api.log_to_mind)
+
     # ★ Docs Sync (MindVault) - Startup
     try:
         from src.services.docs_sync_service import DocsMemorySync
