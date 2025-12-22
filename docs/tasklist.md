@@ -585,3 +585,18 @@
     - [ ] 認証フロー確認
     - [ ] 同期・アーカイブ動作確認
 
+## フェーズ71: Conversation Chaos & Serendipity (v0.3.1) [完了]
+- [x] **Topic Selectorの実装**
+    - [x] `search_topics.yaml` と「カオス（未知のトピック）」を混ぜて提案するロジック
+    - [x] Topic Selection Strategy (Comfort 70% / Chaos 30%)
+- [x] **UIへの反映**
+    - [x] 初期バルーン (Startup/Idle) へのランダムトピック注入
+    - [x] 会話サジェスト (Suggestions) への「💡 未知のトピック」強制注入
+
+## フェーズ72: Reliability Fixes (UrlValidator & Anti-Nagging) [完了]
+- [x] **URL Hallucination対策**
+    - [x] `UrlValidator`: Pythonによる死活監視（Dead Link Pruning）実装
+    - [x] System Prompt: "No Guessing", "Grounding Only" の厳格化
+- [x] **Repetitive Care抑制**
+    - [x] System Prompt: 深夜の健康気遣いを「最初の1回」に制限
+    - [x] System Prompt: 知的トピック優先（Context Priority）ルールの追加
