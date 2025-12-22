@@ -527,13 +527,61 @@
     - [x] 送信ボタン押下時に画像とテキストをセットで送信するロジック
     - [x] TypeScript 型定義の更新とビルドエラーの解消
 
-## フェーズ48: TOON形式の導入 (TOON Standard Implementation) [完了]
-- [x] **フォーマットの刷新**
-    - [x] 通信形式をJSONからTOON (Token-Oriented Object Notation) へ変更
-    - [x] トークン消費量の削減 (30-60%) と応答速度の向上
-- [x] **堅牢なパースロジック**
-    - [x] `AIEngine` への正規表現ベースのTOONパーサー実装
-    - [x] 後方互換性のためのハイブリッドパースロジック (TOON & JSON)
-- [x] **コードベースのクリーンアップ**
-    - [x] `server.py` の重複排除とリファクタリング
-    - [x] `main.py` および `chat_api.py` のプロンプト更新
+## フェーズ48: TOON形式の導入 (TOON Standard Implementation) [Cancelled / Replaced]
+- **理由**: 正規表現パースの限界と、Gemini Native JSON Mode の登場によるアーキテクチャ刷新のため。
+- [x] ~~**フォーマットの刷新**~~
+    - [x] ~~通信形式をJSONからTOON (Token-Oriented Object Notation) へ変更~~
+- [x] ~~**堅牢なパースロジック**~~
+    - [x] ~~`AIEngine` への正規表現ベースのTOONパーサー実装~~
+
+## フェーズ49 〜 64: [Rolled Back / Skipped]
+- **注記**: TOON形式の最適化や実験的機能の実装が行われましたが、システム安定化のための「大規模ロールバック (v0.2.1)」に伴い、これらの履歴はリセットされました。
+- 現在の最新版は **Phase 65 (Native JSON)** 以降となります。
+
+## フェーズ65: Native JSON Outputによる堅牢化 [完了]
+- [x] **AI EngineのJSON化 (`ai_engine.py`)**
+    - [x] 正規表現によるTOONパース処理の完全撤廃
+    - [x] `response_schema` による出力形式の強制 (Gemini Native JSON Mode)
+    - [x] 推論モデル(`gemini-3-flash`)とTTSモデル(`gemini-2.5-flash-tts`)の分離構成
+- [x] **Chat APIのJSON対応 (`chat_api.py`)**
+    - [x] `generate_response` の戻り値(Dict)を直接処理するロジックへの変更
+    - [x] 文字列パース処理の削除による安定化
+
+## フェーズ66: UX調整 & 依存関係修復 [完了]
+- [x] **起動時設定の最適化**
+    - [x] `index.ts`: 起動時のチャットログ自動読み込み(restoreSession)を無効化（「空の状態」で開始）
+- [x] **依存関係の修復**
+    - [x] `src/services/resource_manager.py` の再作成 (ロールバックで消失していたファイルの復元)
+
+## フェーズ67: Native JSON版リリース (v0.3) [完了]
+- [x] **バージョン管理**
+    - [x] Git Commit & Push ("v0.3 Native JSON 導入版")
+
+## フェーズ68: Vision機能の実用化 (Clipboard Support) [完了]
+- [x] **Visionモードの改善**
+    - [x] Backend (`chat_api.py`): `chat_with_vision(mode="capture")` をクリップボード参照(`ImageGrab.grabclipboard`)に変更
+    - [x] Frontend (`chat_manager.ts`): 右クリック時に `mode="clipboard"` を正しく送信するように修正
+- [x] **UX改善**
+    - [x] クリップボードが空の場合、「Win+Shift+S」の使用を促すヒントメッセージを表示
+    - [x] プレビューAPI (`take_screenshot_for_preview`) の `mode` 対応
+
+## フェーズ69: Vision機能リリース [完了]
+- [x] **バージョン管理**
+    - [x] Git Commit & Push ("Vision機能実装完了")
+
+## フェーズ70: MindVault Sync (Docs連携) [In Progress]
+- [ ] **Google Docs 認証基盤**
+    - [ ] `services/google_auth_manager.py`: Docs API Scope の追加
+- [ ] **同期ロジック実装 (`docs_memory_sync.py`)**
+    - [ ] `DocsMemorySync` クラスの作成
+    - [ ] `fetch_and_split`: ドキュメント取得とマーカー分割
+    - [x] `gemini-3-flash-preview` による分析プロンプト設計 (Design済)
+    - [ ] `analyze_content`: 分析とJSON抽出
+    - [ ] `update_doc`: 処理済みテキストのアーカイブ処理
+- [ ] **統合と保存**
+    - [ ] `memory/mind_vault.jsonl` への保存ロジック
+    - [ ] `main.py`: 起動時の非同期実行
+- [ ] **検証**
+    - [ ] 認証フロー確認
+    - [ ] 同期・アーカイブ動作確認
+

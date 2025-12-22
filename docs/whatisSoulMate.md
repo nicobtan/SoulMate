@@ -103,24 +103,25 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
             - **復元**: 選択した会話の続きからチャットを再開可能。
 
 
-## 技術スタック (Update)
+## 技術スタック (v0.3 - Native JSON Edition)
 - **コア言語:** Python (Backend / Controller)
 - **GUI:** HTML/CSS/TypeScript (Frontend)
 - **キャラクター描画:** Live2D Cubism SDK for Web + PixiJS
-- **AIエンジン (Brain):** Gemini API (Agentic Workflow)
-- **音声合成 (Voice):** Google Cloud TTS API / **Gemini 2.5 Flash TTS** / VOICEVOX (Local)
+- **AIエンジン (Brain):** **Gemini 3 Flash (Reasoning)** + **Native JSON Mode**
+- **音声合成 (Voice):** **Gemini 2.5 Flash TTS** (Expressive)
 - **連携API:** Google Calendar API, Google Docs API
+- **Visual Intelligence:** Python `Pillow` + Gemini Vision (Multimodal)
 - **Others:** pywebview (Python-JS Bridge)
 
-## 将来の機能アイデア (Roadmap)
-### 💡 アイデア 1: 「デスクトップの状況を見る目」 (Vision)
-- **難易度**: ★★★☆☆ | **インパクト**: ★★★★★
+## 実装済み主要機能 (Update)
+### 👁️ 「デスクトップの状況を見る目」 (Vision Integration)
 - **機能**: 
-    - ユーザーが「このエラー見て」と言ったら、現在の画面のスクリーンショットを撮ってAIに送り、解決策を教えてもらう。
-    - YouTube視聴時に「何の動画見てるの？」と聞くと、画面を見て感想を言う。
-- **技術**: `pyautogui` (スクショ撮影) + Gemini API (Vision)
-- **セリフ例**: 「あら、Pythonのエラーね。IndentationErrorって出てるわ。12行目のインデントがズレてない？」
+    - **左クリック**: 現在の全画面スクリーンショットを撮影して送信。
+    - **右クリック**: **クリップボード**内の画像を送信 (Win+Shift+S と連携)。
+- **体験**: エラー画面を見せたり、面白い画像について語り合ったりできます。
+- **実装**: フロントエンドのプレビュー機能 + バックエンドの画像処理
 
+## 将来の機能アイデア (Roadmap)
 ### 💡 アイデア 2: 「PCの体調管理（システム監視）」 (System Monitor)
 - **難易度**: ★★☆☆☆ | **インパクト**: ★★★★☆
 - **機能**: 
@@ -128,6 +129,8 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
     - 重い処理でCPUが100%になったら心配してくれたり、バッテリー低下を警告する。
 - **技術**: `psutil` ライブラリ
 - **セリフ例**: 「ちょっと！ CPUが90%を超えてるわよ？ すごく熱いわ……無理させすぎじゃない？」
+
+
 
 ### 💡 アイデア 3: 「聴覚の実装（音声入力）」 (Voice Input)
 - **難易度**: ★★★☆☆ | **インパクト**: ★★★★★

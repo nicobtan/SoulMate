@@ -18,5 +18,9 @@ class BaseApiMixin:
         """Log message to the frontend debug console."""
         print(f"[{type.upper()}] {msg}")
         if self._window:
-            safe_msg = msg.replace("'", "\\'").replace("\n", "\\n")
-            self._window.evaluate_js(f"logToDebug('{safe_msg}', '{type}')")
+            import json
+            # JSON Dump ensures safe string escaping for JS
+            safe_msg = json.dumps(str(msg))
+            safe_type = json.dumps(type)
+            # safe_msg includes quotes, so we don't need to add them in f-string
+            self._window.evaluate_js(f"logToDebug({safe_msg}, {safe_type})")

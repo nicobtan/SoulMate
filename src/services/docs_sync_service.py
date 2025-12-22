@@ -1,6 +1,7 @@
 import time
 import json
 import threading
+import datetime
 from src.core.config_manager import ConfigManager
 from src.services.google_auth_manager import GoogleAuthManager
 from src.services.memory_manager import MemoryManager
@@ -17,23 +18,34 @@ class DocsMemorySync:
     DOCS_VERSION = 'v1'
     SEPARATOR = "### 記録済み"
     
-    def __init__(self, memory_manager: MemoryManager):
+    def __init__(self, memory_manager: MemoryManager, api_instance=None):
         self.auth_manager = GoogleAuthManager()
         self.memory_manager = memory_manager
         self.config_manager = ConfigManager()
+        self.api_instance = api_instance # For UI Logging
         self.doc_id = self.config_manager.get('mind_vault_docs_id', None)
         self.api_key = self.config_manager.get('api_key', None)
         
+    def _log(self, message, level='info'):
+        print(f"[DocsSync:{level}] {message}")
+        if self.api_instance and hasattr(self.api_instance, 'log_to_debug'):
+            self.api_instance.log_to_debug(message, level)
+        
     def sync(self):
         """Main sync logic. Should be run in a background thread."""
+        # ★Auth Staggering: Wait for Calendar Auth to likely finish
+        self._log("Waiting 15s for system stabilization...", 'info')
+        time.sleep(15)
+
         if not self.doc_id:
-            print("[DocsSync] No Document ID configured. Skipping.")
+            self._log("No Document ID configured. Skipping.", 'warn')
             return
 
         if not self.auth_manager.is_authenticated:
             # Try silent auth
+            self._log("Attempting Auth...", 'info')
             if not self.auth_manager.authenticate():
-                print("[DocsSync] Auth failed. Skipping.")
+                self._log("Auth failed. Skipping.", 'error')
                 return
 
         try:
@@ -48,7 +60,7 @@ class DocsMemorySync:
                 # Safer to Append marker at top and wait for user to write above it?
                 # Or treat everything above bottom as new?
                 # Implementation: Create marker if missing at the very end.
-                print("[DocsSync] Separator not found. Appending separator...")
+                self._log("Separator not found. Appending separator...", 'warn')
                 self._append_text(service, f"\n\n{self.SEPARATOR}\n")
                 return
 
@@ -56,37 +68,38 @@ class DocsMemorySync:
             new_content = parts[0].strip()
             
             if not new_content:
-                print("[DocsSync] No new content found.")
+                self._log("No new content found in Docs.", 'info')
                 return
 
-            print(f"[DocsSync] Found new content ({len(new_content)} chars). Analyzing...")
+            self._log(f"Found new content ({len(new_content)} chars). Analyzing...", 'info')
             
             # AI Analysis
             analysis = self._analyze_with_gemini(new_content)
             
             if analysis:
+                # Count stats
+                p = len(analysis.get('Philosophy', []))
+                q = len(analysis.get('Quotes', []))
+                e = len(analysis.get('Emotions', []))
+                total = p + q + e
+
                 # Save to Memory
                 entry = {
                     "source_text": new_content,
                     "analysis": analysis,
-                    "source": "google_docs"
+                    "source": "google_docs",
+                    "timestamp": datetime.datetime.now().isoformat()
                 }
                 self.memory_manager.save_mind_vault_entry(entry)
                 
-                # Archive Logic: Move text to bottom (below separator)
-                # Google Docs API doesn't support "Move". We must Delete and Insert.
-                # 1. Get current EndIndex of the new content.
-                # Actually, easier to just Prepend "Processed" to the bottom, and Delete top.
-                # But we want to keep the archive.
-                # Strategy:
-                # 1. Insert [Date] + new_content at the END of document.
-                # 2. Delete the new_content from the TOP (0 to index of separator).
-                
+                # Archive Logic
                 self._archive_content(service, doc, new_content)
-                print("[DocsSync] Sync Complete.")
+                self._log(f"🧠 [MindVault] Synced {total} memories (Phil:{p}, Qt:{q}, Emo:{e}).", 'success')
+            else:
+                self._log("AI Analysis returned no data.", 'warn')
 
         except Exception as e:
-            print(f"[DocsSync] Error: {e}")
+            self._log(f"Sync Error: {e}", 'error')
 
     def _extract_text(self, doc):
         """Simple text extractor from Docs JSON structure."""
@@ -101,28 +114,22 @@ class DocsMemorySync:
         return text
 
     def _analyze_with_gemini(self, text):
-        """Uses Gemini 2.0 Flash (or 3 preview) to analyze text."""
+        """Uses gemini-3-flash-preview to analyze text."""
         if not self.api_key:
             return None
             
         try:
             client = Client(api_key=self.api_key)
-            # Use specific model requested or fallback
-            model = "gemini-2.0-flash-exp" # Fallback/Standard
-            # If user wants 3-preview, use it (if API supports it). 
-            # Currently 'gemini-2.0-flash-exp' is the latest widely available in this SDK context usually.
-            # But let's try the name if known. 'gemini-exp-1206' or similar.
-            # We stick to a safe default or config.
-            model = "gemini-2.0-flash-exp" 
+            model = "gemini-3-flash-preview"
             
             prompt = f"""
 Analyze the following user notes/journal.
-Extract:
-1. Philosophy (Values, Life lessons)
-2. Quotes (Notable phrases)
-3. Emotions (Underlying feelings)
+Extract and categorize:
+1. 'Philosophy' (Values, Life lessons)
+2. 'Quotes' (Distinctive phrases, Killer phrases)
+3. 'Emotions' (Underlying feelings)
 
-Text:
+Text to Analyze:
 {text}
 
 Output ONLY valid JSON:
@@ -203,7 +210,7 @@ Output ONLY valid JSON:
         delete_length = len(new_content)
         
         requests.append({
-            'deleteContent': {
+            'deleteContentRange': {
                 'range': {
                     'startIndex': 1,
                     'endIndex': 1 + delete_length

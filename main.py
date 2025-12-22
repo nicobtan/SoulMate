@@ -483,7 +483,7 @@ def create_app():
     try:
         from src.services.docs_sync_service import DocsMemorySync
         # api has memory_manager (initialized in __init__)
-        docs_sync = DocsMemorySync(api._memory_manager)
+        docs_sync = DocsMemorySync(api._memory_manager, api_instance=api)
         threading.Thread(target=docs_sync.sync, daemon=True).start()
     except Exception as e:
         print(f"[Main] Docs Sync Init Error: {e}")

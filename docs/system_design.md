@@ -1,8 +1,8 @@
-# SoulMate System Architecture (v0.2.1)
+# SoulMate System Architecture (v0.3)
 
 ## 1. Overview
 SoulMateは、デスクトップ上でユーザーと対話する「アクティブなAIパートナー」です。
-**Gemini API** を脳として使用し、**Pywebview** (Chromium) でGUIを描画、**Live2D** でキャラクターを表現します。
+**Gemini API (Native JSON Mode)** を脳として使用し、**Pywebview** (Chromium) でGUIを描画、**Live2D** でキャラクターを表現します。
 Pythonのバックエンドがサーバーとして機能し、JavaScriptのフロントエンドと連携して動作します。
 
 ## 2. Core Components
@@ -12,10 +12,12 @@ Pythonのバックエンドがサーバーとして機能し、JavaScriptのフ�
 *   **`src/services/ai_engine.py`**: AIロジックの中枢。
     *   **Reasoning**: `gemini-3-flash-preview` を使用して応答を生成。
     *   **TTS**: `gemini-2.5-flash-preview-tts` (またはVoiceService) で音声を生成。
-    *   **Parsing**: 生のテキストレスポンスからTOON形式 (`text:`, `emotion:`) を正規表現で抽出します。
+    *   **Output Mode**: **Native JSON Mode** (`response_schema`) により、堅牢なJSON形式で応答を取得します（旧TOON正規表現パースは廃止）。
 *   **`src/api/chat_api.py`**: フロントエンドとのブリッジ。
     *   `chat(message)`: ユーザー入力を受け取り、AIエンジンに渡して結果を返します。
+    *   `chat_with_vision(mode)`: スクリーンショットまたはクリップボード画像を取得してAIに送ります。
     *   `initialize_persona()`: 起動時にペルソナとユーザープロファイルをロードします。
+*   **`src/services/resource_manager.py`**: YAMLファイル（ペルソナ、プロファイル）の読み込みを担当。
 *   **`src/services/db_manager.py`**: `sqlite3` によるチャット履歴の永続化。
 
 ### Frontend (TypeScript / Vanilla JS)
@@ -30,8 +32,8 @@ Pythonのバックエンドがサーバーとして機能し、JavaScriptのフ�
 2.  **Processing**: `ChatApi.chat()` -> `AIEngine.generate_response()`
 3.  **AI Generation**:
     *   Gemini APIへリクエスト送信 (User Message + Context)
-    *   レスポンス受信 -> 正規表現パース (Implicit Text Mode)
-    *   `text`, `emotion`, `suggestions` を抽出
+    *   レスポンス受信 -> **Native JSON Decode** (Geminiが保証されたJSONを返却)
+    *   `response`, `emotion`, `suggestions` を抽出
 4.  **TTS**: 生成されたテキストを音声変換 -> `.wav` ファイル保存
 5.  **Response**: フロントエンドへJSON返却 `{ text, audio, emotion, suggestions }`
 6.  **Rendering**:
@@ -39,10 +41,11 @@ Pythonのバックエンドがサーバーとして機能し、JavaScriptのフ�
     *   音声再生 (Backend Server)
     *   Live2Dモーション再生 (Emotionに合わせて変化)
 
-## 4. Key Improvements (Current State)
+## 4. Key Improvements (v0.3)
+*   **Gemini Native JSON Mode**: 出力スキーマ強制により、パースエラーやJSON構文エラーを根絶。
 *   **Dual Model Architecture**: 思考モデル(Gemini 3)とTTSモデル(Gemini 2.5)を分離し、処理速度と品質を最適化。
-*   **Robust Parsing (Implicit Text Mode)**: `text:` ラベルが欠落しても、メタデータ (`emotion:` 等) を避けて本文を抽出するロジックを実装済み。
-*   **Functional Priority**: (※ロールバックにより現在は未実装。再実装予定)
+*   **Vision Integration (v2)**: 右クリックによるクリップボード画像送信に対応し、"Win+Shift+S" との連携フローを確立。
+*   **Functional Priority**: 情報検索要求に対してGoogle検索を優先使用するルールをSystem Promptに統合。
 
 ## 5. Directory Structure
 ```
@@ -51,7 +54,7 @@ SoulMate/
 ├── dist/                   # Compiled Frontend Assets
 ├── src/
 │   ├── api/                # Python API Mixins
-│   ├── services/           # Business Logic (AI, DB, Voice)
+│   ├── services/           # Business Logic (AI, DB, Voice, Resource)
 │   ├── managers/           # TypeScript Managers (Frontend)
 │   └── index.ts            # Frontend Entry
 ├── docs/                   # Documentation
