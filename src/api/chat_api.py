@@ -137,6 +137,9 @@ class ChatApiMixin(BaseApiMixin):
         log_msg = f"Chat Received: {message}"
         if image_data: log_msg += " [with image]"
         self.log_to_debug(log_msg, 'info')
+        
+        # 0. Latency Masking: Filler
+        self.play_filler()
 
         # Update Active Engine Interaction Time
         if self.active_engine:
@@ -401,6 +404,9 @@ class ChatApiMixin(BaseApiMixin):
         mode: "screen" (Full), "clipboard" (Copy), "capture" (Right Click alias)
         """
         self.log_to_debug(f"Vision Chat Received: {message} Mode: {mode}", 'info')
+        
+        # 0. Latency Masking: Filler
+        self.play_filler()
         
         # Capture Logic
         image = None
