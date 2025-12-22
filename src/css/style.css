@@ -699,6 +699,13 @@ textarea,
     color: #cff;
 }
 
+.message.ghost {
+    opacity: 0.7;
+    font-style: italic;
+    color: #aaa;
+    border: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
 .cat-dbg {
     border-left: 2px solid #fb0;
     padding-left: 5px;

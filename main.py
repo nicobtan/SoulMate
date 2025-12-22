@@ -29,6 +29,7 @@ from src.services.history_manager import HistoryManager
 from src.services.user_manager import UserManager
 
 from src.services.interest_manager import InterestManager
+from src.services.topic_selector import TopicSelector
 
 class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin):
     def __init__(self):
@@ -44,7 +45,9 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         
         # User & Interest Manager
         self.user_manager = UserManager()
+        self.user_manager = UserManager()
         self.interest_manager = InterestManager()
+        self.topic_selector = TopicSelector()
         
         # Soul Bubble Service
         self.bubble_service = BubbleService(self)
@@ -215,66 +218,6 @@ suggestions:
 
             print(f"[System] AI Configured: {model} with Deep Context ({user_name})")
 
-    def force_talk(self):
-        """ピンクボタンの処理: 検索ベースの話題提供 (Grounding)"""
-        print("[Api] Processing Grounded Force Talk...")
-        
-        if not self._ai_engine:
-            return {"text": "Error: AI Engine not ready", "audio": None}
-
-        # 1. ユーザープロファイル
-        user_context = ""
-        if hasattr(self, 'user_manager') and self.user_manager:
-            user_context = self.user_manager.get_profile_context()
-
-        # 2. 検索トピックの取得
-        import random
-        search_topic_instruction = ""
-        if hasattr(self, 'interest_manager') and self.interest_manager:
-            topics = self.interest_manager.load_topics()
-            if topics:
-                chosen_topic = random.choice(topics)
-                search_topic_instruction = f"""
-[Grounding Instruction]
-The user is interested in: "{chosen_topic}".
-**USE GOOGLE SEARCH** to find the latest news or updates (today/this week) about "{chosen_topic}".
-Then, tell the user about it in your persona's tone.
-If no recent news is found, talk about general facts regarding "{chosen_topic}".
-"""
-            else:
-                 search_topic_instruction = "Use Google Search to find a trending technology news topic."
-        
-        # 3. プロンプト構築
-        prompt = f"""
-[Situation]
-The user is silent. You want to start a conversation about something NEW and EXCITING using external information.
-
-[User Profile]
-{user_context}
-
-{search_topic_instruction}
-
-[Output Requirement]
-Response Format: TOON (Token-Oriented Object Notation)
-- Use your Persona's tone.
-- Keep it concise (2-3 sentences).
-- Provide EXACTLY 5 suggestions (4 specific follow-ups + "他の話題について").
-
-response:
-  text: Your spoken response here.
-emotion: happy
-suggestions:
-  - Option 1
-  - Option 2
-  - Option 3
-  - Option 4
-  - 他の話題について
-"""
-        
-        # 4. チャットとして処理 (AI Engine側でツール呼び出しが自動で行われる)
-        return self.chat(prompt)
-
-
     def set_window(self, window):
         self._window = window
         self.active_engine.start()
@@ -293,9 +236,9 @@ suggestions:
                 data = json.loads(message)
                 if "response" in data:
                     tts_text = data["response"]
-                    # Re-serialize for Safe JS passing (as an Object)
-                    # We pass the JSON string and let JS parse? Or pass Object literal?
-                    # Let's pass the Object: receiveMessage({...})
+                    js_payload = json.dumps(data, ensure_ascii=False)
+                elif "text" in data:
+                    tts_text = data["text"]
                     js_payload = json.dumps(data, ensure_ascii=False)
             except json.JSONDecodeError:
                 pass # Treat as raw text

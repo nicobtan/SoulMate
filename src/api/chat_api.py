@@ -7,6 +7,8 @@ import json
 from .base import BaseApiMixin
 # from .json_helper import _extract_json_from_text # TOON化により不要
 from PIL import ImageGrab
+from ..services.topic_selector import TopicSelector
+from ..services.url_validator import UrlValidator
 
 class ChatApiMixin(BaseApiMixin):
     
@@ -15,6 +17,9 @@ class ChatApiMixin(BaseApiMixin):
         from ..services.resource_manager import ResourceManager 
         if not hasattr(self, 'resource_manager'):
             self.resource_manager = ResourceManager()
+
+        # Topic Selector
+        self.topic_selector = TopicSelector()
 
         # 1. ファイル読み込み  (ResourceManagerの実装を信頼)  
         # Note: If ResourceManager is not present (reverted), we might need fallback or simplistic approach. 
@@ -82,6 +87,13 @@ You have access to the following tools. To use them, output the specific tag exa
    - Syntax: `[ACTION:ADD_EVENT|Summary|Time]`
    - Example dev: `[ACTION:ADD_EVENT|Meeting|Tomorrow 10am]`
    - Trigger: When user asks to "schedule", "remind me", "add event", YOU MUST output this tag.
+##################################################
+[Citation Rule]
+- If you use information from a specific source, you MUST cite the URL.
+- **NO GUESSING**: You must NOT construct or guess URLs based on patterns (e.g. "somewebsite.com/2025/12/...").
+- **GROUNDING ONLY**: You can ONLY include URLs that were explicitly returned by the Google Search Tool.
+- **VERIFICATION**: If you are not 100% sure the URL is valid, do NOT show it.
+
 ##################################################
 """
         if self._ai_engine:
@@ -248,11 +260,23 @@ You have access to the following tools. To use them, output the specific tag exa
             self.log_to_debug(f"Action Command Received via Schema: {action_command}", 'info')
             response_text += f"\n{action_command}"
 
+        # 2.5 URL Liveness Check (Pruning)
+        response_text = UrlValidator.validate_and_clean(response_text)
+
         # 3. サジェスト補完 (最低限)
         if len(suggestions_list) < 2:
             suggestions_list = ["詳しく教えて", "面白いね", "他には？", "そうなんだ"]
         
-        final_suggestions = suggestions_list[:4]
+        final_suggestions = suggestions_list[:3] # Limit AI suggestions to 3
+        
+        # Inject Chaos/Random Topic
+        if hasattr(self, 'topic_selector') and hasattr(self, 'interest_manager'):
+            candidates = self.interest_manager.load_topics()
+            selection = self.topic_selector.decide_topic(candidates)
+            topic = selection['topic']
+            # Make it look interesting
+            final_suggestions.append(f"💡 {topic}について")
+        
         if "他の話題もしてみたい" not in final_suggestions and "別の話題はある？" not in final_suggestions:
             final_suggestions.append("他の話題もしてみたい")
 
@@ -539,8 +563,40 @@ You have access to the following tools. To use them, output the specific tag exa
         """Force the AI to initiate conversation (Proactive)."""
         self.log_to_debug("Force Talk Triggered", 'info')
         
-        # Prompt Construction
-        prompt = "User is idle. Initiate a conversation naturally. Check the time and suggest a topic."
+        # 1. Get Candidates from InterestManager (if available)
+        candidates = []
+        if hasattr(self, 'interest_manager') and self.interest_manager:
+            candidates = self.interest_manager.load_topics()
+
+        # 2. Decide Topic (Chaos vs Comfort)
+        selection = self.topic_selector.decide_topic(candidates)
+        topic = selection['topic']
+        source = selection['source']  # 'comfort' or 'chaos'
+        
+        # 3. Log Choice
+        log_icon = "🎲" if source == 'chaos' else "🏠"
+        self.log_to_debug(f"[Topic] {log_icon} {source.upper()}: '{topic}'", 'info')
+        
+        if hasattr(self, 'log_to_mind'):
+             self.log_to_mind(f"{log_icon} Topic: {topic} ({source})")
+
+        # 4. Construct Prompt with Grounding Instruction
+        # We ALWAYS want to search to make the serendipity valid (not hallucination).
+        prompt = f"""
+[Situation]
+User is idle. You found an interesting topic: "{topic}".
+Target Source: {source.upper()} (User Preference vs Serendipity).
+
+[Grounding Instruction]
+**USE GOOGLE SEARCH** to find the latest news, interesting facts, or deep trivia about "{topic}".
+- If "Entertainment", find latest gossip/news.
+- If "Science", find recent discoveries.
+- If "Serendipity", find weird facts or history.
+
+[Response Goal]
+Initiate the conversation naturally.
+{self.topic_selector.get_instruction(topic, source)}
+"""
         
         # Call chat with save_user_log=False to prevent DB pollution
         return self.chat(prompt, save_user_log=False)

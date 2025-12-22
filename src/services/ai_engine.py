@@ -1,6 +1,8 @@
 import logging
 import datetime
 import json
+import re
+from typing import Dict, Any
 from google import genai
 from google.genai import types
 
@@ -14,6 +16,8 @@ class AIEngine:
         # モデル定義 (Defaults)
         self.reasoning_model = "gemini-3-flash-preview" 
         self.tts_model = "gemini-2.5-flash-preview-tts"
+        # Temperature setting for variety
+        self.temperature = 0.9
         self.system_instruction = "You are a helpful AI assistant."
         self.use_search = True
         
@@ -96,8 +100,16 @@ class AIEngine:
                 safety_settings=[
                     types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_NONE)
                     for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]
-                ]
+                for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]
+                for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]
+                ],
+                temperature=self.temperature
             )
+            # Apply Temperature manually if supported or via config? 
+            # google-genai SDK 0.x might support it in config or generation_config.
+            # types.GenerateContentConfig has 'temperature' field.
+            # Temperature applied in init
+            # run_config.temperature = self.temperature
 
             # 生成実行
             contents = [full_prompt]
@@ -111,11 +123,11 @@ class AIEngine:
                 config=run_config
             )
 
-            # パース処理 (json.loadsのみでOK)
+            # パース処理 (Robust Cleaning)
             if response.text:
-                data = json.loads(response.text)
+                data = self._parse_ai_response(response.text)
                 return {
-                    "text": data.get("response", ""), 
+                    "text": data.get("response", "") or data.get("text", ""), # Fallback to text if response invalid
                     "emotion": data.get("emotion", "neutral"),
                     "suggestions": data.get("suggestions", []),
                     "action_command": data.get("action_command", ""),
@@ -169,5 +181,41 @@ class AIEngine:
             # Title generation doesn't strict JSON mode usually but consistentcy helps.
             # Using text mode for title is simpler.
             response = self.client.models.generate_content(model=self.reasoning_model, contents=prompt)
+            response = self.client.models.generate_content(model=self.reasoning_model, contents=prompt)
             return response.text.strip().replace('"', '')
         except: return None
+
+    def _parse_ai_response(self, raw_text: str) -> Dict[str, Any]:
+        """
+        AIの応答からJSONを抽出する堅牢なパーサー。
+        Markdown記法、余分な空白、説明文などを除去してパースを試みる。
+        """
+        text = raw_text.strip()
+        
+        # 1. Markdownコードブロックの除去 (```json ... ```)
+        # 大文字小文字無視、改行含む
+        match = re.search(r"```(?:json)?\s*(.*)\s*```", text, re.DOTALL | re.IGNORECASE)
+        if match:
+            text = match.group(1).strip()
+        
+        # 2. それでもパースできない場合、最初と最後の {} を探して抽出する
+        if "{" in text:
+            first_brace = text.find("{")
+            last_brace = text.rfind("}")
+            if last_brace > first_brace:
+                text = text[first_brace : last_brace + 1]
+
+        # 3. JSONパースの試行
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            logger.error(f"[AI Engine] JSON Parse Error: {e}")
+            logger.error(f"[AI Engine] Failed Text: {raw_text}")
+            
+            # 4. 最終手段: パース失敗時は、テキスト全体をresponseとして扱う
+            return {
+                "response": text, # clean text
+                "suggestions": [],
+                "emotion": "neutral",
+                "action_command": ""
+            }

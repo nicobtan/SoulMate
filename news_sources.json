@@ -14,5 +14,9 @@
     ],
     "entertainment": [
         "https://news.yahoo.co.jp/rss/topics/entertainment.xml"
+    ],
+    "culture_and_odd": [
+        "https://dailyportalz.jp/feed/headline",
+        "https://rocketnews24.com/feed/"
     ]
 }

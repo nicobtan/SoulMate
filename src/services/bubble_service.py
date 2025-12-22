@@ -156,27 +156,36 @@ class BubbleService:
 
         # 3. Personalization & Discovery
         is_discovery = False
-        discovery_topics = ["宇宙の謎", "深海生物", "古代文明", "最新ガジェット", "珍しい動物", "世界の絶景", "心理学トリビア"]
         
-        user_topics = self._get_personalized_topics()
+        # dynamic_topics generation using TopicSelector
         dynamic_topics = []
         
-        # Decide Discovery vs Interest
-        if random.random() < 0.3:
-            is_discovery = True
-            t = random.choice(discovery_topics)
-            dynamic_topics = [
-                f"知ってた？{t}の話",
-                f"{t}について調べてみた",
-                f"{t}って面白いよ！"
-            ]
-        elif user_topics:
-            t = random.choice(user_topics)
-            dynamic_topics = [
-                f"最新の{t}事情",
-                f"{t}について",
-                f"{t}のニュースある？"
-            ]
+        if self.services and hasattr(self.services, 'topic_selector') and hasattr(self.services, 'interest_manager'):
+            # Load candidates
+            candidates = self.services.interest_manager.load_topics()
+            # Decide
+            selection = self.services.topic_selector.decide_topic(candidates)
+            topic = selection['topic']
+            source = selection['source']
+            
+            if source == 'chaos':
+                is_discovery = True
+                dynamic_topics = [
+                    f"「{topic}」について",
+                    f"💡 {topic}の話",
+                    f"知ってる？ {topic}"
+                ]
+            else:
+                 dynamic_topics = [
+                    f"「{topic}」の話",
+                    f"{topic}のニュース",
+                    f"{topic}について"
+                ]
+        else:
+            # Fallback if no selector
+            fallback_topics = ["宇宙の謎", "深海生物", "古代文明"]
+            t = random.choice(fallback_topics)
+            dynamic_topics = [f"「{t}」について"]
 
         # 4. Selection Process
         strategy_roll = random.random()
