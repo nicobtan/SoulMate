@@ -76,6 +76,13 @@ class ChatApiMixin(BaseApiMixin):
    - E.g. "それはすごい！", "詳しく教えて", "〜って何？"
    - NO generic "Tell me more".
 ##################################################
+[TOOLS & ACTIONS]
+You have access to the following tools. To use them, output the specific tag exactly as shown.
+1. **Google Calendar**:
+   - Syntax: `[ACTION:ADD_EVENT|Summary|Time]`
+   - Example dev: `[ACTION:ADD_EVENT|Meeting|Tomorrow 10am]`
+   - Trigger: When user asks to "schedule", "remind me", "add event", YOU MUST output this tag.
+##################################################
 """
         if self._ai_engine:
             self._ai_engine.set_system_prompt(master_prompt)
@@ -200,6 +207,9 @@ class ChatApiMixin(BaseApiMixin):
                       import threading
                       threading.Thread(target=self._calendar_manager.authenticate, args=(auth_callback,), daemon=True).start()
 
+            # ★Strong Hint for LLM (Schema field instruction)
+            context += "\n[SYSTEM INSTRUCTION: User wants to schedule an event. You MUST fill the 'action_command' field with '[ACTION:ADD_EVENT|Summary|Time]'. Do not put it in the main response.]\n"
+
         # Generate Response
         response_text = ""
         suggestions_list = []
@@ -231,6 +241,12 @@ class ChatApiMixin(BaseApiMixin):
         emotion = result.get("emotion", "neutral")
         suggestions_list = result.get("suggestions", [])
         grounding_info = result.get("grounding_info")
+        action_command = result.get("action_command", "")
+
+        # Append action command to text so legacy logic picks it up (invisible to user mainly, or handled by logic)
+        if action_command:
+            self.log_to_debug(f"Action Command Received via Schema: {action_command}", 'info')
+            response_text += f"\n{action_command}"
 
         # 3. サジェスト補完 (最低限)
         if len(suggestions_list) < 2:
@@ -252,6 +268,10 @@ class ChatApiMixin(BaseApiMixin):
                 # generate_tts_audio 内でもクリーニングはあるが、念入りに
                 # generate_tts_audio 内でもクリーニングはあるが、念入りに
                 audio_path = self.generate_tts_audio(clean.strip())
+
+        # Validation Log for Calendar
+        if is_calendar_intent and "[ACTION:ADD_EVENT" not in response_text:
+             self.log_to_debug(f"⚠️ [Calendar] Intent detected but NO Action generated. Response: \"{response_text[:50]}...\"", 'warn')
 
         # DB Saving
         from src import core_instance

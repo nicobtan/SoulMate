@@ -237,8 +237,9 @@ export class ChatManager {
     }
 
     public async sendMessage(overrideText?: string) {
-        // Ensure Audio
+        // Ensure Audio & Stop previous
         Live2DManager.getInstance().ensureAudioContext();
+        AudioManager.getInstance().stop();
 
         const text = overrideText || this.chatInput?.value.trim();
         if (!text && !this.pendingAttachment) return; // 何もなければ送信しない
@@ -281,6 +282,7 @@ export class ChatManager {
 
     public async triggerForceTalk() {
         Live2DManager.getInstance().ensureAudioContext();
+        AudioManager.getInstance().stop();
         UIManager.getInstance().openChatPanel(true);
 
         const thinkingId = this.addLog('...', 'ai', true);

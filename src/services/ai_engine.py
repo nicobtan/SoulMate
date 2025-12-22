@@ -67,6 +67,10 @@ class AIEngine:
                     "type": "ARRAY", 
                     "items": {"type": "STRING"},
                     "description": "4 specific follow-up suggestions from user perspective."
+                },
+                "action_command": {
+                    "type": "STRING",
+                    "description": "Action tag if needed (e.g. [ACTION:ADD_EVENT|Summary|Time]). Empty if none."
                 }
             },
             "required": ["response", "emotion", "suggestions"]
@@ -114,6 +118,7 @@ class AIEngine:
                     "text": data.get("response", ""), 
                     "emotion": data.get("emotion", "neutral"),
                     "suggestions": data.get("suggestions", []),
+                    "action_command": data.get("action_command", ""),
                     "grounding_info": self._extract_grounding(response)
                 }
             
