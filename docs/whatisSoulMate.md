@@ -112,8 +112,17 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **連携API:** Google Calendar API, Google Docs API
 - **Visual Intelligence:** Python `Pillow` + Gemini Vision (Multimodal)
 - **Others:** pywebview (Python-JS Bridge)
+- **Validation:** UrlValidator (Dead Link Pruning)
 
 ## 実装済み主要機能 (Update)
+### 🎲 Chaos & Serendipity (v0.3.1)
+- **Topic Selector**: ユーザーの好みを「学習しすぎない」ように、南極探検や古文書などの**カオスな話題**を確率で強制的に振るロジックを実装。
+- **Random Balloons**: アプリ起動時や会話サジェストに、未知のトピックを「バルーン」として視覚的に混ぜ込み、マンネリを打破します。
+
+### 🔗 Trustworthy Links (UrlValidator)
+- **Dead Link Pruning**: AIが生成したURLの生存確認を裏側で高速に行い、404エラーになるリンクを自動的に排除。ユーザーには「開けるリンク」だけを届けます。
+- **Strict Grounding**: 検索結果に基づかないURL捏造を厳格に禁止するプロンプト制御を導入。
+
 ### 👁️ 「デスクトップの状況を見る目」 (Vision Integration)
 - **機能**: 
     - **左クリック**: 現在の全画面スクリーンショットを撮影して送信。
