@@ -57,7 +57,7 @@ class VoiceService:
                 model=model_id,
                 contents=text,
                 config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"], # CRITICAL: Force AUDIO only
+                    response_modalities=["AUDIO"],
                     speech_config=types.SpeechConfig(
                         voice_config=types.VoiceConfig(
                             prebuilt_voice_config=types.PrebuiltVoiceConfig(
@@ -84,29 +84,36 @@ class VoiceService:
                 return None
 
             # 3. ファイル名生成（日本語対応）
-            # ファイル名に使えない文字を除去
             safe_text = re.sub(r'[\\/:*?"<>|]+', '', text)
             safe_text = re.sub(r'\s+', '_', safe_text)
             safe_text = safe_text[:20]
             
-            # 拡張子は .wav にします
+            # Extension .wav
             filename = f"voice_{int(time.time())}_{safe_text}.wav"
             filepath = os.path.join(self.output_dir, filename)
             
-            # 4. WAVヘッダを付与して保存 (Raw PCM -> Playable WAV)
-            # Gemini 2.5 TTSのデフォルト: 24kHz, 1 channel, 16-bit
-            try:
-                with wave.open(filepath, 'wb') as wf:
-                    wf.setnchannels(1)      # モノラル
-                    wf.setsampwidth(2)      # 16-bit
-                    wf.setframerate(24000)  # サンプリングレート 24kHz
-                    wf.writeframes(audio_data)
-                # logger.info(f"Audio saved with WAV header: {filepath}")
-            except Exception as e:
-                logger.error(f"WAV Save Error: {e}")
-                # 万が一失敗したらそのまま保存
-                with open(filepath, "wb") as f:
-                    f.write(audio_data)
+            # 4. Smart Save (Check for RIFF header)
+            # If it starts with 'RIFF', it's already a WAV. Don't add header.
+            is_wav = audio_data[:4] == b'RIFF'
+            
+            if is_wav:
+                try:
+                    with open(filepath, "wb") as f:
+                        f.write(audio_data)
+                except Exception as e:
+                    logger.error(f"WAV Save Error: {e}")
+                    return None
+            else:
+                # Raw PCM -> Add Header
+                try:
+                    with wave.open(filepath, 'wb') as wf:
+                        wf.setnchannels(1)      # モノラル
+                        wf.setsampwidth(2)      # 16-bit
+                        wf.setframerate(24000)  # サンプリングレート 24kHz
+                        wf.writeframes(audio_data)
+                except Exception as e:
+                    logger.error(f"WAV Convert Error: {e}")
+                    return None
 
             # 5. フロントエンド用のパス生成（URLエンコード）
             encoded_name = urllib.parse.quote(filename)
@@ -114,7 +121,7 @@ class VoiceService:
             
             # Timer Log
             duration = time.time() - start_time
-            logger.info(f"[TTS] Gemini Audio Generated in {duration:.3f}s: {filename}")
+            logger.info(f"[TTS] Gemini Audio Generated in {duration:.3f}s: {filename} (WAV)")
             
             return final_web_path
 

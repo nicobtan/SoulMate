@@ -66,6 +66,10 @@ export class ChatManager {
         // SoulBubbleManagerはindex.tsで生成されてwindowにある前提、またはここで取得
         this.soulBubbleManager = (window as any).soulBubbleManager;
         this.initAudioListeners();
+
+        // Expose Ghost Message Hook
+        (window as any).showGhostMessage = (text: string) => this.showGhostMessage(text);
+
         console.log("ChatManager Initialized");
     }
 
@@ -228,6 +232,10 @@ export class ChatManager {
         console.log(`[ChatManager] Bubble Added: ${styleCategory} -> ${displayText}`);
     }
 
+    public logUserAction(text: string) {
+        this.addLog(text, 'user');
+    }
+
     public async sendMessage(overrideText?: string) {
         // Ensure Audio
         Live2DManager.getInstance().ensureAudioContext();
@@ -276,6 +284,10 @@ export class ChatManager {
         UIManager.getInstance().openChatPanel(true);
 
         const thinkingId = this.addLog('...', 'ai', true);
+
+        // Log user action for visibility
+        this.addLog('（話しかけて！）', 'user');
+
         UIManager.getInstance().updateStatus("Thinking...");
 
         try {
@@ -397,6 +409,9 @@ export class ChatManager {
             }
         }
 
+        // 1.5 Clear Ghost Message
+        this.clearGhostMessage();
+
         // 2. Trigger Live2D
         if (emotionId) {
             Live2DManager.getInstance().triggerExpression(emotionId);
@@ -442,7 +457,8 @@ export class ChatManager {
         // The previous index.ts had processTextForLinks.
         // For now, simple text or innerHTML if we assume text is safe.
         // User instructions used innerText.
-        div.innerText = text; // or use innerHTML if rich text needed
+        // Use linkify and innerHTML
+        div.innerHTML = this.linkify(text);
 
         if (isThinking) {
             div.style.fontStyle = 'italic';
@@ -472,6 +488,64 @@ export class ChatManager {
     private removeLog(id: string) {
         const el = document.getElementById(id);
         if (el) el.remove();
+    }
+
+    // --- Ghost Message Logic (Latency Masking) ---
+    public showGhostMessage(text: string) {
+        // Remove existing ghost if any
+        this.clearGhostMessage();
+
+        if (!this.chatLogArea) return;
+
+        const div = document.createElement('div');
+        div.id = 'ghost-message';
+        div.className = 'message ai ghost'; // .ghost in CSS
+        div.innerText = text;
+
+        // Style inline if CSS not ready (Fallback)
+        div.style.opacity = '0.7';
+        div.style.fontStyle = 'italic';
+
+        this.chatLogArea.appendChild(div);
+        this.chatLogArea.scrollTop = this.chatLogArea.scrollHeight;
+    }
+
+    public clearGhostMessage() {
+        const ghost = document.getElementById('ghost-message');
+        if (ghost) ghost.remove();
+    }
+
+    private linkify(text: string): string {
+        // 1. Escape HTML first
+        const escaped = text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+        // 2. Replace URLs with <a> tags calling open_browser
+        // Pattern: http:// or https:// followed by non-whitespace
+        const urlPattern = /(https?:\/\/[^\s]+)/g;
+
+        return escaped.replace(urlPattern, (url) => {
+            // Remove trailing punctuation that might have been captured (like period or parenthesis at end of sentence)
+            // e.g. "Check this (http://example.com)" -> url="http://example.com)"
+            // Simple heuristic: if ends with ) or . or , remove it. 
+            // Better regex might be complex, manual trim is safer for common cases.
+            let cleanUrl = url;
+            const trails = [')', ']', '}', '.', ',', '!', ';'];
+            let suffix = "";
+
+            while (trails.includes(cleanUrl.slice(-1))) {
+                suffix = cleanUrl.slice(-1) + suffix;
+                cleanUrl = cleanUrl.slice(0, -1);
+            }
+
+            if (cleanUrl.length < 4) return url; // too short
+
+            return `<a href="${cleanUrl}" onclick="window.pywebview.api.open_browser(this.href); return false;" style="color: #4da6ff; text-decoration: underline;">${cleanUrl}</a>${suffix}`;
+        });
     }
 }
 

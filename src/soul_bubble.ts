@@ -1,3 +1,5 @@
+import { ChatManager } from './managers/chat_manager.js';
+
 export class SoulBubbleManager {
     private container: HTMLElement | null;
     private trashZone: HTMLElement | null;
@@ -207,6 +209,10 @@ export class SoulBubbleManager {
             // 簡易対策: リンククリック時はバブルを閉じないように変更するのは難しい（eventがないため）。
             // ただし、ユーザーは「リンクを開いた後、バブルが消えてもいい」場合が多い。
             // あるいは「リンクを開く」動作と「バブルのアクション」が競合する。
+
+            // Log for User Visibility (Action Triggered)
+            const rawText = bubble.dataset.fullText || '';
+            ChatManager.getInstance().logUserAction(rawText);
 
             const actionId = bubble.dataset.actionId;
             if (!actionId) return;

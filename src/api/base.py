@@ -1,6 +1,7 @@
 import sys
 import re
 import random
+import threading
 
 class BaseApiMixin:
     """Base mixin to define expected attributes and common utilities."""
@@ -61,23 +62,79 @@ class BaseApiMixin:
             self._window.evaluate_js(f"logToMind({safe_msg})")
 
     def play_filler(self):
-        """Play a random filler sound and log to Mind tab for immediate feedback."""
+        """Play a random filler sound and show Ghost Message in UI."""
         fillers = [
-            "んー、そうねぇ…",
-            "えっとね…",
-            "ふふっ、それはね…",
-            "あ、それって…",
-            "ん〜、考えさせてね…"
+            {"text": "んー、そうねぇ…", "file": "audio/fillers/thinking_01.wav"},
+            {"text": "えっと…", "file": "audio/fillers/thinking_02.wav"},
+            {"text": "ふふっ、それはね…", "file": "audio/fillers/thinking_03.wav"},
+            {"text": "あ、それって…", "file": "audio/fillers/thinking_04.wav"},
+            {"text": "ん〜、考えさせてね…", "file": "audio/fillers/thinking_05.wav"},
+            {"text": "ちょっと待ってね", "file": "audio/fillers/wait_01.wav"},
+            {"text": "OK、わかったわ", "file": "audio/fillers/ack_01.wav"},
         ]
-        chosen_filler = random.choice(fillers)
+        chosen = random.choice(fillers)
+        text = chosen["text"]
+        audio_path = chosen["file"]
         
-        # 1. Visual Feedback (Mind Tab)
-        self.log_to_mind(f"(Filler) {chosen_filler} 💭")
+        # 1. Visual Feedback (Mind Tab & Ghost Message)
+        self.log_to_mind(f"(Filler) {text} 💭")
         
-        # 2. Audio Feedback (Future: Play actual WAV)
-        # file_path = f"assets/voice/filler_{random.randint(1,5)}.wav"
-        # self.play_sound(file_path)
-        
-        # For now, just a console log on frontend to verify trigger
         if self._window:
-            self._window.evaluate_js(f"console.log('🔊 Playing Filler: {chosen_filler}')")
+            # Show Ghost Message in Chat UI
+            import json
+            import os
+            safe_text = json.dumps(text)
+            self._window.evaluate_js(f"if(window.showGhostMessage) window.showGhostMessage({safe_text})")
+            
+            # 2. Audio Feedback (Threaded Playback)
+            # メインスレッドのブロッキング回避のため、再生処理を別スレッド化
+            def _play_thread():
+                try:
+                    # Fallback check (Server-side path validation)
+                    # Web path: audio/fillers/xxx.mp3 -> Local: dist/audio/fillers/xxx.mp3
+                    # However, we must ensure we check correct local path.
+                    # Assuming dist/ is root.
+                    target_local = os.path.join(os.getcwd(), "dist", audio_path.replace("/", os.sep))
+                    final_path = audio_path
+                    
+                    if not os.path.exists(target_local):
+                        self.log_to_debug(f"⚠️ [Filler] Missing: {audio_path}. Fallback to default.", 'warn')
+                        final_path = "audio/fillers/thinking_02.wav" # Fallback
+                        # Check fallback exists
+                        fb_local = os.path.join(os.getcwd(), "dist", final_path.replace("/", os.sep))
+                        if not os.path.exists(fb_local):
+                             self.log_to_debug(f"❌ [Filler] Fallback also missing. Converting to visual only.", 'error')
+                             return
+
+                    self.log_to_debug(f"🔊 [Filler] Sending play command for: {text} ({final_path})", 'sys')
+                    
+                    # JS Promise handling for logging back to UI
+                    js_code = f"""
+                    new Audio('{final_path}').play()
+                        .then(() => {{
+                            console.log('[Filler] Playback started');
+                            if(window.logToDebug) window.logToDebug('✅ [Filler] Audio started', 'success');
+                        }})
+                        .catch(e => {{
+                            console.error('[Filler] Playback failed', e);
+                            if(window.logToDebug) window.logToDebug('❌ [Filler] Audio failed: ' + e, 'error');
+                        }});
+                    """
+                    self._window.evaluate_js(js_code)
+                    
+                except Exception as e:
+                    self.log_to_debug(f"❌ [Filler] Thread Error: {e}", 'error')
+                    print(f"[Filler] Playback Error: {e}")
+
+            threading.Thread(target=_play_thread, daemon=True).start()
+
+    def open_browser(self, url):
+        """Opens a URL in the system's default browser."""
+        import webbrowser
+        self.log_to_debug(f"Opening Browser: {url}", 'info')
+        try:
+            webbrowser.open(url)
+            return {'status': 'success'}
+        except Exception as e:
+            self.log_to_debug(f"Browser Open Failed: {e}", 'error')
+            return {'status': 'error', 'message': str(e)}
