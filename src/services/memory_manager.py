@@ -37,8 +37,18 @@ class MemoryManager:
             self.chroma_client = chromadb.PersistentClient(path=db_path)
             self.collection = self.chroma_client.get_or_create_collection(name="soulmate_memory")
             logger.info(f"ChromaDB initialized at: {db_path}")
+            logger.info(f"ChromaDB initialized at: {db_path}")
         except Exception as e:
             logger.warning(f"ChromaDB not available (installing?): {e}")
+
+        self.rag_logger = None
+
+    def set_rag_logger(self, callback):
+        self.rag_logger = callback
+
+    def _log_rag(self, msg):
+        if self.rag_logger:
+            self.rag_logger(msg)
 
     def log_interaction(self, user_text, ai_text, persona_id="default"):
         """Logs a chat interaction to JSONL file AND Vector DB."""
@@ -88,6 +98,18 @@ class MemoryManager:
             
             # Formatting results
             documents = results['documents'][0]  # list of lists
+            
+            # LOGGING
+            hit_count = len(documents) if documents else 0
+            self._log_rag(f"📂 [Local RAG] Searching for: '{query}'")
+            if hit_count > 0:
+                self._log_rag(f"✅ [Hit] Found {hit_count} documents.")
+                for i, doc in enumerate(documents):
+                    snippet = (doc[:50] + "...") if len(doc) > 50 else doc
+                    self._log_rag(f"📄 [Content] {snippet}")
+            else:
+                self._log_rag(f"⚠️ [Miss] No relevant documents found.")
+
             
             if not documents:
                 return ""

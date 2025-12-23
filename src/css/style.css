@@ -287,6 +287,14 @@ body {
     font-size: 12px;
 }
 
+.suggestion-chip.love-chip {
+    background: rgba(255, 105, 180, 0.3);
+    /* Pink tint */
+    border: 1px solid rgba(255, 105, 180, 0.8);
+    color: #ffe6f2;
+    box-shadow: 0 0 5px rgba(255, 105, 180, 0.4);
+}
+
 /* --- Floating UI & Bubbles --- */
 #soul-bubble-container {
     position: absolute;
@@ -360,7 +368,9 @@ body {
 
 .soul-bubble.bubble-force_talk,
 .soul-bubble.bubble-bond,
-.soul-bubble.force_talk {
+.soul-bubble.force_talk,
+.soul-bubble.bubble-love,
+.soul-bubble.love {
     background: #ff79c6;
     color: white;
 }

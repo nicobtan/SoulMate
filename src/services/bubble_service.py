@@ -105,6 +105,7 @@ class BubbleService:
         slot = ctx["slot"]
         weekday = ctx["weekday"]
         
+        
         # 1. Base Candidates (Time Slot)
         candidates = {
             "morning": {
@@ -162,9 +163,9 @@ class BubbleService:
         
         if self.services and hasattr(self.services, 'topic_selector') and hasattr(self.services, 'interest_manager'):
             # Load candidates
-            candidates = self.services.interest_manager.load_topics()
+            topic_candidates = self.services.interest_manager.load_topics()
             # Decide
-            selection = self.services.topic_selector.decide_topic(candidates)
+            selection = self.services.topic_selector.decide_topic(topic_candidates)
             topic = selection['topic']
             source = selection['source']
             
@@ -204,7 +205,23 @@ class BubbleService:
              slot_data = candidates.get(slot, candidates["daytime"])
              available_cats = list(slot_data.keys())
              selected_cat = random.choice(available_cats)
+             selected_cat = random.choice(available_cats)
              selected_text = random.choice(slot_data[selected_cat])
+
+        # 4.5 Love Bubble Injection (Priority: Guarantee > Random)
+        # Ensure at least one heart is always floating.
+        has_love = any(b.get('category') == 'love' for b in self._active_bubbles.values())
+        
+        force_love = False
+        if not has_love:
+             force_love = True # Guarantee: No heart exists, so we make one.
+        elif not special_messages and random.random() < 0.2:
+             force_love = True # Random Mix: 20% chance even if one exists
+
+        if force_love:
+             from .affection_manager import AffectionManager
+             selected_text = AffectionManager().get_random_affection()
+             selected_cat = "love"
 
         # De-duplication Check
         if selected_text in self._history:

@@ -52,6 +52,14 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # Soul Bubble Service
         self.bubble_service = BubbleService(self)
 
+        # Wire up Loggers for Observability
+        # 1. Mind Log (AI Thought -> Frontend Mind Tab)
+        self._ai_engine.set_mind_logger(self.log_to_mind)
+        
+        # 2. RAG Log (Memory Search -> Frontend RAG Tab)
+        # Using lambda to route to log_to_debug with 'rag' type
+        self._memory_manager.set_rag_logger(lambda msg: self.log_to_debug(msg, 'rag'))
+
         # TTS Engine
         try:
             key_path = os.path.join(os.getcwd(), "settings", "google-credentials.json")

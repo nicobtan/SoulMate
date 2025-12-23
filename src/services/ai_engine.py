@@ -126,13 +126,22 @@ class AIEngine:
             # パース処理 (Robust Cleaning)
             if response.text:
                 data = self._parse_ai_response(response.text)
-                return {
-                    "text": data.get("response", "") or data.get("text", ""), # Fallback to text if response invalid
-                    "emotion": data.get("emotion", "neutral"),
-                    "suggestions": data.get("suggestions", []),
-                    "action_command": data.get("action_command", ""),
-                    "grounding_info": self._extract_grounding(response)
-                }
+
+
+            # Log Grounding Info to Mind Tab
+            grounding = self._extract_grounding(response)
+            if grounding and grounding.get("sources"):
+                self._log_thought(f"🌍 [Grounding] Search Results:")
+                for source in grounding["sources"]:
+                     self._log_thought(f"🔗 [Source] {source['title']} ({source['url'][:40]}...)")
+            
+            return {
+                "text": data.get("response", "") or data.get("text", ""), # Fallback to text if response invalid
+                "emotion": data.get("emotion", "neutral"),
+                "suggestions": data.get("suggestions", []),
+                "action_command": data.get("action_command", ""),
+                "grounding_info": grounding
+            }
             
             return {"text": "Error: Empty response", "emotion": "sad", "suggestions": []}
 

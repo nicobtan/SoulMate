@@ -16,7 +16,19 @@ class InterestManager:
             with open(self.topics_path, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f)
                 if data and 'topics' in data:
-                    return data['topics']
+                    raw_topics = data['topics']
+                    
+                    # Flatten logic if categorized (dict)
+                    if isinstance(raw_topics, dict):
+                        flattened = []
+                        for category, items in raw_topics.items():
+                            if isinstance(items, list):
+                                flattened.extend(items)
+                        return flattened
+                    
+                    # Legacy list support
+                    elif isinstance(raw_topics, list):
+                        return raw_topics
                 return []
         except Exception as e:
             print(f"Error loading search topics: {e}")

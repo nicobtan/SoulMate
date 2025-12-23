@@ -230,8 +230,18 @@ export class UIManager {
         suggestions.forEach(text => {
             const chip = document.createElement('div');
             chip.className = 'suggestion-chip';
-            chip.innerText = text;
-            if (text === "別の話題はある？") chip.classList.add('static-cmd');
+
+            // Check for Love Prefix
+            let displayText = text;
+            if (text.startsWith("❤ ")) {
+                chip.classList.add('love-chip');
+                // Remove prefix from display or keep it? User said "icon: 'heart' (UI側で...として表示)".
+                // Keeping it confirms the icon is there, or we can use CSS to add icon.
+                // Let's keep the text as is, but style the chip pink.
+            }
+
+            chip.innerText = displayText;
+            if (displayText === "別の話題はある？" || displayText.includes("他の話題")) chip.classList.add('static-cmd');
 
             chip.addEventListener('click', () => {
                 onClickCallback(text);

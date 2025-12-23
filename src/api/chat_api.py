@@ -9,6 +9,7 @@ from .base import BaseApiMixin
 from PIL import ImageGrab
 from ..services.topic_selector import TopicSelector
 from ..services.url_validator import UrlValidator
+from ..services.affection_manager import AffectionManager
 
 class ChatApiMixin(BaseApiMixin):
     
@@ -81,6 +82,11 @@ class ChatApiMixin(BaseApiMixin):
    - E.g. "それはすごい！", "詳しく教えて", "〜って何？"
    - NO generic "Tell me more".
 ##################################################
+[Suggestion Balance]
+- Always provide a mix of topics.
+- At least one suggestion MUST be emotional or romantic (e.g., "Hold my hand", "Praise me", "Love talk").
+- Do not fill all suggestions with intellectual or news topics.
+
 [TOOLS & ACTIONS]
 You have access to the following tools. To use them, output the specific tag exactly as shown.
 1. **Google Calendar**:
@@ -94,6 +100,11 @@ You have access to the following tools. To use them, output the specific tag exa
 - **GROUNDING ONLY**: You can ONLY include URLs that were explicitly returned by the Google Search Tool.
 - **VERIFICATION**: If you are not 100% sure the URL is valid, do NOT show it.
 
+##################################################
+[Constraint on Health Care]
+- **NO REPETITIVE WARNINGS**: Do NOT repeat health/sleep warnings every turn.
+- **CONTEXT PRIORITY**: If user is engaged in a specific topic (Tech, News, Science, etc.), PRIORITIZE the discussion over health advice.
+- **LATE NIGHT**: If it is late, mention it ONLY ONCE at the beginning or end. Do not force a connection between the topic and sleep/rest.
 ##################################################
 """
         if self._ai_engine:
@@ -273,11 +284,28 @@ You have access to the following tools. To use them, output the specific tag exa
         if hasattr(self, 'topic_selector') and hasattr(self, 'interest_manager'):
             candidates = self.interest_manager.load_topics()
             selection = self.topic_selector.decide_topic(candidates)
-            topic = selection['topic']
-            # Make it look interesting
-            final_suggestions.append(f"💡 {topic}について")
+            if selection['source'] == 'chaos':
+                 final_suggestions.append(f"💡 {selection['topic']}について")
         
-        if "他の話題もしてみたい" not in final_suggestions and "別の話題はある？" not in final_suggestions:
+        # --- Guaranteed Love Slot Logic ---
+        # Ensure at least one suggestion is affectionate
+        from ..services.affection_manager import AffectionManager
+        has_love = any(AffectionManager.is_affectionate(s) for s in final_suggestions)
+        
+        if not has_love:
+            # Inject Love Topic (Replace the last one to maintain limit, or append if room)
+            love_topic = AffectionManager().get_random_affection()
+            
+            # Formatting: Add Prefix for Frontend detection
+            love_suggestion = f"❤ {love_topic}"
+            
+            if len(final_suggestions) >= 3:
+                final_suggestions[-1] = love_suggestion # Replace last (usually chaos or random)
+            else:
+                final_suggestions.append(love_suggestion)
+
+        # 4. 汎用的な「他の話題」の追加 (常に最後)
+        if not any("他の話題" in s for s in final_suggestions):
             final_suggestions.append("他の話題もしてみたい")
 
         # 4. TTS生成ガード (ここがクラッシュ防止の要！)

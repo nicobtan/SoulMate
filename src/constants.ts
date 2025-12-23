@@ -17,7 +17,8 @@ export const categoryMapping: Record<string, string> = {
     'game': 'fun',           // 紫・ゲーム
     'fun': 'fun',
     'weather': 'weather',    // 黄・天気
-    'search': 'search'       // 青緑・虫眼鏡
+    'search': 'search',      // 青緑・虫眼鏡
+    'love': 'love'           // Love Slot (Pink)
 };
 
 // --- アイコン辞書 ---
@@ -28,8 +29,9 @@ export const categoryIcons: Record<string, string> = {
     'fun': '🎮',
     'health': '💊',
     'suggestion': '💡',
-    'force_talk': '💖', // ピンクのハート
+    'force_talk': '♥', // ピンクのハート (White Text)
     'search': '🔍',
+    'love': '♥',        // Love Slot (White Text)
     'alert': '❗',
     // 復活: 詳細カテゴリアイコン
     'tech': '💻',

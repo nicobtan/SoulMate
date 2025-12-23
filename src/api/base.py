@@ -22,11 +22,34 @@ class BaseApiMixin:
         print(f"[{type.upper()}] {msg}")
         if self._window:
             import json
-            # JSON Dump ensures safe string escaping for JS
+            # Determine if 'type' is actually a category or a level
+            # Frontend log() signature: (msg, type='info', category='sys')
+            # Known categories: 'sys', 'rag', 'dbg', 'mind'
+            # Known levels: 'info', 'warn', 'error', 'success'
+            
+            category = 'sys'
+            level = 'info'
+            
+            if type in ['rag', 'mind', 'dbg', 'sys']:
+                category = type
+                level = 'info'
+            elif type in ['warn', 'error', 'success']:
+                level = type
+                category = 'sys'
+            else:
+                # Default case (info/sys) or fallback
+                level = 'info'
+                category = 'sys'
+                if type != 'info':
+                     # If it's some other string, treat as info message? or maybe level?
+                     # Let's assume passed 'type' is level if not known category.
+                     level = type
+
             safe_msg = json.dumps(str(msg))
-            safe_type = json.dumps(type)
-            # safe_msg includes quotes, so we don't need to add them in f-string
-            self._window.evaluate_js(f"logToDebug({safe_msg}, {safe_type})")
+            safe_level = json.dumps(level)
+            safe_category = json.dumps(category)
+            
+            self._window.evaluate_js(f"logToDebug({safe_msg}, {safe_level}, {safe_category})")
 
     
     def log_to_mind(self, msg):

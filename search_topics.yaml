@@ -1,104 +1,66 @@
 topics:
-- Python programming news
-- Google Gemini API updates
-- Rust language ecosystem
-- TypeScript best practices
-- WebAssembly (Wasm) trends
-- Local LLM deployment
-- Prompt engineering techniques
-- Hugging Face new models
-- Computer Vision advances
-- Ethics in AI development
-- Arknights game news
-- Arknights lore & theories
-- Indie game hidden gems
-- Roguelike game mechanics
-- Metroidvania design patterns
-- Retro gaming hardware history
-- CRT monitor restoration
-- Speedrunning strategies
-- Video game preservation
-- Chiptune music composition
-- Cyberpunk genre aesthetics
-- Latest tech gadgets
-- Mechanical keyboards custom
-- RISC-V architecture
-- E-ink technology advances
-- Audiophile IEM reviews
-- Home Assistant automation
-- 3D printing materials
-- Single Board Computers (SBC)
-- Framework laptop updates
-- VR/AR headset tech
-- Space exploration news
-- James Webb Telescope photos
-- SpaceX Starship updates
-- Exoplanet habitability
-- Dark matter theories
-- Gravitational waves
-- Quantum computing basics
-- Nuclear fusion energy
-- Astrophotography techniques
-- Space debris solutions
-- Strange history facts
-- Urban legends in Japan
-- Ooparts (Out-of-place artifacts)
-- The Voynich Manuscript
-- Lost civilizations
-- Bronze Age collapse
-- Cold War espionage stories
-- Historical linguistics
-- Cryptography history
-- Unsolved crimes cold cases
-- Folklore and mythology
-- Deep sea discoveries
-- Biomimicry design
-- Mycology (Mushrooms/Fungi)
-- Slime mold intelligence
-- Tardigrade resilience
-- Bioluminescence in nature
-- Paleontology news (Dinos)
-- Extreme weather phenomena
-- Ant colony structures
-- Plant communication
-- Crows and corvid intelligence
-- Cognitive psychology effects
-- Flow state triggers
-- Lucid dreaming techniques
-- Synesthesia experiences
-- Optical illusions science
-- Neuroplasticity exercises
-- Behavioral economics
-- The science of sleep
-- Memory palace techniques
-- Placebo effect mechanisms
-- Stoic philosophy quotes
-- Zen Buddhism concepts
-- Existentialism basics
-- Paradoxes (Zeno, Fermi, etc.)
-- Altruism and ethics
-- Minimalist lifestyle
-- Wabi-sabi aesthetics
-- Absurdism (Camus)
-- Epistemology (Theory of knowledge)
-- Thought experiments
-- Brutalist architecture
-- Solarpunk aesthetics
-- Typography history
-- Color theory in movies
-- Vexillology (Flag design)
-- Pixel art techniques
-- Generative art coding
-- Industrial design icons
-- Calligraphy styles
-- Micro-nations
-- Coffee brewing science
-- Tea ceremony variations
-- Fermentation science
-- Mechanical watch movements
-- Fountain pens and inks
-- Lockpicking (Locksport)
-- Knots and ropework
-- Analog photography
-- Sourdough bread baking
-- Survival skills basics
+  Love & Healing (デレ・癒やし):
+    - Love psychology (恋愛心理学)
+    - Relationship advice (関係のアドバイス)
+    - Comforting words (癒やしの言葉)
+    - Emotional intelligence (EQ) (心の知能指数)
+    - Mindfulness meditation (マインドフルネス瞑想)
+    - Self-care tips (セルフケアのヒント)
+    - Stress relief methods (ストレス解消法)
+    - How to praise effectively (上手な褒め方)
+    - Romantic gestures (ロマンチックな仕草)
+    - The language of flowers (花言葉の意味)
+    - Healing music recommendations (癒やしの音楽)
+    - Aromatherapy basics (アロマテラピーの基礎)
+    - Star gazing spots (星空観賞スポット)
+    - Cafe hopping (カフェ巡りの楽しみ)
+    - Cute animal videos (可愛い動物の動画)
+    - Heartwarming stories (心温まる話)
+
+  Compute & AI (技術・AI):
+    - Python programming news (Pythonプログラミング)
+    - Google Gemini API updates (Gemini API最新情報)
+    - Rust language ecosystem (Rust言語エコシステム)
+    - TypeScript best practices (TypeScriptベストプラクティス)
+    - Local LLM deployment (ローカルLLM構築)
+    - Prompt engineering techniques (プロンプトエンジニアリング)
+    - Ethics in AI development (AI開発の倫理)
+    - Computer Vision advances (画像認識の進歩)
+    - Mechanical keyboards custom (自作キーボード)
+    - Home Assistant automation (ホームオートメーション)
+
+  Game & Hobby (ゲーム・趣味):
+    - Arknights lore & theories (アークナイツ考察)
+    - Indie game hidden gems (隠れた名作インディーゲーム)
+    - Roguelike game mechanics (ローグライクの仕組み)
+    - Retro gaming hardware (レトロゲームハード)
+    - Speedrunning strategies (RTAの戦略)
+    - Cyberpunk genre aesthetics (サイバーパンクの美学)
+    - 3D printing materials (3Dプリンター素材)
+    - Analog photography (フィルムカメラ)
+    - Coffee brewing science (コーヒー抽出の科学)
+    - Fountain pens and inks (万年筆とインク沼)
+
+  Space & Science (宇宙・科学):
+    - James Webb Telescope photos (ウェッブ望遠鏡の写真)
+    - SpaceX Starship updates (Starship最新情報)
+    - Exoplanet habitability (系外惑星の居住可能性)
+    - Quantum computing basics (量子コンピュータの基礎)
+    - Bioluminescence in nature (生物発光の仕組み)
+    - Deep sea discoveries (深海生物の発見)
+    - Tardigrade resilience (クマムシの耐久性)
+    - Mycology / Fungi (キノコと菌類の不思議)
+    - Cognitive psychology effects (認知心理学の効果)
+    - The science of sleep (睡眠の科学)
+
+  History & Mystery (歴史・ミステリー):
+    - The Voynich Manuscript (ヴォイニッチ手稿)
+    - Ooparts (オーパーツの謎)
+    - Lost civilizations (失われた文明)
+    - Urban legends in Japan (日本の都市伝説)
+    - Unsolved crimes cold cases (未解決事件)
+    - Historical linguistics (歴史言語学)
+    - Cryptography history (暗号の歴史)
+    - Stoic philosophy quotes (ストア派の哲学)
+    - Zen Buddhism concepts (禅の思想)
+    - Paradoxes (パラドックス思考実験)

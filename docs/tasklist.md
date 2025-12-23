@@ -600,3 +600,18 @@
 - [x] **Repetitive Care抑制**
     - [x] System Prompt: 深夜の健康気遣いを「最初の1回」に制限
     - [x] System Prompt: 知的トピック優先（Context Priority）ルールの追加
+
+## フェーズ73: Observability & Logging (RAG Visibility) [完了]
+- [x] **RAG/Grounding ログの可視化**
+    - [x] **Backend**: `ai_engine.py` (Grounding Info) と `memory_manager.py` (RAG Hit) にログ出力ロジック追加
+    - [x] **Frontend**: `log_manager.ts` を修正し、`sys`, `rag`, `mind` タブへの振り分けロジックを確立
+    - [x] **Bug Fix**: Python-JS間の引数順序不一致 (`log_to_debug`) を修正
+
+## フェーズ74: Emotional Balance (Guaranteed Love Slot) [完了]
+- [x] **愛の強制枠 (Love Slot)**
+    - [x] `AffectionManager`: 甘え・癒やし系アクションの管理クラス作成
+    - [x] `ChatApiMixin`: 会話サジェスト処理にて、感情的要素が不足している場合に強制注入するロジック実装
+    - [x] **Frontend**: `ui_manager.ts` と `style.css` を更新し、`❤` プレフィックスを持つチップをピンク色で強調表示
+- [x] **話題の拡張 (YAML Expansion)**
+    - [x] `search_topics.yaml`: カテゴリ分け（技術、歴史、科学、癒やし）と日本語化を実施
+    - [x] `InterestManager`: 階層構造化されたYAMLの読み込み（フラット化）に対応
