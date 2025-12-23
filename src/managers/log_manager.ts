@@ -84,15 +84,32 @@ export class LogManager {
 
     public logToMind(msg: string) {
         const mindContent = document.getElementById('log-mind');
+
+        // ★ User Request: Also log to ALL tab for visibility
+        // We reuse the standard logging logic for 'all' tab targeting
+        // Construct a simple entry manually or reuse log() logic?
+        // Let's create a 'sys' style entry for ALL tab to keep it consistent
+        const logAll = document.getElementById('log-all');
+        const now = new Date();
+        const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+
+        if (logAll) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry cat-mind`; // Use cat-mind for styling
+            // Strip detailed HTML or keep it simple? Mind logs might be long.
+            entry.innerHTML = `<span class="log-time">${timeStr}</span> <span class="log-info" style="color:#aaddff;">${msg}</span>`;
+            logAll.appendChild(entry);
+            logAll.scrollTop = logAll.scrollHeight;
+        }
+
         if (!mindContent) return;
 
         const entry = document.createElement('div');
         entry.className = 'mind-entry';
 
-        const now = new Date();
-        const timeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}]`;
+        const mindTimeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}]`;
 
-        entry.innerHTML = `<span class="mind-timestamp">${timeStr}</span> ${msg}`;
+        entry.innerHTML = `<span class="mind-timestamp">${mindTimeStr}</span> ${msg}`;
 
         mindContent.appendChild(entry);
         mindContent.scrollTop = mindContent.scrollHeight;

@@ -65,6 +65,7 @@ class AIEngine:
         response_schema = {
             "type": "OBJECT",
             "properties": {
+                "thought": {"type": "STRING", "description": "Internal reasoning. MUST start with [Mind]. Details: Input interpretation, Emotion reason, Context check."},
                 "response": {"type": "STRING", "description": "Response text. Keep it natural."},
                 "emotion": {"type": "STRING", "description": "Emotion tag (happy, sad, neutral, etc)."},
                 "suggestions": {
@@ -77,7 +78,7 @@ class AIEngine:
                     "description": "Action tag if needed (e.g. [ACTION:ADD_EVENT|Summary|Time]). Empty if none."
                 }
             },
-            "required": ["response", "emotion", "suggestions"]
+            "required": ["thought", "response", "emotion", "suggestions"]
         }
 
         try:
@@ -85,9 +86,8 @@ class AIEngine:
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             full_prompt = f"Current Time: {now}\n{context}\nUser: {message}"
 
-            # Log Thinking Process
-            self._log_thought(f"🤔 Input Analysis:\n- Time: {now}\n- Context: {len(str(context))} chars")
-            self._log_thought(f"🧠 Reasoning...\nTargeting Model: {self.reasoning_model}")
+            # Log Thinking Process (System Start)
+            # self._log_thought(f"🤔 Input Analysis:\n- Time: {now}\n- Context: {len(str(context))} chars") # AI will do this in 'thought'
 
             # Config設定
             tools = [types.Tool(google_search=types.GoogleSearch())] if self.use_search and not image else []
@@ -100,23 +100,18 @@ class AIEngine:
                 safety_settings=[
                     types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_NONE)
                     for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]
-                for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]
-                for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]
                 ],
                 temperature=self.temperature
             )
-            # Apply Temperature manually if supported or via config? 
-            # google-genai SDK 0.x might support it in config or generation_config.
-            # types.GenerateContentConfig has 'temperature' field.
-            # Temperature applied in init
-            # run_config.temperature = self.temperature
 
             # 生成実行
             contents = [full_prompt]
             if image: contents.append(image)
 
-            # User specified "gemini-3-flash-preview". I will try to use it, but if it fails I might need to fallback.
-            # However, I will stick to the user's requested code exactly.
+            # Vision Log (Input)
+            if image:
+                 self._log_thought(f"👁️ [Vision] Receiving visual input... Analyzing.")
+
             response = self.client.models.generate_content(
                 model=self.reasoning_model,
                 contents=contents,
@@ -124,16 +119,24 @@ class AIEngine:
             )
 
             # パース処理 (Robust Cleaning)
+            data = {}
             if response.text:
                 data = self._parse_ai_response(response.text)
 
-
-            # Log Grounding Info to Mind Tab
+            # 1. Log Grounding Info (RAG) BEFORE Mind Log
             grounding = self._extract_grounding(response)
             if grounding and grounding.get("sources"):
-                self._log_thought(f"🌍 [Grounding] Search Results:")
+                self._log_thought(f"🌍 [RAG] Found knowledge from external sources.")
                 for source in grounding["sources"]:
-                     self._log_thought(f"🔗 [Source] {source['title']} ({source['url'][:40]}...)")
+                     self._log_thought(f"🔗 [RAG] Source: {source['title']} ({source['url'][:40]}...)")
+
+            # 2. Log AI Thought (Mind)
+            ai_thought = data.get("thought", "")
+            if ai_thought:
+                # Ensure it has [Mind] prefix if missing, or use as is
+                if not ai_thought.startswith("[Mind]"):
+                    ai_thought = f"[Mind] {ai_thought}"
+                self._log_thought(ai_thought)
             
             return {
                 "text": data.get("response", "") or data.get("text", ""), # Fallback to text if response invalid
@@ -143,7 +146,7 @@ class AIEngine:
                 "grounding_info": grounding
             }
             
-            return {"text": "Error: Empty response", "emotion": "sad", "suggestions": []}
+            # return {"text": "Error: Empty response", "emotion": "sad", "suggestions": []} # Unreachable if data={} fallback works
 
         except Exception as e:
             logger.error(f"Gen Error: {e}")
@@ -238,12 +241,13 @@ If you don't know the person or topic detailedly, research it.
             response_schema = {
                 "type": "OBJECT",
                 "properties": {
+                    "thought": {"type": "STRING", "description": "Internal reasoning about video content. Start with [Mind] or [Vision]."},
                     "response": {"type": "STRING", "description": "Response text in Japanese."},
                     "emotion": {"type": "STRING", "description": "Emotion tag."},
                     "suggestions": {"type": "ARRAY", "items": {"type": "STRING"}},
                     "action_command": {"type": "STRING"}
                 },
-                "required": ["response", "emotion", "suggestions"]
+                "required": ["thought", "response", "emotion", "suggestions"]
             }
 
             run_config = types.GenerateContentConfig(
@@ -271,7 +275,12 @@ If you don't know the person or topic detailedly, research it.
                 grounding = self._extract_grounding(response)
                 
                 # Mind Log - Post Analysis
-                self._log_thought(f"✨ [Mind] Video analysis complete. Emotion: {data.get('emotion')}")
+                ai_thought = data.get("thought", "")
+                if ai_thought:
+                     self._log_thought(f"👁️ [Vision] {ai_thought}")
+                else:
+                     self._log_thought(f"✨ [Mind] Video analysis complete. Emotion: {data.get('emotion')}")
+
                 # Optional: Add specific "Active" thought
                 if data.get('emotion') in ['sad', 'crying']:
                     self._log_thought(f"💙 [Mind] The user might need comfort after this.")

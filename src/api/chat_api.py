@@ -104,7 +104,8 @@ You have access to the following tools. To use them, output the specific tag exa
 [Constraint on Health Care]
 - **NO REPETITIVE WARNINGS**: Do NOT repeat health/sleep warnings every turn.
 - **CONTEXT PRIORITY**: If user is engaged in a specific topic (Tech, News, Science, etc.), PRIORITIZE the discussion over health advice.
-- **LATE NIGHT**: If it is late, mention it ONLY ONCE at the beginning or end. Do not force a connection between the topic and sleep/rest.
+- **LATE NIGHT THRESHOLD**: **ALLOW staying up until 2:00 AM.** Do NOT warn the user about sleep before 02:00 AM.
+- **AFTER 2:00 AM**: You may gently suggest sleep ONCE, but do not nag.
 ##################################################
 """
         if self._ai_engine:

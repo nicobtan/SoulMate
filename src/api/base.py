@@ -60,8 +60,11 @@ class BaseApiMixin:
         # --- Mind Translation Logic ---
         translated_msg = msg
         
-        # 1. Input Analysis
-        if "Targeting Model:" in msg:
+        # 0. Pass-through for New Structured Tags (Mind, Vision, RAG)
+        if msg.startswith("[Mind]") or msg.startswith("[Vision]") or msg.startswith("[RAG]"):
+            # Already formatted by AI Engine, pass through directly
+            pass
+        elif "Targeting Model:" in msg:
             translated_msg = "(私の頭脳、Geminiモードでフル回転させるわね✨)"
         elif "Input Analysis:" in msg:
             translated_msg = "(あなたの言葉、しっかり分析中よ…🔍)"
