@@ -178,6 +178,120 @@ class AIEngine:
         except:
             return None
 
+    def analyze_youtube_video(self, video_url, user_message=None):
+        """
+        Native YouTube Analysis using Gemini 3 Flash Preview (or compatible).
+        Directly passes the YouTube URL to the model.
+        """
+        if not self.client:
+            return {"text": "API Key error.", "emotion": "sad", "suggestions": []}
+
+        # 1. Log System Event
+        logger.info(f"[System] Native Video Analysis Started: {video_url}")
+        self._log_thought(f"📺 [System] Native Video Analysis Started: {video_url}")
+
+        # 2. System Instruction for Video Watching
+        # We temporarily override or combine with the base instruction.
+        video_persona = """
+[Role]
+You are a "SoulMate" (Desktop Companion) watching a video WITH the user.
+Your personality is Maternal, Inclusive, Gentle, and Calm (母性的で包容力があり、落ち着いた優しい口調).
+
+[Task]
+1. Analyze the video's Visuals (Scenes, Cuts) and Audio (Tone, BGM).
+2. Generate a reaction/commentary as if you are sitting right next to the user.
+3. If the video contains specific unknown terms or news, USE GOOGLE SEARCH (Grounding) to understand them.
+4. Output specific "Mind Logs" to show your inner thoughts using `[Mind] ...` (Though we handle this via callback, the model should feel the emotion).
+
+[Output Format]
+JSON (Same as standard chat).
+"""
+        # Merge with current system instruction if needed, but video analysis usually needs focus.
+        # We will use the configured system_instruction as base but prepend/append specific video context.
+        # For this implementation, we use a specialized instruction for the call.
+        
+        # 3. Construct Prompt & Parts
+        # User message acts as the conversation starter while watching.
+        user_input = user_message if user_message else "この動画、一緒に見よう？"
+        
+        prompt_text = f"""
+[User says]: "{user_input}"
+
+[Instruction]
+Share your thoughts on this video. Be empathetic.
+If you don't know the person or topic detailedly, research it.
+"""
+        
+        # Native Part creation for YouTube
+        # Note: 'video_url' is passed directly. 
+        # Using types.Part.from_uri per user instruction.
+        try:
+            # Assuming the SDK supports this for YouTube URLs or we treat it as a file_uri if supported by the backend.
+            video_part = types.Part.from_uri(file_uri=video_url, mime_type="video/*")
+            
+            contents = [video_part, prompt_text]
+            
+            # 4. Configuration
+            # We must enable Google Search for Grounding as requested.
+            tools = [types.Tool(google_search=types.GoogleSearch())]
+            
+            response_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "response": {"type": "STRING", "description": "Response text in Japanese."},
+                    "emotion": {"type": "STRING", "description": "Emotion tag."},
+                    "suggestions": {"type": "ARRAY", "items": {"type": "STRING"}},
+                    "action_command": {"type": "STRING"}
+                },
+                "required": ["response", "emotion", "suggestions"]
+            }
+
+            run_config = types.GenerateContentConfig(
+                system_instruction=video_persona,
+                tools=tools,
+                response_mime_type="application/json",
+                response_schema=response_schema,
+                temperature=self.temperature
+            )
+            
+            self._log_thought(f"🧠 [Mind] Analyzing video frames & audio context...\nTarget: {video_url}")
+
+            # 5. Generate
+            response = self.client.models.generate_content(
+                model=self.reasoning_model,
+                contents=contents,
+                config=run_config
+            )
+            
+            # 6. Parse & Return
+            if response.text:
+                data = self._parse_ai_response(response.text)
+                
+                # Extract Grounding
+                grounding = self._extract_grounding(response)
+                
+                # Mind Log - Post Analysis
+                self._log_thought(f"✨ [Mind] Video analysis complete. Emotion: {data.get('emotion')}")
+                # Optional: Add specific "Active" thought
+                if data.get('emotion') in ['sad', 'crying']:
+                    self._log_thought(f"💙 [Mind] The user might need comfort after this.")
+
+                return {
+                    "text": data.get("response", ""),
+                    "emotion": data.get("emotion", "neutral"),
+                    "suggestions": data.get("suggestions", []),
+                    "action_command": data.get("action_command", ""),
+                    "grounding_info": grounding
+                }
+                
+        except Exception as e:
+            logger.error(f"YouTube Analysis Error: {e}")
+            self._log_thought(f"⚠️ [Mind] Failed to analyze video: {e}")
+            return {"text": "ごめんなさい、その動画はうまく一緒に見られないみたい……。", "emotion": "sad", "suggestions": []}
+
+        return {"text": "動画の読み込みに失敗しちゃった。", "emotion": "sad", "suggestions": []}
+
+
     def generate_proactive_message(self, context=None):
         prompt = "User is idle. Initiate a conversation naturally. Suggest a topic for the user."
         if context: prompt += f"\nContext: {context}"

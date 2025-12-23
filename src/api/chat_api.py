@@ -256,8 +256,17 @@ You have access to the following tools. To use them, output the specific tag exa
                     self.log_to_debug(f"Image Data Processing Error: {e}", 'error')
 
         # 1. 生成実行 (JSONモード)
-        # 以前のような format_instruction の連結は不要です
-        result = self._ai_engine.generate_response(message, image=image_obj)
+        # Check for YouTube URL (Native Analysis)
+        youtube_pattern = r'(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)([\w-]{11})'
+        yt_match = re.search(youtube_pattern, message)
+        
+        if yt_match and self._ai_engine:
+            video_url = yt_match.group(0)
+            self.log_to_debug(f"📺 YouTube URL Detected: {video_url}", 'info')
+            result = self._ai_engine.analyze_youtube_video(video_url, message)
+        else:
+            # Standard Generation
+            result = self._ai_engine.generate_response(message, image=image_obj)
 
         # 2. データの取り出し (安全確実 - AI Engineが必ずDictを返す)
         response_text = result.get("text", "")

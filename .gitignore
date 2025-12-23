@@ -28,6 +28,7 @@ build/
 google-credentials.json
 key.json
 *.pem
+settings/token.pickle
 
 # Soulmate Specific
 logs/
@@ -36,3 +37,4 @@ soulmate.db
 history.json
 history.json.bak
 chat_history.jsonl
+chroma_db/
