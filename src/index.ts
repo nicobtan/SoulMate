@@ -62,6 +62,16 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // ★ Expression Random Button logic
+    const expBtn = document.getElementById('expression-test-btn');
+    if (expBtn) {
+        expBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            live2dManager.setRandomExpression();
+        });
+    }
+
     // ★ Restore Global Bubble Hook
     (window as any).showSoulBubble = function (cat: string, txt: string, aid: string, type: string) {
         chatManager.showSoulBubble(cat, txt, aid, type);

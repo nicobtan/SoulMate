@@ -14,7 +14,7 @@ class AIEngine:
         self.api_key = None
         self.client = None
         # モデル定義 (Defaults)
-        self.reasoning_model = "gemini-3-flash-preview" 
+        self.reasoning_model = "gemini-3.0-flash-preview" 
         self.tts_model = "gemini-2.5-flash-preview-tts"
         # Temperature setting for variety
         self.temperature = 0.9
@@ -65,7 +65,7 @@ class AIEngine:
         response_schema = {
             "type": "OBJECT",
             "properties": {
-                "thought": {"type": "STRING", "description": "Internal reasoning. MUST start with [Mind]. Details: Input interpretation, Emotion reason, Context check."},
+                "thought": {"type": "STRING", "description": "Internal reasoning. MUST start with [Mind]. Reason 'WHY' you chose this response/topic. If Vision analyzed, start with [Vision] and describe specific objects/titles."},
                 "response": {"type": "STRING", "description": "Response text. Keep it natural."},
                 "emotion": {"type": "STRING", "description": "Emotion tag (happy, sad, neutral, etc)."},
                 "suggestions": {
@@ -241,7 +241,7 @@ If you don't know the person or topic detailedly, research it.
             response_schema = {
                 "type": "OBJECT",
                 "properties": {
-                    "thought": {"type": "STRING", "description": "Internal reasoning about video content. Start with [Mind] or [Vision]."},
+                    "thought": {"type": "STRING", "description": "Internal reasoning. MUST start with [Vision]. Describe specific objects/titles seen in video and reasoning for reaction."},
                     "response": {"type": "STRING", "description": "Response text in Japanese."},
                     "emotion": {"type": "STRING", "description": "Emotion tag."},
                     "suggestions": {"type": "ARRAY", "items": {"type": "STRING"}},

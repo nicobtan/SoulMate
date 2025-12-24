@@ -106,7 +106,6 @@ export class Live2DManager {
 
         this.characterArea.appendChild(this.app.view);
 
-        // 2. Load Model
         await this.loadModel(modelPath);
 
         // 3. Init LipSync
@@ -199,6 +198,60 @@ export class Live2DManager {
 
     public focusReset() {
         if (this.model) this.model.focus(0, 0);
+    }
+
+    private currentExpression: string = '';
+
+    public async setRandomExpression() {
+        if (!this.model) return;
+
+        // 1. Get List of Expressions
+        let expressions: string[] = [];
+        const internal = this.model.internalModel;
+
+        if (internal.settings && internal.settings.expressions) {
+            // Cubism 4 Internal Model Settings usually has 'expressions' array of {Name, File}
+            expressions = internal.settings.expressions.map((e: any) => e.Name);
+        }
+
+        // Fallback: Model 0005 known pattern (f01..f16)
+        if (expressions.length === 0) {
+            for (let i = 1; i <= 16; i++) {
+                expressions.push(`f${i.toString().padStart(2, '0')}`);
+            }
+        }
+
+        if (expressions.length === 0) {
+            console.warn("No expressions found.");
+            return;
+        }
+
+        // 2. Pick Random (Avoid immediate duplicate)
+        const valid = expressions.filter(e => e !== this.currentExpression);
+        const next = valid.length > 0
+            ? valid[Math.floor(Math.random() * valid.length)]
+            : expressions[0];
+
+        this.currentExpression = next;
+
+        // 3. Trigger & Log
+        await this.triggerExpression(next);
+
+        // Random Reason
+        const reasons = [
+            "Just felt like it", "Testing my face muscles", "Because you looked at me",
+            "Practicing for a selfie", "Whimsical mood", "Did you see that?",
+            "Trying to look cute", "System test... successful!", "Feeling a bit different"
+        ];
+        const reason = reasons[Math.floor(Math.random() * reasons.length)];
+
+        // Log to System (UI)
+        const ui = (window as any).uiManager;
+        if (ui && ui.logSystem) {
+            ui.logSystem(`[System] Expression changed: ${next} (Reason: ${reason})`);
+        } else {
+            console.log(`[System] Expression changed: ${next} (Reason: ${reason})`);
+        }
     }
 
     private handleZoom(e: WheelEvent) {

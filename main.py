@@ -136,7 +136,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
     def _configure_ai(self, settings):
         """Override to include User Profile Context"""
         api_key = settings.get('api_key')
-        model = settings.get('model_name', 'gemini-2.5-flash-lite')
+        model = settings.get('model_name', 'gemini-3.0-flash-preview')
         persona_id = settings.get('current_persona_id', 'default')
 
         # 1. Load Real Data (Deep Context)
@@ -195,23 +195,21 @@ DO NOT summarize the news. Give your OPINION based on your persona.
    2. Adopt your Persona and imagine what you would enjoy physically.
    3. Explain WHY you chose it emotionally.
 
+[CRITICAL: NO LECTURES]
+- **No Unsolicited Trivia**: Do NOT explain terms, history, or trivia unless explicitly asked.
+- **No Teaching Mode**: You are a partner, not a teacher. Do not say "Did you know?" or "By the way...".
+- **Reaction First**: Prioritize emotional reaction over information.
+
+[LENGTH: SHORT & SWEET]
+- **Keep it Short**: 1-2 sentences max per response.
+- **No Walls of Text**: User is working. Do not interrupt with long text.
+
 [FINAL REMINDER]
 Your partner's name is "{user_name}". Use it naturally in conversation.
 Do NOT use placeholders like "〇〇さん".
-
-Response Format: TOON (Token-Oriented Object Notation)
-You MUST respond in the following TOON format:
-
-response:
-  text: Your spoken response here.
-emotion: (happy/sad/etc)
-suggestions:
-  - Option 1
-  - Option 2
-  - Option 3
-  - Option 4
-  - 他の話題について
+Do not preach about health before 02:00 AM.
 """
+
         
         if self._ai_engine:
             self._ai_engine.set_system_prompt(deep_context_prompt)

@@ -107,7 +107,7 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **コア言語:** Python (Backend / Controller)
 - **GUI:** HTML/CSS/TypeScript (Frontend)
 - **キャラクター描画:** Live2D Cubism SDK for Web + PixiJS
-- **AIエンジン (Brain):** **Gemini 3 Flash (Reasoning)** + **Native JSON Mode**
+- **AIエンジン (Brain):** **Gemini 3.0 Flash Preview** (Reasoning) + **Native JSON Mode**
 - **音声合成 (Voice):** **Gemini 2.5 Flash TTS** (Expressive)
 - **連携API:** Google Calendar API, Google Docs API
 - **Visual Intelligence:** Python `Pillow` + Gemini Vision (Multimodal)
@@ -130,11 +130,22 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **体験**: エラー画面を見せたり、面白い画像について語り合ったりできます。
 - **実装**: フロントエンドのプレビュー機能 + バックエンドの画像処理
 
-### 🔧 Observability & Debugging
-- **RAG & Mind Logging**: AIの「思考プロセス (Mind Voice)」と「検索ソース (Grounding URLs)」を可視化。
-    - **Mind Tab**: ニュースを選んだ理由や、検索クエリを表示。
-    - **RAG Tab**: ドキュメント検索ヒット数や内容スニペットを表示。
-- **System Logs**: バックエンドのエラーやイベントをリアルタイムに確認可能。
+### 🔧 Observability & Debugging 2.0
+- **Unified Log (ALL Tab)**: システムログ、Mindログ、RAGログの全てを時系列順に統合表示。
+- **Mind Visualization**:
+    - **Mind**: `[Mind]` AIの内なる声、感情選択理由、ユーザーの意図解釈を可視化。
+    - **Vision**: `[Vision]` AIが認識した画像や動画の内容をテキストで表示。
+    - **RAG**: `[RAG]` 記憶や外部情報を参照した際、そのソースを明示。
+
+### ⏰ Time & Persona Logic (Refined)
+- **Active Night (～2:00 AM)**:
+    - 深夜2時まではユーザーの没頭を尊重し、「早く寝なさい」といった警告を禁止。
+    - ユーザーと一緒になって作業や遊びを楽しむ「ゴールデンタイム」として定義。
+- **Gentle Warning (2:00 AM～)**:
+    - 草木も眠る深夜2時を過ぎて初めて、優しく休息を提案します（しつこい警告はしません）。
+- **No Lecture Policy**:
+    - 聞かれてもいない講釈（用語解説やトリビア）を厳禁。
+    - **Short & Sweet**: 1〜2文の短く人間らしい返答を徹底します。
 
 ### ❤ Emotional Balance (Love Slot)
 - **Guaranteed Love Slot**: AIが知的になりすぎないよう、会話選択肢の1つを必ず「甘え」「癒やし」などの感情的なアクション（❤マーク付き）に強制置換するロジックを実装。

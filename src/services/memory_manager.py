@@ -93,11 +93,13 @@ class MemoryManager:
         try:
             results = self.collection.query(
                 query_texts=[query],
-                n_results=n_results
+                n_results=n_results,
+                include=["documents", "metadatas"]
             )
             
             # Formatting results
             documents = results['documents'][0]  # list of lists
+            metadatas = results['metadatas'][0]
             
             # LOGGING
             hit_count = len(documents) if documents else 0
@@ -105,8 +107,10 @@ class MemoryManager:
             if hit_count > 0:
                 self._log_rag(f"✅ [Hit] Found {hit_count} documents.")
                 for i, doc in enumerate(documents):
+                    meta = metadatas[i] if metadatas else {}
+                    ts = meta.get('timestamp', 'Unknown')[:10] # Show Date only
                     snippet = (doc[:50] + "...") if len(doc) > 50 else doc
-                    self._log_rag(f"📄 [Content] {snippet}")
+                    self._log_rag(f"📄 [Content ({ts})] {snippet}")
             else:
                 self._log_rag(f"⚠️ [Miss] No relevant documents found.")
 
@@ -115,8 +119,10 @@ class MemoryManager:
                 return ""
             
             context_str = "--- Relevant Past Conversations ---\n"
-            for doc in documents:
-                context_str += f"- {doc}\n"
+            for i, doc in enumerate(documents):
+                meta = metadatas[i] if metadatas else {}
+                ts = meta.get('timestamp', 'Unknown')
+                context_str += f"- [{ts}] {doc}\n"
             return context_str
             
         except Exception as e:

@@ -615,3 +615,19 @@
 - [x] **話題の拡張 (YAML Expansion)**
     - [x] `search_topics.yaml`: カテゴリ分け（技術、歴史、科学、癒やし）と日本語化を実施
     - [x] `InterestManager`: 階層構造化されたYAMLの読み込み（フラット化）に対応
+
+## フェーズ75: Log Visualization 2.0 & Persona Refinement [完了]
+- [x] **ログ可視化の強化 (Unified Logs)**
+    - [x] **Mind Logs**: `[Mind]` タグによる思考プロセスの可視化とALLタブへの統合
+    - [x] **Vision Logs**: `[Vision]` タグによる視覚認識情報のログ出力
+    - [x] **RAG Logs**: `[RAG]` タグによる参照ソースの明示
+- [x] **ペルソナ & 時間ロジックの刷新**
+    - [x] **Active Night Logic**: AM 2:00 までは「没頭タイム」として睡眠勧告を禁止 (`time_utils.py`)
+    - [x] **No Lecture Policy**: 聞かれていない講釈を禁止し、短文応答を徹底 (`[CRITICAL: NO LECTURES]`)
+    - [x] **Model Upgrade**: `gemini-3.0-flash-preview` への移行と動的コンテキスト注入
+
+## フェーズ76: Log Observability 3.0 & Living Expression
+- [x] **Expression Reasoning**: ランダム表情切り替え時に「気まぐれな理由」をログに出力 (`live2d_manager.ts`)
+- [x] **Mind Log Deep Dive**: 思考の「根拠・意図」を言語化させるプロンプト調整
+- [x] **Vision Log Specifics**: 視覚認識時に「何（オブジェクト/テキスト）」を見たか具体的にログ出力
+- [x] **RAG Log Context**: 記憶想起時に「いつの会話か」のタイムスタンプ/コンテキストを表示 (MemoryManager確認要)

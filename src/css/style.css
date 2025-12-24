@@ -602,8 +602,30 @@ body {
 #debug-btn:hover,
 #history-btn:hover,
 #spawn-balloon-btn:hover,
-#force-talk-btn:hover {
+#force-talk-btn:hover,
+#expression-test-btn:hover {
     transform: scale(1.1);
+}
+
+#expression-test-btn {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 5000;
+    transition: all 0.3s;
+    font-size: 20px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    background: rgba(147, 112, 219, 0.6);
+    /* Purple Tint */
+    color: white;
 }
 
 #context-menu {
