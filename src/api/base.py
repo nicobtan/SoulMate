@@ -60,8 +60,16 @@ class BaseApiMixin:
         # --- Mind Translation Logic ---
         translated_msg = msg
         
-        # 0. Pass-through for New Structured Tags (Mind, Vision, RAG)
-        if msg.startswith("[Mind]") or msg.startswith("[Vision]") or msg.startswith("[RAG]"):
+        # 0. Pass-through for New Structured Tags (Mind, Vision, RAG, Expression)
+        # Check for both plain text tags and emoji tags
+        is_structured = (
+            "[Mind]" in msg or 
+            "[Vision]" in msg or 
+            "[RAG]" in msg or 
+            "[Expression]" in msg
+        )
+
+        if is_structured:
             # Already formatted by AI Engine, pass through directly
             pass
         elif "Targeting Model:" in msg:

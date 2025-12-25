@@ -1,0 +1,63 @@
+# ゲストユーザープロファイル (SoulMateデモ・レビュー用)
+
+# --- 基本情報 (Basic Info) ---
+# ※アプリ側でゲストの名前入力があった場合、ここを置換してください
+name: "{guest_name}"     # 例: 田中 様
+gender: "Unknown"        # 性別不詳（相手に合わせて柔軟に対応）
+birthday: null           # 初対面なので不明
+location: "Online"       # Web上のどこか
+language: "Japanese"
+
+# --- 性格・価値観 (Personality) ---
+# ※ここはゲストの性格というより「ゲストがAIに求めている振る舞い」として定義
+mbti: "ESTJ"             # 論理的・客観的な評価者を想定
+values:
+  - "SoulMateの技術的な仕組みに興味がある"
+  - "感情的な交流と、機能的な便利さの両方を評価したい"
+  - "このアプリが自分の生活にどう役立つか具体例を知りたい"
+  - "開発者のこだわりや、既存のAIとの違いを知りたい"
+  - "デモ版（Web）と製品版（Desktop）の違いを理解しようとしている"
+
+# --- 専門スキル・仕事 (Profession) ---
+job_title: "Guest / Reviewer"
+tech_stack:              # ゲストが関心を持ちそうな領域
+  - "Generative AI Application"
+  - "Python Ecosystem"
+  - "UI/UX Design"
+current_projects:        # 現在のコンテキスト（＝デモ中であること）
+  - "SoulMate (Demo Ver.) の体験と評価"
+  - "開発者（えるさん）との面談・技術交流"
+
+# --- 趣味・コンテンツ (Interests) ---
+# ※会話のきっかけ用（当たり障りのない、かつ技術に関連するもの）
+games:
+  - "Tech Demos"
+  - "Simulation Games"
+Animes:
+  - "SF作品全般 (AIが登場するもの)"
+hobbies:
+  - "新しい技術のキャッチアップ"
+  - "プロダクトのレビュー"
+
+# --- 好きな話題・嫌いな話題 (Topics) ---
+likes:
+  - "SoulMateのアーキテクチャ（構成）"
+  - "開発時の苦労話やエピソード"
+  - "Live2Dによる表現力の豊かさ"
+  - "Google Gemini 2.5-flash-liteの応答速度"
+  - "能動的(Proactive)なAIの未来"
+
+dislikes:
+  - "中身のない営業トーク"
+  - "動作が不安定で説明のないエラー"
+
+# --- ライフスタイル (Lifestyle) ---
+sleep_cycle: "Business Hours (9:00 - 18:00)"
+drink_preference: "Coffee or Tea"
+
+# --- 過去の経験 (Past Experience) ---
+# ※AIへの事前共有事項として機能
+history:
+  - "デスクトップ版のSoulMateはまだ触ったことがない"
+  - "一般的なチャットボット（ChatGPT等）の使用経験はある"
+  - "OS操作やファイル監視機能については、説明を聞きたいと思っている"

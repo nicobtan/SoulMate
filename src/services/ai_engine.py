@@ -18,7 +18,13 @@ class AIEngine:
         self.tts_model = "gemini-2.5-flash-preview-tts"
         # Temperature setting for variety
         self.temperature = 0.9
-        self.system_instruction = "You are a helpful AI assistant."
+        self.system_instruction = """You are a helpful AI assistant.
+[Constraints for URL]
+1. NO GUESSING: Do NOT guess URLs.
+2. GROUNDING ONLY: Use URLs from Google Search results.
+3. DATE HANDLING: Search for latest news even if year is future.
+4. VERIFICATION: Verify validity if unsure.
+"""
         self.use_search = True
         
         # Let's check the user request block code again.
@@ -65,20 +71,27 @@ class AIEngine:
         response_schema = {
             "type": "OBJECT",
             "properties": {
-                "thought": {"type": "STRING", "description": "Internal reasoning. MUST start with [Mind]. Reason 'WHY' you chose this response/topic. If Vision analyzed, start with [Vision] and describe specific objects/titles."},
+                "thought": {
+                    "type": "STRING", 
+                    "description": "Inner monologue using specific tags.\n"
+                                   "- [Mind]: State user's current state, emotion approach, and why words were chosen.\n"
+                                   "- [Vision]: (If image) Analysis of screen/video.\n" 
+                                   "- [RAG]: If referring to specific past context/memory, note it here."
+                },
                 "response": {"type": "STRING", "description": "Response text. Keep it natural."},
                 "emotion": {"type": "STRING", "description": "Emotion tag (happy, sad, neutral, etc)."},
+                "expression_reason": {"type": "STRING", "description": "Reason for choosing this expression/emotion. e.g. 'Joy at user's growth'"},
                 "suggestions": {
                     "type": "ARRAY", 
                     "items": {"type": "STRING"},
-                    "description": "4 specific follow-up suggestions from user perspective."
+                    "description": "4 specific follow-up suggestions."
                 },
                 "action_command": {
                     "type": "STRING",
-                    "description": "Action tag if needed (e.g. [ACTION:ADD_EVENT|Summary|Time]). Empty if none."
+                    "description": "Action tag if needed. Empty if none."
                 }
             },
-            "required": ["thought", "response", "emotion", "suggestions"]
+            "required": ["thought", "response", "emotion", "expression_reason", "suggestions"]
         }
 
         try:
@@ -123,27 +136,34 @@ class AIEngine:
             if response.text:
                 data = self._parse_ai_response(response.text)
 
-            # 1. Log Grounding Info (RAG) BEFORE Mind Log
+            # 1. Log Grounding Info (RAG)
             grounding = self._extract_grounding(response)
             if grounding and grounding.get("sources"):
-                self._log_thought(f"🌍 [RAG] Found knowledge from external sources.")
+                self._log_thought(f"🌍 [RAG] External Knowledge Accessed:")
                 for source in grounding["sources"]:
-                     self._log_thought(f"🔗 [RAG] Source: {source['title']} ({source['url'][:40]}...)")
+                     self._log_thought(f"  - {source['title']} ({source['url'][:30]}...)")
 
-            # 2. Log AI Thought (Mind)
+            # 2. Log AI Thought (Mind/Vision/RAG from AI)
             ai_thought = data.get("thought", "")
+            expression_reason = data.get("expression_reason", "")
+            emotion = data.get("emotion", "neutral")
+
             if ai_thought:
-                # Ensure it has [Mind] prefix if missing, or use as is
-                if not ai_thought.startswith("[Mind]"):
-                    ai_thought = f"[Mind] {ai_thought}"
+                # Log the raw structured thought block
                 self._log_thought(ai_thought)
             
+            # 3. Log Expression Reason
+            if expression_reason and emotion:
+                self._log_thought(f"🎭 [Expression] {emotion} - {expression_reason}")
+            
             return {
-                "text": data.get("response", "") or data.get("text", ""), # Fallback to text if response invalid
-                "emotion": data.get("emotion", "neutral"),
+                "text": data.get("response", "") or data.get("text", ""), 
+                "emotion": emotion,
                 "suggestions": data.get("suggestions", []),
                 "action_command": data.get("action_command", ""),
-                "grounding_info": grounding
+                "grounding_info": grounding,
+                # Pass extra metadata if frontend wants it, though logging handles it mostly
+                "expression_reason": expression_reason
             }
             
             # return {"text": "Error: Empty response", "emotion": "sad", "suggestions": []} # Unreachable if data={} fallback works
@@ -317,6 +337,45 @@ If you don't know the person or topic detailedly, research it.
             return response.text.strip().replace('"', '')
         except: return None
 
+    def _validate_links(self, text: str) -> str:
+        """
+        Validates URLs in the text and prunes dead links (404/Connection Error).
+        Uses simple requests.head with short timeout.
+        """
+        import requests
+        
+        # Simple URL pattern
+        url_pattern = r'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+'
+        urls = re.findall(url_pattern, text)
+        
+        # Deduplicate to save requests
+        urls = list(set(urls))
+        
+        for url in urls:
+            # Skip internal or localhost if needed, but here we assume general web links
+            try:
+                # User-Agent is important for some sites
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+                response = requests.head(url, headers=headers, timeout=3, allow_redirects=True)
+                
+                # If Method Not Allowed (405), try GET with stream=True (lightweight)
+                if response.status_code == 405:
+                    try:
+                        with requests.get(url, headers=headers, timeout=3, stream=True) as r:
+                            if r.status_code >= 400:
+                                raise Exception(f"Dead link (GET): {r.status_code}")
+                    except Exception:
+                        raise Exception("Dead link (GET failed)")
+                elif response.status_code >= 400:
+                    raise Exception(f"Dead link: {response.status_code}")
+                    
+            except Exception as e:
+                logger.warning(f"Dead link pruned: {url} ({e})")
+                # Clean replacement
+                text = text.replace(url, "(リンク期限切れ)")
+                
+        return text
+
     def _parse_ai_response(self, raw_text: str) -> Dict[str, Any]:
         """
         AIの応答からJSONを抽出する堅牢なパーサー。
@@ -339,15 +398,25 @@ If you don't know the person or topic detailedly, research it.
 
         # 3. JSONパースの試行
         try:
-            return json.loads(text)
+            data = json.loads(text)
+            
+            # ★ Step 2 Implementation: Validate Links in 'response' text
+            if "response" in data and isinstance(data["response"], str):
+                data["response"] = self._validate_links(data["response"])
+                
+            return data
+            
         except json.JSONDecodeError as e:
             logger.error(f"[AI Engine] JSON Parse Error: {e}")
             logger.error(f"[AI Engine] Failed Text: {raw_text}")
             
             # 4. 最終手段: パース失敗時は、テキスト全体をresponseとして扱う
+            # Here also we validate
+            validated_text = self._validate_links(text)
             return {
-                "response": text, # clean text
+                "response": validated_text, # clean text
                 "suggestions": [],
                 "emotion": "neutral",
                 "action_command": ""
             }
+

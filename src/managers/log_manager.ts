@@ -109,10 +109,26 @@ export class LogManager {
 
         const mindTimeStr = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}]`;
 
-        entry.innerHTML = `<span class="mind-timestamp">${mindTimeStr}</span> ${msg}`;
+        let contentHtml = msg;
+        let targetContent = mindContent;
 
-        mindContent.appendChild(entry);
-        mindContent.scrollTop = mindContent.scrollHeight;
+        if (msg.includes("[Vision]")) {
+            contentHtml = `<span style="color: #d19bf7;">${msg}</span>`;
+            // Redirect to Vision Tab content
+            const visionContent = document.getElementById('log-vision');
+            if (visionContent) targetContent = visionContent;
+        } else if (msg.includes("[RAG]")) {
+            contentHtml = `<span style="color: #7ce38b;">${msg}</span>`;
+        } else if (msg.includes("[Expression]")) {
+            contentHtml = `<span style="color: #ffb366;">${msg}</span>`;
+        }
+
+        entry.innerHTML = `<span class="mind-timestamp">${mindTimeStr}</span> ${contentHtml}`;
+
+        if (targetContent) {
+            targetContent.appendChild(entry);
+            targetContent.scrollTop = targetContent.scrollHeight;
+        }
     }
 
     public async togglePanel() {

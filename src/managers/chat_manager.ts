@@ -526,8 +526,8 @@ export class ChatManager {
             .replace(/'/g, "&#039;");
 
         // 2. Replace URLs with <a> tags calling open_browser
-        // Pattern: http:// or https:// followed by non-whitespace
-        const urlPattern = /(https?:\/\/[^\s]+)/g;
+        // Pattern: http:// or https:// followed by ASCII chars only (stops at Japanese)
+        const urlPattern = /(https?:\/\/[!-~]+)/g;
 
         return escaped.replace(urlPattern, (url) => {
             // Remove trailing punctuation that might have been captured (like period or parenthesis at end of sentence)

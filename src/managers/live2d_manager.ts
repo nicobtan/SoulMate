@@ -189,10 +189,10 @@ export class Live2DManager {
     // ▼ AIの感情タグ(Key) と Live2Dの表情名(Value) の対応表
     private static readonly EMOTION_MAP: { [key: string]: string | string[] } = {
         // 喜び・ポジティブ系 (配列で複数を指定！)
-        "happy": ["18.smile", "08.XD", "11.perori", "06.wink_R"],
+        "happy": ["18.smile", "08.XD", "11.perori"],
         "joy": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised"],
         "excited": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised"],
-        "fun": ["08.XD", "11.perori", "06.wink_R", "12.cat_mouth"],
+        "fun": ["08.XD", "11.perori", "12.cat_mouth"],
 
         // 愛情・デレ系 (ここが重要！)
         "loving": "01.blush",     // 照れる

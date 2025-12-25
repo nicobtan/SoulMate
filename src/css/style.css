@@ -507,6 +507,16 @@ body {
     margin-right: 5px;
 }
 
+/* Vision Log Styling */
+#log-vision {
+    color: #E6E6FA;
+    font-family: 'Consolas', monospace;
+    font-size: 0.9em;
+    padding: 10px;
+    background-color: rgba(40, 20, 50, 0.4);
+    /* Dark Purple tint */
+}
+
 /* Tab Button Styling (Restoring Legacy Look) */
 .tab-btn {
     background: transparent;
@@ -540,6 +550,15 @@ body {
 
 .tab-btn.mind-tab.active {
     border-bottom: 2px solid #9370DB;
+}
+
+/* Tab Button Styling for Vision */
+.tab-btn.vision-tab {
+    color: #d19bf7;
+}
+
+.tab-btn.vision-tab.active {
+    border-bottom: 2px solid #b066f5;
 }
 
 /* Buttons & Context Menu */
@@ -742,6 +761,12 @@ textarea,
     border-left: 2px solid #fb0;
     padding-left: 5px;
     color: #ffeb3b;
+}
+
+.cat-vision {
+    border-left: 2px solid #b066f5;
+    padding-left: 5px;
+    color: #d19bf7;
 }
 
 /* =========================================
