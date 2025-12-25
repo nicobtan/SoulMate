@@ -364,6 +364,7 @@ export class ChatManager {
         let text = "";
         let audioData = audio;
         let suggestions: string[] = [];
+        let emotion = null;
 
         if (typeof data === 'string') {
             text = data;
@@ -373,9 +374,10 @@ export class ChatManager {
             // But if data object has it, prioritize it? or not.
             // The signature is (data, audio).
             suggestions = data.suggestions || [];
+            emotion = data.emotion;
         }
 
-        this.processAIResponse(text, audioData);
+        this.processAIResponse(text, audioData, null, emotion);
         UIManager.getInstance().updateSuggestions(suggestions, (t) => this.sendMessage(t));
     }
 
@@ -384,6 +386,7 @@ export class ChatManager {
         let audio = null;
         let suggestions: string[] = [];
         let grounding = null;
+        let emotion = null;
 
         if (typeof response === 'string') {
             text = response;
@@ -392,31 +395,40 @@ export class ChatManager {
             audio = response.audio;
             suggestions = response.suggestions || [];
             grounding = response.grounding_info;
+            emotion = response.emotion; // ★ Extract emotion
         }
 
         // Output
-        this.processAIResponse(text, audio, grounding);
+        this.processAIResponse(text, audio, grounding, emotion);
         UIManager.getInstance().updateSuggestions(suggestions, (t) => this.sendMessage(t));
     }
 
-    private processAIResponse(text: string, audio: string | null, grounding: any = null) {
+    private processAIResponse(text: string, audio: string | null, grounding: any = null, explicitEmotion: string | null = null) {
         // 1. Emotion Parse
         let displayMsg = text;
-        let emotionId = null;
+        let emotionTag = explicitEmotion;
 
-        for (const [tag, exp] of Object.entries(emotions)) {
-            if (text.includes(tag)) {
-                emotionId = exp;
-                displayMsg = displayMsg.replace(tag, '');
+        if (!emotionTag) {
+            // Fallback: Parse from text tag (Legacy)
+            for (const [tag, _] of Object.entries(emotions)) {
+                // tag is like "[happy]"
+                if (displayMsg.includes(tag)) {
+                    // Extract "happy" from "[happy]"
+                    emotionTag = tag.replace(/[\[\]]/g, '');
+                    displayMsg = displayMsg.replace(tag, '');
+                }
             }
+        } else {
+            // Clean explicit emotion just in case (e.g. if it has brackets in JSON)
+            emotionTag = emotionTag.replace(/[\[\]]/g, '');
         }
 
         // 1.5 Clear Ghost Message
         this.clearGhostMessage();
 
         // 2. Trigger Live2D
-        if (emotionId) {
-            Live2DManager.getInstance().triggerExpression(emotionId);
+        if (emotionTag) {
+            Live2DManager.getInstance().triggerExpression(emotionTag);
         }
 
         // 3. UI Log
@@ -429,19 +441,6 @@ export class ChatManager {
 
         // 5. Grounding Info (RAG)
         if (grounding) {
-            // Format grounding info nicely? or just raw log.
-            // LogManager has methods for this? 
-            // Previous code had nice HTML formatting for RAG.
-            // Let's use LogManager.log but maybe we need a dedicated display?
-            // The LogManager log just puts it in the sys log or rag log.
-            // Let's format it briefly.
-            let msg = "RAG Info Received";
-            if (grounding.web_search_queries) msg += ` Queries: ${grounding.web_search_queries}`;
-
-            // To render clickable links in "RAG" tab, we need to pass HTML likely.
-            // LogManager.log renders text? 
-            // In index.ts refactor step 2, we saw addDebugLog logic.
-            // LogManager should handle 'rag' type.
             LogManager.getInstance().log(`RAG Source: ${JSON.stringify(grounding)}`, 'info', 'rag');
         }
     }

@@ -257,14 +257,26 @@ You have access to the following tools. To use them, output the specific tag exa
                     self.log_to_debug(f"Image Data Processing Error: {e}", 'error')
 
         # 1. 生成実行 (JSONモード)
+        # 1. 生成実行 (JSONモード)
         # Check for YouTube URL (Native Analysis)
-        youtube_pattern = r'(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)([\w-]{11})'
+        # Supports: youtube.com/watch?v=..., m.youtube.com, youtu.be, shorts
+        youtube_pattern = r'(https?://)?(www\.|m\.)?(youtube\.com/(?:watch\?v=|v/|embed/|shorts/)|youtu\.be/)([\w-]{11})'
         yt_match = re.search(youtube_pattern, message)
         
         if yt_match and self._ai_engine:
             video_url = yt_match.group(0)
             self.log_to_debug(f"📺 YouTube URL Detected: {video_url}", 'info')
-            result = self._ai_engine.analyze_youtube_video(video_url, message)
+            
+            # Explicitly log start of analysis
+            self.log_to_debug(f"▶ Starting Video Analysis...", 'info')
+            
+            try:
+                result = self._ai_engine.analyze_youtube_video(video_url, message)
+                self.log_to_debug(f"✅ Video Analysis ResultKeys: {list(result.keys()) if result else 'None'}", 'info')
+            except Exception as e:
+                self.log_to_debug(f"❌ Video Analysis Failed (API Level): {e}", 'error')
+                # Fallback to standard generation if video fails
+                result = self._ai_engine.generate_response(message, image=image_obj)
         else:
             # Standard Generation
             result = self._ai_engine.generate_response(message, image=image_obj)

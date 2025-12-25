@@ -14,7 +14,7 @@ class AIEngine:
         self.api_key = None
         self.client = None
         # モデル定義 (Defaults)
-        self.reasoning_model = "gemini-3.0-flash-preview" 
+        self.reasoning_model = "gemini-3-flash-preview" 
         self.tts_model = "gemini-2.5-flash-preview-tts"
         # Temperature setting for variety
         self.temperature = 0.9

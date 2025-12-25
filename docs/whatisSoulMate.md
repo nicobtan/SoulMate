@@ -18,7 +18,7 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 
 3. **豊かな表現力 (Live2D + TTS)**
    - **Live2D**: 感情に合わせて表情や仕草が変化します。会話内容に合わせたモーション同期も目指します。
-   - **Voice**: Google Text-to-Speech (TTS) / Gemini TTS / VOICEVOX を連携させ、自然で表現力豊かな声で語りかけます。
+   - **Voice**: Google Text-to-Speech (TTS) / Gemini TTS を主軸に、自然で表現力豊かな声で語りかけます。(※VOICEVOX/SBV2等のローカル連携は実験的機能/保留中)
    - **Lip Sync**: Web Audio APIを用いたリアルタイムリップシンクを実装。音声の波形に合わせて口が動きます。
 
 4. **双方向コミュニケーション & ペルソナシステム**

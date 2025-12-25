@@ -432,13 +432,12 @@
     - [x] **初期化修正**: 起動時の500x500ウィンドウサイズ強制
     - [x] **コンテキストメニュー修正**: Visionボタン上の右クリックイベント伝播防止
 
-## フェーズ39: VOICEVOX統合 [完了]
+## フェーズ39: VOICEVOX統合 [完了 / 保留]
 - [x] **バックエンドサービス**
-    - [x] `src/services/voice_service.py`: ローカルVOICEVOXアプリ (port 50021) 連携
-    - [x] `server.py`: `tts_provider` ロジックの追加
+    - [x] `src/services/voice_service.py`: ローカルVOICEVOXアプリ (port 50021) 連携 (現在は無効化/Gemini優先)
+    - [ ] **追加実装**: ローカルTTS (SBV2) の完全実装は保留
 - [x] **フロントエンド設定**
-    - [x] 設定画面: TTSプロバイダ選択 (Google vs VOICEVOX)
-    - [x] 動的なボイスリスト読み込み機能
+    - [x] 設定画面: TTSプロバイダ選択 (UI実装済み)
 
 ## フェーズ40: Gemini 2.5 TTS統合 [完了]
 - [x] **バックエンド実装**

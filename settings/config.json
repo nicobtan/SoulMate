@@ -13,7 +13,7 @@
     "current_persona_file": "default.yaml",
     "voice_type": "Aoede",
     "bg_opacity": 81,
-    "model_name": "gemini-3-flash-preview",
+    "model_name": "",
     "window_x": 666,
     "window_y": 522,
     "active_talk_interval": 60,

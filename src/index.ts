@@ -65,10 +65,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     // ★ Expression Random Button logic
     const expBtn = document.getElementById('expression-test-btn');
     if (expBtn) {
+        // Left Click: Random
         expBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             live2dManager.setRandomExpression();
+        });
+
+        // Right Click: Default (Reset)
+        expBtn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("[UI] Expression Button Right-Clicked (Reset Request)");
+            live2dManager.triggerExpression('neutral'); // Reset
         });
     }
 

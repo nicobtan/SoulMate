@@ -1,4 +1,5 @@
 // src/managers/live2d_manager.ts
+import { LogManager } from './log_manager.js';
 import { Live2DModel } from 'pixi-live2d-display';
 import { AudioManager } from '../services/audio_manager.js';
 
@@ -127,6 +128,9 @@ export class Live2DManager {
         (window as any).resizeModel = this.resize.bind(this);
         (window as any).live2d_model = this.model;
 
+        // ★ Explicitly expose manager as requested by user
+        (window as any).live2d_manager = this;
+
         // Initial Resize
         this.resize();
 
@@ -141,7 +145,7 @@ export class Live2DManager {
             ModelClass = (window as any).PIXI.live2d.Live2DModel;
         }
 
-        console.log(`Loading Model: ${path}`);
+        console.log(`Loading Model: ${path} `);
         this.model = await ModelClass.from(path);
         this.app.stage.addChild(this.model);
         console.log("Model Loaded.");
@@ -182,15 +186,124 @@ export class Live2DManager {
         }
     }
 
-    public async triggerExpression(expressionId: string) {
+    // ▼ AIの感情タグ(Key) と Live2Dの表情名(Value) の対応表
+    private static readonly EMOTION_MAP: { [key: string]: string | string[] } = {
+        // 喜び・ポジティブ系 (配列で複数を指定！)
+        "happy": ["18.smile", "08.XD", "11.perori", "06.wink_R"],
+        "joy": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised"],
+        "excited": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised"],
+        "fun": ["08.XD", "11.perori", "06.wink_R", "12.cat_mouth"],
+
+        // 愛情・デレ系 (ここが重要！)
+        "loving": "01.blush",     // 照れる
+        "love": "01.blush",
+        "shy": "01.blush",
+
+        // 悲しみ・ネガティブ系
+        "sad": "03.cry",
+        "sorrow": "03.cry",
+        "cry": "03.cry",
+
+        // 怒り
+        "angry": ["02.angry", "15.angry2"], // 怒りも2種類
+        "anger": "02.angry",
+
+        // 驚き
+        "surprised": "13.surprised",
+        "shock": "04.pale",       // 驚愕で青ざめる演出
+
+        // その他・特殊
+        "fear": "04.pale",        // 恐怖
+        "sleepy": "17.sleep",     // 眠い
+        "tired": "17.sleep",
+        "disgust": "10.jitome",   // 軽蔑/ジト目
+        "doubt": "10.jitome",
+
+        // デフォルト
+        "neutral": "",            // 表情リセット
+        "default": ""
+    };
+
+    /**
+     * 感情タグからLive2Dの表情IDを取得する（ランダム対応版）
+     */
+    private static getExpressionId(emotionTag: string, currentId: string | null = null): string {
+        // 小文字化してキー検索
+        const key = (emotionTag || "neutral").toLowerCase().trim();
+
+        // マップから値を取得 (なければデフォルトキー、それでもなければ空文字)
+        const value = this.EMOTION_MAP[key] || this.EMOTION_MAP["neutral"] || "";
+
+        // ★ここがポイント: 配列ならランダム抽選
+        if (Array.isArray(value)) {
+            // 現在の表情を除外した候補リストを作成
+            const candidates = currentId ? value.filter(v => v !== currentId) : value;
+
+            // 候補がなくなってしまったら（選択肢が1つしかない場合など）、元のリストを使う
+            const listToUse = candidates.length > 0 ? candidates : value;
+
+            const randomIndex = Math.floor(Math.random() * listToUse.length);
+            return listToUse[randomIndex];
+        }
+
+        return value;
+    }
+
+    /**
+     * ランダムな表情をセットする (ボタン用)
+     */
+    public setRandomExpression() {
+        const keys = Object.keys(Live2DManager.EMOTION_MAP).filter(k => k !== 'neutral' && k !== 'default');
+        if (keys.length === 0) return;
+
+        const randomKey = keys[Math.floor(Math.random() * keys.length)];
+        this.triggerExpression(randomKey);
+    }
+
+    public async triggerExpression(aiEmotionTag: string) {
         if (!this.model) return;
-        console.log(`Triggering Expression: ${expressionId}`);
+
+        // 1. IDの取得 (neutralなら空文字 "" が返る)
+        const expressionId = Live2DManager.getExpressionId(aiEmotionTag, this.currentExpression);
+        const logger = LogManager.getInstance();
+
         try {
-            await this.model.expression(expressionId);
+            if (expressionId) {
+                // --- 表情セット (通常) ---
+                logger.log(`Expression: ${aiEmotionTag} (${expressionId})`, 'info', 'sys');
+                await this.model.expression(expressionId);
+            } else {
+                // --- 表情リセット (Default) ---
+                logger.log(`Expression: Reset(${aiEmotionTag})`, 'info', 'sys');
+
+                // 試行策1: 公式の高レベルAPIで空っぽをセットする
+                // (undefinedを渡すとリセットされる仕様の実装が多いです)
+                await this.model.expression(undefined);
+
+                // 試行策2: 内部マネージャーを直接叩いて強制解除 (Cubism 4系)
+                if (this.model.internalModel && this.model.internalModel.motionManager && this.model.internalModel.motionManager.expressionManager) {
+                    this.model.internalModel.motionManager.expressionManager.setExpression(null);
+                }
+
+                // 試行策3: それでもダメな場合のパラメータ強制リセット (頬染め対策)
+                // "ParamCheek" は一般的な赤面のIDですが、モデルによって違うので安全策として
+                if (this.model.internalModel && this.model.internalModel.coreModel) {
+                    // 一般的な頬染めパラメータを0にする (もし存在すれば)
+                    try {
+                        this.model.internalModel.coreModel.setParameterValueById('ParamCheek', 0);
+                        this.model.internalModel.coreModel.setParameterValueById('ParamBlush', 0);
+                    } catch (e) { /* 無視 */ }
+                }
+            }
+
+            this.currentExpression = expressionId;
+
         } catch (e) {
-            console.warn("Expression failed:", e);
+            console.warn(`[Expression] Failed to set expression: ${expressionId} `, e);
+            logger.log(`Expression Error: ${e} `, 'error', 'sys');
         }
     }
+
 
     public ensureAudioContext() {
         this.lipSync.resume();
@@ -202,57 +315,7 @@ export class Live2DManager {
 
     private currentExpression: string = '';
 
-    public async setRandomExpression() {
-        if (!this.model) return;
 
-        // 1. Get List of Expressions
-        let expressions: string[] = [];
-        const internal = this.model.internalModel;
-
-        if (internal.settings && internal.settings.expressions) {
-            // Cubism 4 Internal Model Settings usually has 'expressions' array of {Name, File}
-            expressions = internal.settings.expressions.map((e: any) => e.Name);
-        }
-
-        // Fallback: Model 0005 known pattern (f01..f16)
-        if (expressions.length === 0) {
-            for (let i = 1; i <= 16; i++) {
-                expressions.push(`f${i.toString().padStart(2, '0')}`);
-            }
-        }
-
-        if (expressions.length === 0) {
-            console.warn("No expressions found.");
-            return;
-        }
-
-        // 2. Pick Random (Avoid immediate duplicate)
-        const valid = expressions.filter(e => e !== this.currentExpression);
-        const next = valid.length > 0
-            ? valid[Math.floor(Math.random() * valid.length)]
-            : expressions[0];
-
-        this.currentExpression = next;
-
-        // 3. Trigger & Log
-        await this.triggerExpression(next);
-
-        // Random Reason
-        const reasons = [
-            "Just felt like it", "Testing my face muscles", "Because you looked at me",
-            "Practicing for a selfie", "Whimsical mood", "Did you see that?",
-            "Trying to look cute", "System test... successful!", "Feeling a bit different"
-        ];
-        const reason = reasons[Math.floor(Math.random() * reasons.length)];
-
-        // Log to System (UI)
-        const ui = (window as any).uiManager;
-        if (ui && ui.logSystem) {
-            ui.logSystem(`[System] Expression changed: ${next} (Reason: ${reason})`);
-        } else {
-            console.log(`[System] Expression changed: ${next} (Reason: ${reason})`);
-        }
-    }
 
     private handleZoom(e: WheelEvent) {
         if (!e.ctrlKey || !this.model) return;
