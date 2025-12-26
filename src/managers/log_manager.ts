@@ -119,6 +119,9 @@ export class LogManager {
             if (visionContent) targetContent = visionContent;
         } else if (msg.includes("[RAG]")) {
             contentHtml = `<span style="color: #7ce38b;">${msg}</span>`;
+            // Redirect to RAG Tab content
+            const ragContent = document.getElementById('log-rag');
+            if (ragContent) targetContent = ragContent;
         } else if (msg.includes("[Expression]")) {
             contentHtml = `<span style="color: #ffb366;">${msg}</span>`;
         }

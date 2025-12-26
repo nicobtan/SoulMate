@@ -34,6 +34,14 @@ class VisionService:
         self.processor = None
         self.is_loading = False
         self._initialized = True
+        self.log_callback = None # Callback for frontend logging
+
+    def set_log_callback(self, callback):
+        self.log_callback = callback
+
+    def _send_log(self, message, type='info'):
+        if self.log_callback:
+            self.log_callback(message, type=type)
 
     def load_model(self):
         """Loads the model (Heavy operation, done on first access)"""
@@ -52,7 +60,11 @@ class VisionService:
                 revision="bfloat16", 
             ).eval()
             
+            
             logger.info("👁️ [Vision] Model Loaded Successfully!")
+            device_msg = f"🔮 [System] Current Device: {self.model.device}"
+            logger.info(device_msg)
+            self._send_log(device_msg, type='info') 
         except Exception as e:
             logger.error(f"👁️ [Vision] Load Failed on {self.device}: {e}")
             

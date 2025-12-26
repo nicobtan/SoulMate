@@ -47,6 +47,19 @@ class ActiveEngine:
             # Reset state just in case
             self.has_triggered_idle = False
             self.last_interaction_time = time.time()
+
+            # Proactive Vision Interval (New)
+            try:
+                vision_min = int(settings.get('proactive_vision_interval_min', 3))
+                # Clamp: Min 1 min, Max 60 min
+                vision_min = max(1, min(60, vision_min))
+                
+                new_vision_interval = vision_min * 60
+                if self.vision_interval != new_vision_interval:
+                    self.vision_interval = new_vision_interval
+                    logger.info(f"ActiveEngine: Vision Interval updated to {new_vision_interval}s ({vision_min} min).")
+            except ValueError:
+                logger.warning("ActiveEngine: Invalid proactive_vision_interval_min value. Keeping default.")
             
         except Exception as e:
             logger.error(f"Failed to configure ActiveEngine: {e}")

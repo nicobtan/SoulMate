@@ -105,11 +105,18 @@ class AIEngine:
             # Config設定
             tools = [types.Tool(google_search=types.GoogleSearch())] if self.use_search and not image else []
             
+            # Determine mime_type: JSON mode supports schema but conflicts with Tools in current API
+            mime_type = "application/json"
+            if tools:
+                # API Limit: Tools + JSON Mode is often unsupported. 
+                # We rely on schema + prompt to get JSON, and _parse_ai_response will handle it.
+                mime_type = "text/plain"
+
             run_config = types.GenerateContentConfig(
                 system_instruction=self.system_instruction,
                 tools=tools,
-                response_mime_type="application/json", # ★JSONモード強制
-                response_schema=response_schema,       # ★スキーマ適用
+                response_mime_type=mime_type, 
+                response_schema=response_schema,       # Schema is still partial hint even in text mode for some models
                 safety_settings=[
                     types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_NONE)
                     for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]

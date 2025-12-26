@@ -34,7 +34,8 @@ class ConfigManager:
                     "name": "SoulMate",
                     "system_instruction": "You are a helpful and cute AI assistant."
                 }
-            }
+            },
+            "proactive_vision_interval_min": 3
         }
 
     def load(self):

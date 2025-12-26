@@ -82,6 +82,10 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback, log_callback=self.log_to_debug)
         self.active_engine.configure(self._config_manager.get_all())
         
+        # Connect VisionService Logging
+        from src.services.vision_service import vision_service
+        vision_service.set_log_callback(self.log_to_debug)
+        
         # Apply Initial Config
         settings = self._config_manager.get_all()
         self._configure_ai(settings)
