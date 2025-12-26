@@ -104,7 +104,7 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 
 
 ## 技術スタック (v0.3 - Native JSON Edition)
-- **コア言語:** Python (Backend / Controller)
+- **コア言語:** Python 3.12 (Backend / Controller) ※Local Vision機能に必須
 - **GUI:** HTML/CSS/TypeScript (Frontend)
 - **キャラクター描画:** Live2D Cubism SDK for Web + PixiJS
 - **AIエンジン (Brain):** **Gemini 3.0 Flash Preview** (Reasoning) + **Native JSON Mode**

@@ -630,3 +630,10 @@
 - [x] **Mind Log Deep Dive**: 思考の「根拠・意図」を言語化させるプロンプト調整
 - [x] **Vision Log Specifics**: 視覚認識時に「何（オブジェクト/テキスト）」を見たか具体的にログ出力
 - [x] **RAG Log Context**: 記憶想起時に「いつの会話か」のタイムスタンプ/コンテキストを表示 (MemoryManager確認要)
+
+## フェーズ83: Proactive L1 Research (Local Vision & Environment) [完了]
+- [x] **環境構築 (Environment)**
+    - [x] **Python 3.12**: GPU版 PyTorch (PaliGemma) 対応のため、3.13からダウングレード。
+    - [x] **PyTorch Nightly**: RTX 5060 Ti (sm_120) 対応のため導入。
+- [x] **ローカル視覚機能 (Local Vision)**
+    - [x] `test_vision.py` 作成: PaliGemmaモデルのロードとCPU推論確認 (GPUはドライバ待ち)。
