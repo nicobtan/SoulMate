@@ -142,16 +142,25 @@ export class UIManager {
         if (spawnBtn) {
             spawnBtn.addEventListener('click', async () => {
                 const bubble = await api.generate_bubble();
-                // Note: The backend push usually handles display, but if return value is immediate, we might need to handle it.
-                // However, python side typically emits 'show_bubble' event or similar?
-                // Looking at legacy code, generate_bubble might return data we pass to showSoulBubble?
-                // Let's check api.generate_bubble signature in python.
-                // Assuming it returns bubble data or triggers push. For now, let's log it.
                 if (bubble && bubble.text) {
-                    // Manually show if returned
                     (window as any).showSoulBubble?.(bubble.category, bubble.text, bubble.action_id, bubble.type);
                 }
             });
+        }
+
+        // Status Text Force Trigger
+        if (this.statusText) {
+            this.statusText.addEventListener('click', async () => {
+                // Only trigger if enabled and text indicates Proactive
+                if (this.isProactive) {
+                    console.log("[UI] Proactive Force Triggered by user.");
+                    this.updateStatus("Watching...", true);
+
+                    // Use ApiClient
+                    await api.force_proactive();
+                }
+            });
+            this.statusText.style.cursor = 'pointer'; // Hint functionality
         }
     }
 
@@ -169,6 +178,9 @@ export class UIManager {
         });
     }
 
+    // State
+    private isProactive: boolean = false;
+
     // --- 3. Public API ---
     public async openChatPanel(open: boolean = true) {
         if (open === uiState.isChatOpen) return;
@@ -178,6 +190,18 @@ export class UIManager {
         if (this.chatToggleBtn) this.chatToggleBtn.classList.toggle('active', open);
 
         await LogManager.getInstance().resizeWindow();
+    }
+
+    public setProactiveState(enabled: boolean) {
+        this.isProactive = enabled;
+        console.log(`[UI] Proactive Mode: ${enabled}`);
+
+        // Immediate status update
+        if (enabled) {
+            this.updateStatus("Proactive", true);
+        } else {
+            this.updateStatus("Idle", true);
+        }
     }
 
     public updateStatus(state: 'Idle' | 'Listening' | 'Thinking' | 'Speaking' | string, isActive: boolean = true) {
@@ -210,7 +234,16 @@ export class UIManager {
                     this.statusDot.style.animation = 'pulse 1.5s infinite';
                     break;
                 default: // Active/Idle
-                    this.statusDot.style.backgroundColor = '#ffa500'; // Orange
+                    if (this.isProactive) {
+                        this.statusDot.style.backgroundColor = '#00ffff'; // Cyan for Proactive
+                        this.statusDot.style.boxShadow = '0 0 10px #00ffff';
+                    } else {
+                        this.statusDot.style.backgroundColor = '#ffa500'; // Orange
+                        this.statusDot.style.boxShadow = 'none';
+                    }
+                    if (text === 'Watching...') {
+                        this.statusDot.style.animation = 'pulse 2s infinite';
+                    }
                     break;
             }
         }
@@ -235,9 +268,6 @@ export class UIManager {
             let displayText = text;
             if (text.startsWith("❤ ")) {
                 chip.classList.add('love-chip');
-                // Remove prefix from display or keep it? User said "icon: 'heart' (UI側で...として表示)".
-                // Keeping it confirms the icon is there, or we can use CSS to add icon.
-                // Let's keep the text as is, but style the chip pink.
             }
 
             chip.innerText = displayText;
@@ -262,12 +292,6 @@ export class UIManager {
         const btns = document.querySelectorAll('.tab-btn');
         btns.forEach(btn => btn.classList.remove('active'));
 
-        // Find clicked button based on onclick attribute or class? 
-        // Index.html logic uses hardcoded onclicks.
-        // We can just rely on the onclick adding active class manually? 
-        // No, we need to find the specific button associated with tabName.
-        // Simplified: Loop and check mapping, or just query mapped button.
-        // Button Logic:
         const targetBtn = document.querySelector(`.tab-btn[onclick*="'${tabName}'"]`);
         if (targetBtn) targetBtn.classList.add('active');
 
@@ -317,11 +341,16 @@ export class UIManager {
                 });
             }, 0);
         } else {
-            // Settings / Exit
+            // Settings / Exit / Proactive
+            const proactiveMark = this.isProactive ? '✓ ' : '';
             this.contextMenu.innerHTML = `
                 <div class="ctx-item" id="ctx-settings-action">
                     <span class="ctx-icon">⚙️</span>
                     <span>設定</span>
+                </div>
+                <div class="ctx-item" id="ctx-proactive-toggle">
+                    <span class="ctx-icon">👁️</span>
+                    <span>Proactive Mode ${proactiveMark}</span>
                 </div>
                 <div style="height:1px; background:#444; margin:2px 0;"></div>
                 <div class="ctx-item" id="ctx-exit-action">
@@ -333,6 +362,14 @@ export class UIManager {
                 document.getElementById('ctx-settings-action')?.addEventListener('click', () => {
                     this.contextMenu!.style.display = 'none';
                     if ((window as any).pywebview) (window as any).pywebview.api.open_settings();
+                });
+                document.getElementById('ctx-proactive-toggle')?.addEventListener('click', async () => {
+                    this.contextMenu!.style.display = 'none';
+                    // Toggle State
+                    const newState = !this.isProactive;
+                    this.setProactiveState(newState);
+                    // Call Python API via ApiClient
+                    await api.toggle_proactive(newState);
                 });
                 document.getElementById('ctx-exit-action')?.addEventListener('click', () => {
                     this.contextMenu!.style.display = 'none';

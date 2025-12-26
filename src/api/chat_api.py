@@ -10,6 +10,7 @@ from PIL import ImageGrab
 from ..services.topic_selector import TopicSelector
 from ..services.url_validator import UrlValidator
 from ..services.affection_manager import AffectionManager
+from ..services.vision_service import vision_service
 
 class ChatApiMixin(BaseApiMixin):
     
@@ -494,111 +495,101 @@ You have access to the following tools. To use them, output the specific tag exa
 
     def chat_with_vision(self, message, mode="screen"):
         """
-        Captures a screenshot or clipboard and sends it with the message to the AI Engine.
-        mode: "screen" (Full), "clipboard" (Copy), "capture" (Right Click alias)
+        1. 画面/クリップボードを取得
+        2. ローカルPaliGemmaで解析 (Image -> Text)
+        3. 解析結果をコンテキストとしてGeminiに送信 (Text -> Response)
         """
         self.log_to_debug(f"Vision Chat Received: {message} Mode: {mode}", 'info')
+        self.play_filler() # 解析が長いのでフィラーを入れる
         
-        # 0. Latency Masking: Filler
-        self.play_filler()
-        
-        # Capture Logic
+        # 1. 画像取得 (Capture)
         image = None
-        img_str = None
+        img_str = None # フロントエンド表示用
         
         try:
-            # ★修正: "capture" モードもクリップボードとして扱うように条件を追加
+            from PIL import Image, ImageGrab
+            from io import BytesIO
+            import base64
+
             if mode in ["clipboard", "capture"]:
-                # Windows: grabclipboard() returns Image or list of filenames
                 image = ImageGrab.grabclipboard()
-                
-                # 画像がない場合の親切なエラーメッセージ
-                if image is None:
-                    # もし "capture" (右クリック) だったら、ユーザーにヒントを出す
-                    hint = "（Win+Shift+S で範囲選択してから、もう一度右クリックしてみてね）" if mode == "capture" else ""
-                    return {
-                        "text": f"クリップボードに画像が見当たりません。{hint}", 
-                        "audio": None, 
-                        "suggestions": []
-                    }
-                
-                # ファイルパスがコピーされている場合の対応
-                if isinstance(image, list):
-                    from PIL import Image
+                if isinstance(image, list): # ファイルパスコピーの対応
                     try:
                         image = Image.open(image[0])
                     except:
-                         return {"text": "画像ファイルをコピーしたようですね。現在は画像データのコピーのみ対応しています。", "audio": None, "suggestions": []}
+                        pass
             else:
-                # Screen (Default)
-                # Try all_screens=True if supported by this Pillow version, else fallback
-                try:
+                try: # Screen capture
                     image = ImageGrab.grab(all_screens=True)
                 except TypeError:
                     image = ImageGrab.grab()
-                self.log_to_debug("Screenshot captured.", 'info')
-            
-            # Process Image for Return (Display)
-            if image:
-                from io import BytesIO
-                import base64
-                buffered = BytesIO()
-                # Optimize: RGB conversion just in case (e.g. RGBA from screenshot)
-                if image.mode in ("RGBA", "P"):
-                    image = image.convert("RGB")
-                    
-                image.save(buffered, format="JPEG", quality=70) # Lightweight
-                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+            if not image:
+                return {"text": "画像が見つかりませんでした。", "audio": None, "suggestions": []}
+
+            # 画像形式の正規化
+            if image.mode in ("RGBA", "P"):
+                image = image.convert("RGB")
+
+            # フロントエンド表示用にBase64化
+            buffered = BytesIO()
+            image.save(buffered, format="JPEG", quality=70)
+            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
         except Exception as e:
             self.log_to_debug(f"Capture Failed: {e}", 'error')
-            return {"text": f"画像の取得に失敗しました: {e}", "audio": None, "suggestions": []}
-            
-        if not image:
-             return {"text": "画像の取得に失敗しました。", "audio": None, "suggestions": []}
+            return {"text": "画像の取得に失敗しました。", "audio": None, "suggestions": []}
 
-        # Update Active Engine Interaction Time
-        if self.active_engine:
-            self.active_engine.update_interaction()
+        # 2. ローカルVision (PaliGemma) で解析
+        # CPUなのでここで時間がかかります
+        self.log_to_debug("👁️ [Vision] PaliGemma is thinking...", 'info')
+        
+        try:
+            # プロンプトはシンプルに "describe the image" でもOKですが、
+            # PaliGemmaは "caption en" や "detect ..." などタスク指定型です
+            vision_result = vision_service.analyze_image(image, prompt="caption en")
+        except Exception as e:
+            vision_result = "解析エラー"
+            self.log_to_debug(f"Vision Error: {e}", 'error')
 
-        # Context
-        context = f"[System: User is showing an image ({mode}). Analyze it along with the input.]"
+        self.log_to_debug(f"👁️ [Vision] Saw: {vision_result}", 'info')
+
+        # 3. 解析結果をAIへのプロンプトに組み込む
+        # Geminiには画像を送らず、テキスト情報として渡す
+        context_prompt = f"""
+[System Vision Report]
+I looked at the user's screen/image.
+Visual Description (by PaliGemma): "{vision_result}"
+
+[Instruction]
+Based on the visual description above, answer the user's message.
+User Message: "{message}"
+"""
         
-        # Generate Response
-        response_text = ""
-        suggestions_list = []
-        emotion = None
-        
-        if self._ai_engine:
-            # Pass Image to generate_response
-            raw_result = self._ai_engine.generate_response(message, context=context, image=image)
+        # 4. Geminiで応答生成
+        # image引数はNoneにする (テキストコンテキストのみで判断させるため)
+        return self.chat(context_prompt, image_data=None, save_user_log=True)
+
+    def toggle_proactive(self, enabled):
+        """Toggles Proactive Mode (Vision) on/off."""
+        if not hasattr(self, 'active_engine') or not self.active_engine:
+             return {'status': 'error', 'message': 'ActiveEngine not available'}
             
-            # Post-Processing (Reuse Logic)
-            if isinstance(raw_result, dict):
-                response_text = raw_result.get("response", "")
-                emotion = raw_result.get("emotion") 
-                suggestions_list = raw_result.get("suggestions", [])
-                self.log_to_debug(f"AI Vision JSON: {response_text} (Emo: {emotion})", 'info')
-            else:
-                extracted_data = _extract_json_from_text(raw_result)
-                if extracted_data and "response" in extracted_data:
-                    response_text = extracted_data.get("response", "")
-                    emotion = extracted_data.get("emotion")
-                    suggestions_list = extracted_data.get("suggestions", [])
-                else:
-                    response_text = raw_result
-        else:
-            response_text = "AI Engine is not initialized."
-            
-        # TTS
-        audio_path = self.generate_tts_audio(response_text)
+        self.log_to_debug(f"Proactive Mode Toggled: {enabled}", 'info')
+        self.active_engine.set_proactive_mode(enabled)
+        return {'status': 'success', 'enabled': enabled}
+
+    def force_proactive(self):
+        """Manually triggers the Proactive Vision Scan."""
+        print("DEBUG: ChatApi.force_proactive called!") # DEBUG
+        if not hasattr(self, 'active_engine') or not self.active_engine:
+             print("DEBUG: ActiveEngine NOT FOUND") # DEBUG
+             return {'status': 'error', 'message': 'ActiveEngine not available'}
         
-        return {
-            "text": response_text,
-            "audio": audio_path,
-            "image": img_str,
-            "suggestions": suggestions_list
-        }
+        self.log_to_debug("🚀 Force-Triggering Proactive Scan...", 'info')
+        # We run it in background to not block the UI
+        threading.Thread(target=self.active_engine.force_proactive_scan, daemon=True).start()
+        return {'status': 'success'}
 
     def get_url_metadata(self, url):
         """API exposed to frontend to fetch OpenGraph metadata."""

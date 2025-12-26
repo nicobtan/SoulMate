@@ -79,7 +79,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
             self.voice_service = None
  
         # Active Engine
-        self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback)
+        self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback, log_callback=self.log_to_debug)
         self.active_engine.configure(self._config_manager.get_all())
         
         # Apply Initial Config
@@ -234,12 +234,22 @@ Do not preach about health before 02:00 AM.
         if self._window:
             safe_msg = message.replace("'", "\\'").replace("\n", "\\n")
             
-            # Detect JSON for TTS
+            # Detect JSON
             tts_text = message
             js_payload = f"'{safe_msg}'"
             
+            is_expression_only = False
+
             try:
                 data = json.loads(message)
+                
+                # Check for control-only messages
+                if "type" in data and data["type"] == "expression":
+                    # Just trigger expression
+                    expr_name = data.get("name", "neutral")
+                    self._window.evaluate_js(f"if(window.setExpression) window.setExpression('{expr_name}')")
+                    return # Stop here, no TTS
+                    
                 if "response" in data:
                     tts_text = data["response"]
                     js_payload = json.dumps(data, ensure_ascii=False)
@@ -254,7 +264,6 @@ Do not preach about health before 02:00 AM.
             
             # Single call to frontend
             audio_arg = f"'{out_path}'" if out_path else "null"
-            # If js_payload is an object string (from json.dumps), it works directly as arg
             self._window.evaluate_js(f"receiveMessage({js_payload}, {audio_arg})")
 
     # --- Session Restore & Debugging (Phase 35) ---

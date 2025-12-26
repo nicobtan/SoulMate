@@ -284,6 +284,21 @@ export class ApiClient {
         }
         return { status: "ignored" };
     }
+
+    // --- Proactive Mode ---
+    async toggle_proactive(enabled: boolean): Promise<any> {
+        if (this.desktopApi && this.desktopApi.toggle_proactive) {
+            return await this.desktopApi.toggle_proactive(enabled);
+        }
+        return { status: "ignored" };
+    }
+
+    async force_proactive(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.force_proactive) {
+            return await this.desktopApi.force_proactive();
+        }
+        return { status: "ignored" };
+    }
 }
 
 export const api = new ApiClient();

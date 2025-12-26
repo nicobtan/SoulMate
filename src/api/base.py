@@ -20,6 +20,8 @@ class BaseApiMixin:
     def log_to_debug(self, msg, type='info'):
         """Log message to the frontend debug console."""
         print(f"[{type.upper()}] {msg}")
+        # DEBUG TRACE
+        print(f"DEBUG: log_to_debug called with type={type}, msg={msg}")
         if self._window:
             import json
             # Determine if 'type' is actually a category or a level
@@ -30,7 +32,7 @@ class BaseApiMixin:
             category = 'sys'
             level = 'info'
             
-            if type in ['rag', 'mind', 'dbg', 'sys']:
+            if type in ['rag', 'mind', 'dbg', 'sys', 'vision', 'expression']:
                 category = type
                 level = 'info'
             elif type in ['warn', 'error', 'success']:

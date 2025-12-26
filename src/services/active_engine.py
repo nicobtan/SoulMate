@@ -3,14 +3,17 @@ import time
 import logging
 import random
 from .news_collector import NewsCollector
+from .vision_service import vision_service
+from PIL import ImageGrab
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ActiveEngine:
-    def __init__(self, ai_engine, on_message_callback):
+    def __init__(self, ai_engine, on_message_callback, log_callback=None):
         self.ai_engine = ai_engine
         self.on_message_callback = on_message_callback
+        self.log_callback = log_callback
         # self.news_collector = NewsCollector() # Deprecated for now, logic moved to AIEngine
         
         self.is_running = False
@@ -22,6 +25,12 @@ class ActiveEngine:
         self.check_interval = 5   # Check every 5 seconds
         
         self.has_triggered_idle = False
+        
+        # Proactive Vision Settings
+        self.proactive_mode = False
+        self.vision_interval = 60 # Check every 60s
+        self.last_vision_time = time.time()
+        self.scan_lock = threading.Lock() # Prevent concurrent scans
 
     def configure(self, settings):
         """Updates settings dynamically."""
@@ -41,6 +50,22 @@ class ActiveEngine:
             
         except Exception as e:
             logger.error(f"Failed to configure ActiveEngine: {e}")
+
+    def set_proactive_mode(self, enabled):
+        self.proactive_mode = enabled
+        logger.info(f"ActiveEngine: Proactive Mode set to {enabled}")
+        if enabled:
+            # Trigger immediately
+            self.last_vision_time = 0
+        else:
+            self.last_vision_time = time.time()
+
+    def force_proactive_scan(self):
+        """Manually trigger scan, ignoring timer. Spawns thread to avoid blocking."""
+        print("DEBUG: ActiveEngine.force_proactive_scan called") # DEBUG
+        logger.info("ActiveEngine: Force Proactive Scan requested.")
+        threading.Thread(target=self._perform_vision_scan, daemon=True).start()
+        self.last_vision_time = time.time()
 
     def start(self):
         if self.is_running:
@@ -65,6 +90,13 @@ class ActiveEngine:
         while self.is_running:
             time.sleep(self.check_interval)
             
+            # 1. Proactive Vision Loop
+            if self.proactive_mode:
+                if time.time() - self.last_vision_time > self.vision_interval:
+                    self._perform_vision_scan()
+                    self.last_vision_time = time.time()
+
+            # 2. Idle Talk Loop
             # Skip if disabled
             if self.idle_threshold <= 0:
                 continue
@@ -72,6 +104,97 @@ class ActiveEngine:
             elapsed = time.time() - self.last_interaction_time
             if elapsed > self.idle_threshold and not self.has_triggered_idle:
                 self._trigger_idle_action()
+
+    def _perform_vision_scan(self):
+        """Captures screen, analyzes locally, and decides whether to speak."""
+        # Use Lock to prevent overlap
+        if not self.scan_lock.acquire(blocking=False):
+             logger.warning("ActiveEngine: Scan already in progress, skipping.")
+             return
+
+        try:
+            print("DEBUG: ActiveEngine._perform_vision_scan START") # DEBUG
+            logger.info("👁️ [Proactive] Vision Scan Started...")
+            
+            # 0. Visual Feedback (Eyes)
+            if self.on_message_callback:
+                import json
+                # Send expression trigger (requires Main.py support)
+                self.on_message_callback(json.dumps({"type": "expression", "name": "focused"}))
+
+            # 1. Capture
+            try:
+                image = ImageGrab.grab(all_screens=True)
+            except:
+                image = ImageGrab.grab()
+                
+            if not image: return
+
+            if image.mode in ("RGBA", "P"): image = image.convert("RGB")
+
+            # 2. Local Vision Analysis (PaliGemma)
+            vision_text = vision_service.analyze_image(image, prompt="caption en")
+            logger.info(f"👁️ [Vision] Saw: {vision_text}")
+            
+            # Send Log to Frontend (Vision Tab)
+            self._send_log(f"Saw: {vision_text}", "info", "vision")
+
+            # 3. Mind Reasoning (Gemini via AI Engine)
+            
+            check_prompt = f"""
+[Visual Context]
+User's Screen Description: {vision_text}
+
+[Situation]
+You are purely observing. Decide if you should speak.
+- If user is watching entertainment, you can comment.
+- If user is working, verify if you should interrupt.
+- If nothing special or unsure, return empty response (stay silent).
+
+[Action]
+If you decide to speak, put the text in 'response' field.
+If not, leave 'response' empty.
+In 'thought' field, explain your reasoning (e.g. "User is coding, better not disturb").
+"""
+            
+            result = self.ai_engine.generate_response(
+                message="Based on the screen, should you say something?", 
+                context=check_prompt
+            )
+            
+            speak_text = result.get('text', '').strip()
+            emotion = result.get('emotion', 'neutral')
+            
+            if speak_text and speak_text.lower() != "silence":
+                logger.info(f"🗣️ [Proactive] Speaking: {speak_text}")
+                
+                # Send to Frontend via Callback
+                if self.on_message_callback:
+                    import json
+                    payload = {
+                        "text": speak_text,
+                        "emotion": emotion,
+                        "suggestions": result.get('suggestions', []),
+                        "type": "proactive"
+                    }
+                    self.on_message_callback(json.dumps(payload, ensure_ascii=False))
+
+        except Exception as e:
+            logger.error(f"Proactive Scan Failed: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+        finally:
+            self.scan_lock.release()
+            print("DEBUG: ActiveEngine._perform_vision_scan END (Lock Released)") # DEBUG
+
+    def _send_log(self, message, level="info", tab="sys"):
+        """Sends log to frontend."""
+        print(f"DEBUG: ActiveEngine._send_log called for {tab}: {message}") # DEBUG
+        if self.log_callback:
+            self.log_callback(message, type=tab)
+        else:
+            print("DEBUG: No log_callback set!") # DEBUG
+        logger.info(f"[{tab.upper()}] {message}")
                 
     def _trigger_idle_action(self):
         logger.info("Idle threshold reached. Triggering Proactive Action.")
