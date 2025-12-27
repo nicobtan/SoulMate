@@ -457,6 +457,46 @@
                 </div>
                 <div class="helper-text">AIが画面を確認する頻度 (1分〜60分)。推奨: 3〜5分。</div>
             </div>
+
+            <div class="form-group">
+                <label>基本挙動 (Behavior)</label>
+                <label
+                    style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#333; padding:10px; border-radius:4px;">
+                    <input type="checkbox" id="proactive-silent">
+                    <div>
+                        <div style="font-weight:bold; font-size:13px;">Silent Reaction (静音反応)</div>
+                        <div style="font-size:11px; color:#aaa;">声をかけず、表情とログ(Mind)だけで反応します。</div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label>監視ターゲット (Target Scope)</label>
+                <div class="helper-text" style="margin-bottom:10px;">AIが反応する話題のジャンルをフィルタリングします。</div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <label
+                        style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#333; padding:8px; border-radius:4px;">
+                        <input type="checkbox" id="target-work" value="work">
+                        Coding / Errors
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#333; padding:8px; border-radius:4px;">
+                        <input type="checkbox" id="target-media" value="media">
+                        Media / YouTube
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#333; padding:8px; border-radius:4px;">
+                        <input type="checkbox" id="target-social" value="social">
+                        Social / Chat
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#333; padding:8px; border-radius:4px;">
+                        <input type="checkbox" id="target-health" value="health">
+                        Health / Night
+                    </label>
+                </div>
+            </div>
         </div>
 
         <div style="height: 60px;"></div>
@@ -553,9 +593,16 @@
                 updateActiveIntervalParam(activeInt);
 
                 // Proactive Vision Interval
-                const visionInt = currentSettings.proactive_vision_interval_min || 3;
+                const visionInt = currentSettings.proactive_vision_interval_min || 5;
                 document.getElementById('vision-interval').value = visionInt;
                 document.getElementById('vision-val').innerText = visionInt + ' min';
+
+                document.getElementById('proactive-silent').checked = currentSettings.proactive_silent_mode || false;
+
+                const targets = currentSettings.proactive_targets || ["work", "media", "health"];
+                ['work', 'media', 'social', 'health'].forEach(t => {
+                    document.getElementById('target-' + t).checked = targets.includes(t);
+                });
 
                 // Check Calendar Status (Mock for now, needs real API check)
                 // We'll ask Python "is_calendar_authenticated"
@@ -597,6 +644,8 @@
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
                 proactive_vision_interval_min: parseInt(document.getElementById('vision-interval').value),
+                proactive_silent_mode: document.getElementById('proactive-silent').checked,
+                proactive_targets: ['work', 'media', 'social', 'health'].filter(t => document.getElementById('target-' + t).checked),
                 max_balloons: parseInt(document.getElementById('max-balloons').value),
                 mind_vault_docs_id: document.getElementById('mind-vault-id').value.trim(),
                 // Add others

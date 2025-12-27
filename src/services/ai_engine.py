@@ -417,7 +417,41 @@ If you don't know the person or topic detailedly, research it.
             logger.error(f"[AI Engine] JSON Parse Error: {e}")
             logger.error(f"[AI Engine] Failed Text: {raw_text}")
             
-            # 4. 最終手段: パース失敗時は、テキスト全体をresponseとして扱う
+            # 4. Fallback: Try to parse loose Key: Value format
+            # Example:
+            # thought: ...
+            # response: ...
+            fallback_data = {}
+            
+            # Helper to extract content between keys
+            def extract_key(key_name, text):
+                pattern = rf"{key_name}\s*[:=]\s*(.*?)(?=\n\s*(?:thought|response|emotion|suggestions|action_command)\s*[:=]|$)"
+                match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+                if match:
+                    return match.group(1).strip().strip('"')
+                return ""
+
+            fallback_data["thought"] = extract_key("thought", text)
+            fallback_data["response"] = extract_key("response", text)
+            fallback_data["emotion"] = extract_key("emotion", text) or "neutral"
+            fallback_data["action_command"] = extract_key("action_command", text)
+            
+            # Suggestions often list items
+            sugg_match = re.search(r"suggestions\s*[:=]\s*\[(.*?)\]", text, re.DOTALL | re.IGNORECASE)
+            if sugg_match:
+                # Naive split by comma/quote
+                items = sugg_match.group(1).split(",")
+                fallback_data["suggestions"] = [i.strip().strip('"').strip("'") for i in items if i.strip()]
+            else:
+                fallback_data["suggestions"] = []
+
+            if fallback_data["response"]:
+                logger.info("[AI Engine] Recovered data via fallback parser.")
+                # Validate links
+                fallback_data["response"] = self._validate_links(fallback_data["response"])
+                return fallback_data
+
+            # 5. Final Resort: Treat whole text as response
             # Here also we validate
             validated_text = self._validate_links(text)
             return {

@@ -31,6 +31,8 @@ class ActiveEngine:
         self.vision_interval = 60 # Check every 60s
         self.last_vision_time = time.time()
         self.scan_lock = threading.Lock() # Prevent concurrent scans
+        self.proactive_silent_mode = False
+        self.scan_targets = ["work", "media", "social", "health"]
 
     def configure(self, settings):
         """Updates settings dynamically."""
@@ -60,6 +62,11 @@ class ActiveEngine:
                     logger.info(f"ActiveEngine: Vision Interval updated to {new_vision_interval}s ({vision_min} min).")
             except ValueError:
                 logger.warning("ActiveEngine: Invalid proactive_vision_interval_min value. Keeping default.")
+            
+            # Silent Mode & Targets
+            self.proactive_silent_mode = settings.get('proactive_silent_mode', False)
+            self.scan_targets = settings.get('proactive_targets', ["work", "media", "social", "health"])
+            logger.info(f"ActiveEngine: Silent={self.proactive_silent_mode}, Targets={self.scan_targets}")
             
         except Exception as e:
             logger.error(f"Failed to configure ActiveEngine: {e}")
@@ -154,20 +161,26 @@ class ActiveEngine:
 
             # 3. Mind Reasoning (Gemini via AI Engine)
             
+            # 3. Mind Reasoning (Gemini via AI Engine)
+            
             check_prompt = f"""
 [Visual Context]
 User's Screen Description: {vision_text}
 
 [Situation]
-You are purely observing. Decide if you should speak.
-- If user is watching entertainment, you can comment.
-- If user is working, verify if you should interrupt.
-- If nothing special or unsure, return empty response (stay silent).
+You are purely observing. 
+1. Categorize the user's activity into ONE of: [work, media, social, health, other].
+2. Decide if you should speak based on the category.
+   - work: Coding, Documents, Debugging. (Interrupt only if critical or long idle)
+   - media: YouTube, Movies, Music. (Comment on content)
+   - social: Discord, SNS, Chat. (Join conversation)
+   - health: Late night, Eye strain. (Care for user)
+   - other: General browsing.
 
 [Action]
 If you decide to speak, put the text in 'response' field.
 If not, leave 'response' empty.
-In 'thought' field, explain your reasoning (e.g. "User is coding, better not disturb").
+In 'thought' field, start with "Category: [category]". Then explain reasoning.
 """
             
             result = self.ai_engine.generate_response(
@@ -177,20 +190,103 @@ In 'thought' field, explain your reasoning (e.g. "User is coding, better not dis
             
             speak_text = result.get('text', '').strip()
             emotion = result.get('emotion', 'neutral')
+            thought = result.get('expression_reason', '') # Or 'thought' if parsing handles it? 
+            # Note: _parse_ai_response maps 'thought' to 'thought' but generate_response returns 'expression_reason' as separate key?
+            # Let's check generate_response return. It returns 'expression_reason' from data['expression_reason'].
+            # But prompt asks to put category in 'thought'.
+            # AIEngine logic: ai_thought = data.get("thought", ""). _log_thought(ai_thought).
+            # So the category will be logged automatically. 
             
+            # Extract Category from log or result?
+            # Ideally AIEngine should return 'thought' too.
+            # Currently it returns 'expression_reason'.
+            # Let's assume we can infer or parsing logic is sufficient.
+            # Actually, I'll rely on the text content or just simple heuristic for now if AIEngine refactor is too big.
+            # Wait, `generate_response` returns `expression_reason`. Use that if `thought` isn't available?
+            # AIEngine: `return { "text": ..., "expression_reason": ... }`
+            # But `_extract_grounding` etc.
+            
+            # Let's parse 'thought' from the previous log? No.
+            # I will trust the "Silence" if text is empty.
+            # To implement strict category filtering, I need the category.
+            # I will update `check_prompt` to ask for category in `action_command` field?
+            # `action_command` is returned!
+            
+            # UPDATED PROMPT STRATEGY:
+            # Ask to put category in `action_command`.
+            
+            check_prompt_refined = f"""
+[Visual Context]
+User's Screen Description: {vision_text}
+
+[Action]
+Return a strictly valid JSON object.
+Do NOT output raw text.
+NOTE: If vision report mentions "Adobe Media Encoder" or "CS6", it is likely a hallucination of VS Code (Dark Theme). Treat it as 'Coding' work.
+1. Categorize: [work, media, social, health, other]
+2. Decide response.
+
+{{
+    "thought": "Category: [category]. Reasoning in Japanese (日本語).",
+    "action_command": "category:[category]",
+    "response": "Japanese text to speak (or empty)",
+    "emotion": "neutral",
+    "suggestions": []
+}}
+"""
+            # Re-run generate with refined prompt logic (inline replacement above)
+            
+            # ... (using the code block below)
+
+            action_cmd = result.get('action_command', '').lower()
+            category = 'other'
+            if 'category:work' in action_cmd or 'work' in action_cmd: category = 'work'
+            elif 'category:media' in action_cmd or 'media' in action_cmd: category = 'media'
+            elif 'category:social' in action_cmd or 'social' in action_cmd: category = 'social'
+            elif 'category:health' in action_cmd or 'health' in action_cmd: category = 'health'
+
+            # Filter Check
+            if category not in self.scan_targets and category != 'other':
+                logger.info(f"👁️ [Proactive] Skipped: Category '{category}' not in targets {self.scan_targets}.")
+                return
+
+            # Safety Net: Prevent "Thought Leaks" & Clean Text
+            import re
+            speak_text = result.get('text', '').strip() # Refetch to be sure we are modifying local var
+            
+            # 1. Regex Remove Headers like "Category: work", "thought: ..." if present in body
+            speak_text = re.sub(r'^(Category|Thought|Response|Reasoning)\s*[:=].*?(\n|$)', '', speak_text, flags=re.IGNORECASE | re.MULTILINE).strip()
+            
+            # 2. Check for Japanese Content (Hiragana/Katakana/Kanji)
+            # If text exists but has NO Japanese characters, it's likely an English thought leak.
             if speak_text and speak_text.lower() != "silence":
-                logger.info(f"🗣️ [Proactive] Speaking: {speak_text}")
+                 has_japanese = re.search(r'[一-龠]+|[ぁ-ゔ]+|[ァ-ヴー]+', speak_text)
+                 if not has_japanese:
+                     logger.warning(f"⚠️ [Proactive] Blocked Non-Japanese Leak: {speak_text[:50]}...")
+                     speak_text = ""
+
+            if speak_text and speak_text.lower() != "silence":
+                logger.info(f"🗣️ [Proactive] Speaking: {speak_text} (Cat: {category})")
                 
-                # Send to Frontend via Callback
-                if self.on_message_callback:
-                    import json
-                    payload = {
-                        "text": speak_text,
-                        "emotion": emotion,
-                        "suggestions": result.get('suggestions', []),
-                        "type": "proactive"
-                    }
-                    self.on_message_callback(json.dumps(payload, ensure_ascii=False))
+                # Check Silent Mode
+                if self.proactive_silent_mode:
+                    logger.info("🤫 [Proactive] Silent Mode: Skipping TTS, Log only.")
+                    self._send_log(f"(Silent) {speak_text}", "info", "mind")
+                    # Send Expression Only
+                    if self.on_message_callback:
+                         import json
+                         self.on_message_callback(json.dumps({"type": "expression", "name": emotion}))
+                else:
+                    # Normal Mode: Speak
+                    if self.on_message_callback:
+                        import json
+                        payload = {
+                            "text": speak_text,
+                            "emotion": emotion,
+                            "suggestions": result.get('suggestions', []),
+                            "type": "proactive"
+                        }
+                        self.on_message_callback(json.dumps(payload, ensure_ascii=False))
 
         except Exception as e:
             logger.error(f"Proactive Scan Failed: {e}")

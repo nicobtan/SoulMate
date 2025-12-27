@@ -35,7 +35,9 @@ class ConfigManager:
                     "system_instruction": "You are a helpful and cute AI assistant."
                 }
             },
-            "proactive_vision_interval_min": 3
+            "proactive_vision_interval_min": 5,
+            "proactive_silent_mode": False,
+            "proactive_targets": ["work", "media", "health"]
         }
 
     def load(self):
