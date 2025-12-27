@@ -9,43 +9,51 @@ SoulMateを「指示待ちの受動的AI」から、ユーザーの状況を自�
 | :--- | :--- | :--- | :--- |
 | **IDLE** | 待機中。リソース消費を最小化。 | OFF | ユーザーからの呼びかけのみに反応。 |
 | **ACTIVE** | 通常会話モード。 | 手動/リクエスト時 | 会話文脈に応じてYouTubeや画面を解析。 |
-| **PROACTIVE** | **能動的守護モード。** | **定期実行 (1-5分)** | 状況を自律的に判断し、自ら発話・行動。 |
+| **PROACTIVE** | **能動的守護モード。** | **定期実行 (1-60分)** | 状況を自律的に判断し、自ら発話・行動。 |
 
-## 3. ユーザーインターフェース (UI/UX)
-* **切り替え:** キャラクター、またはクロック上の「Active」インジケーターを右クリックし、コンテキストメニューから `Proactive Mode` をON/OFF。
-* **視覚演出:** * Live2Dモデルの瞳にハイライト（加算レイヤー）を追加し、「注視している」ことを表現。
-    * システムトレイまたはUI端に「Watching...」等のステータスを表示。
+## 3. 設定とインターフェース (Settings UI)
+
+### Settings Tab (Proactive)
+`src/settings.html` に追加された専用タブで以下の制御が可能。
+
+1.  **Interval Slider**:
+    *   スキャン間隔を **1分〜60分** の範囲で調整可能 (デフォルト: 3分)。 Since user activity varies.
+2.  **Silent Mode**:
+    *   **ON**: 音声フィードバック(TTS)を抑制し、ログ出力と表情変化のみ行う（オフィス/深夜作業用）。
+    *   **OFF**: 通常通り音声で話しかける。
+3.  **Target Scopes**:
+    *   監視対象カテゴリを選択可能 (`Work`, `Media`, `Social`, `Health`)。
+    *   例: "Work"のみONにすれば、YouTubeを見ていてもツッコミを入れない。
 
 ## 4. 解析・行動ロジック (Logic Flow)
 
-1.  **Vision Sampling:** タイマーに基づき、デスクトップ（またはアクティブウィンドウ）をキャプチャ。
-2.  **Multimodal Analysis (Gemini 3 Flash Preview):**
-    * 現在の作業内容、エラーの有無、ユーザーの疲労度を推論。
-    * YouTube視聴時は、映像の内容と現在の時刻（深夜等）を統合して解析。
-3.  **Mind Reasoning (思考の言語化):**
-    * `[Mind]` ログに「なぜ今話しかけるのか」という葛藤や根拠を出力。
-    * 例: `[Mind] 30分間同じエラーに苦しんでいる様子。少し強引にでも休憩を勧めるべきかしら。`
+1.  **Vision Sampling (L1 - Local):**
+    *   **PaliGemma 3B (Running on RTX 5060 Ti / sm_120)** が高速に画面キャプションを生成 (e.g., "A code editor with Python code...").
+    *   GPUアクセラレーションにより低負荷で実行。
+2.  **Situation Analysis (L2 - Cloud):**
+    *   **Gemini 3 Flash Preview** にキャプションを送信。
+    *   **Japanese Constraint**: 入力が英語キャプションであっても、**強制的に日本語で思考・応答**するようプロンプトで厳格に制御。
+3.  **Action Decision:**
+    *   カテゴリ分類 (Coding, Media, Health...)
+    *   介入判断 (Interrupt logic)
 4.  **Proactive Action:**
-    * ユーザーの入力を待たずにTTS（音声）とLive2D（モーション）で介入。
+    *   `[Vision]` ログへの出力。
+    *   TTSによる音声発話（Silent Mode OFF時）。
+    *   Live2Dモーション同期 (Eye Contact)。
 
 ## 5. ログ出力仕様 (Enhanced Logging)
 * **[Vision]**: 認識した要素（IDE, YouTube, Browser等）と視覚的印象の要約。
 * **[Mind]**: キャラクターとしての主観的な推論プロセス。
-* **[RAG]**: 過去の会話や知識から「何を思い出したか（Recall）」の履歴。
-* **[Expression]**: 表情選択の理由。
+    * 例: `[Mind] Category: health. 深夜2時を回っているわ。そろそろ寝なさいって言わないと…`
 
 ## 6. 技術的ロードマップ (Hybrid Architecture)
-コストとプライバシーの最適化のため、将来的に以下の二層構造を採用する。
 
-* **L1 (Local): Gemma 2B/7B (Vision)**
-    * 高頻度（15-30秒）で画面を監視。
-    * 「変化の検知」および「重要度のフィルタリング」を担当。
-* **L2 (Cloud): Gemini 3 Flash Preview**
-    * L1が「介入が必要」と判断した際のみ起動。
-    * 高度な情緒的対話と解決策の生成を担当。
+* **L1 (Local): PaliGemma 3B [Implemented]**
+    * **Status**: ✅ **Done (RTX 50 Support)**
+    * PyTorch 2.7 / CUDA 12.8 (sm_120) 環境で動作。
+    * 高速なキャプション生成を担当。
 
----
-
-## 7. CodeAssistAgent への実装指示プロンプト (Snippet)
-
-以下のプロンプトをAntigravityのチャットに貼り付けて開発
+* **L2 (Cloud): Gemini 3 Flash Preview [Implemented]**
+    * **Status**: ✅ **Done**
+    * 高度な文脈理解とキャラクター性の付与。
+    * `ResponseParser` による思考漏れ防止と堅牢なJSON出力。

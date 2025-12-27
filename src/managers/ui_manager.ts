@@ -253,13 +253,19 @@ export class UIManager {
         if (!this.suggestionToggleBtn || !this.suggestionPopup) return;
         this.suggestionPopup.innerHTML = '';
 
+        console.log(`[UI] Received suggestions count: ${suggestions ? suggestions.length : 0}`);
+
         if (!suggestions || suggestions.length === 0) {
             this.suggestionToggleBtn.style.display = 'none';
-            this.suggestionPopup.style.display = 'none';
+            this.suggestionPopup.classList.remove('visible');
             return;
         }
 
         this.suggestionToggleBtn.style.display = 'flex';
+
+        // CSS Grid handles layout, we just append items.
+        const fixedNavs = ["もっと詳しく教えて", "他の話題について"];
+
         suggestions.forEach(text => {
             const chip = document.createElement('div');
             chip.className = 'suggestion-chip';
@@ -270,12 +276,16 @@ export class UIManager {
                 chip.classList.add('love-chip');
             }
 
+            // Check for Fixed Nav
+            if (fixedNavs.some(n => text.includes(n)) || text === "別の話題はある？") {
+                chip.classList.add('static-nav');
+            }
+
             chip.innerText = displayText;
-            if (displayText === "別の話題はある？" || displayText.includes("他の話題")) chip.classList.add('static-cmd');
 
             chip.addEventListener('click', () => {
                 onClickCallback(text);
-                this.suggestionPopup!.style.display = 'none';
+                this.suggestionPopup!.classList.remove('visible');
             });
             this.suggestionPopup!.appendChild(chip);
         });
@@ -283,8 +293,7 @@ export class UIManager {
 
     public toggleSuggestions() {
         if (!this.suggestionPopup) return;
-        const isVisible = this.suggestionPopup.style.display === 'flex';
-        this.suggestionPopup.style.display = isVisible ? 'none' : 'flex';
+        this.suggestionPopup.classList.toggle('visible');
     }
 
     public switchLogTab(tabName: string) {

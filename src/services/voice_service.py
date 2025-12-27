@@ -70,14 +70,33 @@ class VoiceService:
             
             # 2. 音声データの抽出
             audio_data = None
-            if response.parts:
+            
+            # Debug: Log the raw response structure to understand why parts might be empty
+            logger.info(f"Gemini Response Keys: {dir(response)}")
+            try:
+                # Check directly if candidates exist (New SDK pattern)
+                if hasattr(response, 'candidates') and response.candidates:
+                    c = response.candidates[0]
+                    if hasattr(c, 'content') and c.content and hasattr(c.content, 'parts'):
+                        for part in c.content.parts:
+                            if part.inline_data:
+                                logger.info(f"Found Inline Data. Mime: {part.inline_data.mime_type}")
+                                audio_data = part.inline_data.data
+                                break
+            except Exception as e:
+                logger.error(f"Candidate parsing failed: {e}")
+
+            # Fallback/Shortcut 'response.parts' check
+            if not audio_data and hasattr(response, 'parts') and response.parts:
                 for part in response.parts:
                     if part.inline_data:
                         audio_data = part.inline_data.data
                         break
             
+            # response.bytes fallback (unlikely but kept)
             if not audio_data and hasattr(response, 'bytes'):
                 audio_data = response.bytes
+
             
             if not audio_data:
                 logger.error("Gemini TTS Error: No audio data found.")

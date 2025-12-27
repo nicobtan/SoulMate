@@ -291,10 +291,55 @@ NOTE: If vision report mentions "Adobe Media Encoder" or "CS6", it is likely a h
                     # Normal Mode: Speak
                     if self.on_message_callback:
                         import json
+                        
+                        # --- Suggestion Padding Logic (ActiveEngine) ---
+                        base_sug = result.get('suggestions', [])
+                        fixed = ["もっと詳しく教えて", "他の話題について"]
+                        dynamic = [s for s in base_sug if s not in fixed]
+
+                        # Ensure 8 items
+                        if len(dynamic) < 8:
+                            try:
+                                # We can access SuggestionEngine? Not directly linked, but can import.
+                                from src.services.suggestion_engine import SuggestionEngine
+                                # ActiveEngine has self.ai_engine
+                                eng = SuggestionEngine(self.ai_engine)
+                                
+                                # Context: Use last vision text
+                                hist = f"Vision Context: {vision_text}\nAI Spoke: {speak_text}"
+                                # Profile? Unknown here unless we have access to user_manager via some path.
+                                # ActiveEngine is init with ai_engine only? 
+                                # In main.py: active_engine = ActiveEngine(ai_engine, ...)
+                                # It doesn't seem to have direct access to user_manager easily.
+                                profile_txt = "Unknown"
+                                user_name = "あなた"
+                                
+                                more = eng.generate(hist, profile_txt, user_name)
+                                for ms in more:
+                                    if ms not in dynamic and len(dynamic) < 8:
+                                        dynamic.append(ms)
+                            except Exception as e:
+                                logger.warning(f"Active Suggestion Padding error: {e}")
+                        
+                        # Fallback
+                        while len(dynamic) < 8:
+                            dynamic.append("...その他")
+
+                        # Combine
+                        final_10 = fixed + dynamic[:8]
+                        
+                        # Love Slot (Optional for Active? Yes, consistency)
+                        from src.services.affection_manager import AffectionManager
+                        if not any(AffectionManager.is_affectionate(s) for s in final_10):
+                             love = f"❤ {AffectionManager().get_random_affection()}"
+                             if len(final_10) >= 10: final_10[-1] = love
+                             else: final_10.append(love)
+                        # -----------------------------------------------
+
                         payload = {
                             "text": speak_text,
                             "emotion": emotion,
-                            "suggestions": result.get('suggestions', []),
+                            "suggestions": final_10, # Updated
                             "type": "proactive"
                         }
                         self.on_message_callback(json.dumps(payload, ensure_ascii=False))

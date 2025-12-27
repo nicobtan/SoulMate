@@ -66,6 +66,7 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
         - **All**: すべてのログを表示。
         - **Sys**: システムイベントのみ表示。
         - **RAG**: 検索エンジン連携時の参照元(Grounding Sources)と検索クエリを表示する専用タブ。
+        - **Vision**: 画像認識AIが見ている世界（キャプション）を表示するタブ（New!）。
         - **Dbg**: 詳細デバッグログ。
 - **Soul Bubble (Active UI) [Desktop]**:
     - **概要**: キャラクターが話したい時に頭上に出現する、浮遊するバブル型通知。
@@ -104,13 +105,13 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 
 
 ## 技術スタック (v0.3 - Native JSON Edition)
-- **コア言語:** Python 3.12 (Backend / Controller) ※Local Vision機能に必須
+- **コア言語:** Python 3.12 (Backend / Controller) ※Local Vision機能に必須 (RTX 50 Support)
 - **GUI:** HTML/CSS/TypeScript (Frontend)
 - **キャラクター描画:** Live2D Cubism SDK for Web + PixiJS
 - **AIエンジン (Brain):** **Gemini 3.0 Flash Preview** (Reasoning) + **Native JSON Mode**
 - **音声合成 (Voice):** **Gemini 2.5 Flash TTS** (Expressive)
 - **連携API:** Google Calendar API, Google Docs API
-- **Visual Intelligence:** Python `Pillow` + Gemini Vision (Multimodal)
+- **Visual Intelligence:** Python `Pillow` + PaliGemma 3B (Local GPU/RTX 50) + Gemini Vision (Multimodal)
 - **Others:** pywebview (Python-JS Bridge)
 - **Validation:** UrlValidator (Dead Link Pruning)
 

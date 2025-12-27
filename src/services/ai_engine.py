@@ -55,6 +55,12 @@ class AIEngine:
 [Context] {context or ''}
 [User Input] {message}
 
+[CRITICAL URL RULE]
+1. NEVER edit, guess, or construct URLs.
+2. ONLY use the exact `url` string provided by the Google Search tool.
+3. DO NOT update years/dates in URLs to match the current system time (e.g. do not change /2024/ to /2025/).
+4. If you are unsure of a link's validity, do not show it.
+
 [SYSTEM OUTPUT REQUIREMENT]
 You MUST output a valid JSON object. NO markdown, NO code blocks, NO preamble.
 Format:

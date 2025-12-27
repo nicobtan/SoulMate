@@ -267,24 +267,69 @@ body {
     align-self: flex-start;
 }
 
+/* CSS Class based toggle ensures Grid layout is preserved */
+#suggestion-popup.visible {
+    display: grid !important;
+}
+
+/* Hide by default */
 #suggestion-popup {
+    display: none;
+    /* ... other styles ... */
     position: absolute;
     bottom: 100px;
     right: 15px;
     background: rgba(30, 30, 30, 0.9);
     border-radius: 12px;
     padding: 10px;
-    display: none;
-    flex-direction: column;
-    gap: 5px;
+    /* Grid Layout: Vertical List (1 Column) */
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 300px;
+    max-height: 400px;
+    overflow-y: auto;
     z-index: 2000;
+}
+
+/* Mobile: Ensure it fits */
+@media (max-width: 600px) {
+    #suggestion-popup {
+        width: 90%;
+        bottom: 150px;
+    }
 }
 
 .suggestion-chip {
     background: rgba(255, 255, 255, 0.1);
-    padding: 5px 10px;
-    border-radius: 15px;
-    font-size: 12px;
+    padding: 6px 10px;
+    /* Reduced from 8px 12px */
+    border-radius: 8px;
+    font-size: 11px;
+    /* Reduced from 12px */
+    color: #eee;
+    white-space: normal;
+    /* Allow wrapping */
+    text-align: left;
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+    /* Reduced from 40px */
+    line-height: 1.2;
+    /* Tighter line height */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s;
+}
+
+.suggestion-chip:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    /* More subtle hover */
+}
+
+.suggestion-chip.static-nav {
+    background: rgba(100, 100, 100, 0.3);
+    border: 1px solid rgba(200, 200, 200, 0.3);
+    font-weight: bold;
 }
 
 .suggestion-chip.love-chip {

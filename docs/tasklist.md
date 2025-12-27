@@ -568,21 +568,21 @@
 - [x] **バージョン管理**
     - [x] Git Commit & Push ("Vision機能実装完了")
 
-## フェーズ70: MindVault Sync (Docs連携) [In Progress]
-- [ ] **Google Docs 認証基盤**
-    - [ ] `services/google_auth_manager.py`: Docs API Scope の追加
-- [ ] **同期ロジック実装 (`docs_memory_sync.py`)**
-    - [ ] `DocsMemorySync` クラスの作成
-    - [ ] `fetch_and_split`: ドキュメント取得とマーカー分割
+## フェーズ70: MindVault Sync (Docs連携) [完了]
+- [x] **Google Docs 認証基盤**
+    - [x] `services/google_auth_manager.py`: Docs API Scope の追加
+- [x] **同期ロジック実装 (`docs_memory_sync.py`)**
+    - [x] `DocsMemorySync` クラスの作成
+    - [x] `fetch_and_split`: ドキュメント取得とマーカー分割
     - [x] `gemini-3-flash-preview` による分析プロンプト設計 (Design済)
-    - [ ] `analyze_content`: 分析とJSON抽出
-    - [ ] `update_doc`: 処理済みテキストのアーカイブ処理
-- [ ] **統合と保存**
-    - [ ] `memory/mind_vault.jsonl` への保存ロジック
-    - [ ] `main.py`: 起動時の非同期実行
-- [ ] **検証**
-    - [ ] 認証フロー確認
-    - [ ] 同期・アーカイブ動作確認
+    - [x] `analyze_content`: 分析とJSON抽出
+    - [x] `update_doc`: 処理済みテキストのアーカイブ処理
+- [x] **統合と保存**
+    - [x] `memory/mind_vault.jsonl` への保存ロジック
+    - [x] `main.py`: 起動時の非同期実行
+- [x] **検証**
+    - [x] 認証フロー確認
+    - [x] 同期・アーカイブ動作確認
 
 ## フェーズ71: Conversation Chaos & Serendipity (v0.3.1) [完了]
 - [x] **Topic Selectorの実装**
@@ -637,3 +637,31 @@
     - [x] **PyTorch Nightly**: RTX 5060 Ti (sm_120) 対応のため導入。
 - [x] **ローカル視覚機能 (Local Vision)**
     - [x] `test_vision.py` 作成: PaliGemmaモデルのロードとCPU推論確認 (GPUはドライバ待ち)。
+
+## フェーズ84: RTX 50 Series Support (PyTorch 2.7) [完了]
+- [x] **Infrastructure**: Install PyTorch 2.7 Stable (via pip)
+- [x] **Verification**: Verify CUDA availability for sm_120 (Seals Broken)
+- [x] **Optimization**: Enable GPU inference in `vision_service.py`
+
+## フェーズ85: Proactive Mode Settings UI [完了]
+- [x] **Config**: Add `proactive_vision_interval_min` to `config_manager.py`
+- [x] **UI**: Add "Proactive" tab to `settings.html`
+    - [x] Add Interval Slider (1-60 min)
+    - [x] Add "Enable/Disable" toggle (via active mode logic)
+- [x] **Backend**: Update `ActiveEngine` to respect config
+    - [x] Dynamic update of `vision_interval` via `configure()`
+
+## フェーズ86: Advanced Proactive Settings (Silent & Filters) [完了]
+- [x] **Config**: Add `proactive_silent_mode` and `proactive_targets` defaults
+- [x] **UI**: Add controls to `settings.html`
+    - [x] Silent Mode Checkbox
+    - [x] Target Scope Checkboxes (Work, Media, Social, Health)
+- [x] **Backend**: Update `ActiveEngine` logic
+    - [x] Implement Silent Mode (Skip TTS)
+    - [x] Implement Target Filtering in `_perform_vision_scan`
+
+## フェーズ87: Reliability & Quality Fixes [完了]
+- [x] **Refactor**: `ResponseParser` の完全分離と堅牢化 (思考漏れ防止)
+- [x] **Bug Fix**: `gemini-3-flash-preview` 404エラーの修正 (`main.py` Config Safety)
+- [x] **Bug Fix**: Proactive Modeでの英語応答漏れ (Prompt Hardening)
+- [x] **Bug Fix**: RAGログ消失問題の修正 (`_extract_grounding` Priority)

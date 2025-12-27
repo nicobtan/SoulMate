@@ -1,5 +1,6 @@
 import logging
 import random
+import json
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -417,6 +418,57 @@ suggestions:
                      # 2. Add Grounding Info if missing (Safety)
                      if "grounding_info" not in final_payload:
                          final_payload["grounding_info"] = None
+                     
+                     # --- Suggestion Padding Logic (Ensure 10 items) ---
+                     # Same logic as ChatApi
+                     suggestions = final_payload.get("suggestions", [])
+                     
+                     # 1. Fixed Nav
+                     fixed = ["もっと詳しく教えて", "他の話題について"]
+                     
+                     # 2. Dynamic (Target 8)
+                     dynamic = [s for s in suggestions if s not in fixed] # Filter existing fixed
+                     
+                     if len(dynamic) < 8:
+                         # Attempt to use SuggestionEngine Integration
+                         try:
+                             from src.services.suggestion_engine import SuggestionEngine
+                             engine = SuggestionEngine(api._ai_engine) # Helper instance
+                             
+                             # Simple Context for Bubble
+                             # We use the prompt's context implicitly
+                             # Need to extract user name?
+                             user_name = "あなた"
+                             if hasattr(api, 'user_manager') and hasattr(api.user_manager, 'user_config'):
+                                 user_name = api.user_manager.user_config.get('name', 'あなた')
+                                 
+                             history_txt = f"Bubble Topic: {text_content}\nAI Response: {final_payload.get('response', '')}"
+                             profile_txt = "Unknown"
+                             if hasattr(api, 'user_manager'): profile_txt = api.user_manager.get_profile_context()
+
+                             more_sug = engine.generate(history_txt, profile_txt, user_name)
+                             for ms in more_sug:
+                                 if ms not in dynamic and len(dynamic) < 8:
+                                     dynamic.append(ms)
+                         except Exception as e:
+                             logger.warning(f"Bubble Suggestion Padding Failed: {e}")
+                             
+                     # Fallback Padding
+                     while len(dynamic) < 8:
+                         dynamic.append("...その他")
+                         
+                     # Combine: Fixed(2) + Dynamic(8) = 10
+                     final_10 = fixed + dynamic[:8]
+                     
+                     # Love Slot Logic
+                     from src.services.affection_manager import AffectionManager
+                     if not any(AffectionManager.is_affectionate(s) for s in final_10):
+                         love = f"❤ {AffectionManager().get_random_affection()}"
+                         if len(final_10) >= 10: final_10[-1] = love
+                         else: final_10.append(love)
+                         
+                     final_payload["suggestions"] = final_10
+                     # --------------------------------------------------
 
                      # 3. Push to UI
                      import json

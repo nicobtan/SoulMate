@@ -3,6 +3,7 @@ import threading
 import random
 import webbrowser
 import re
+import re
 import json
 from .base import BaseApiMixin
 # from .json_helper import _extract_json_from_text # TOON化により不要
@@ -106,7 +107,7 @@ You have access to the following tools. To use them, output the specific tag exa
 - **NO REPETITIVE WARNINGS**: Do NOT repeat health/sleep warnings every turn.
 - **CONTEXT PRIORITY**: If user is engaged in a specific topic (Tech, News, Science, etc.), PRIORITIZE the discussion over health advice.
 - **LATE NIGHT THRESHOLD**: **ALLOW staying up until 2:00 AM.** Do NOT warn the user about sleep before 02:00 AM.
-- **AFTER 2:00 AM**: You may gently suggest sleep ONCE, but do not nag.
+- **AFTER    2:00 AM**: You may gently suggest sleep ONCE, but do not nag.
 ##################################################
 """
         if self._ai_engine:
@@ -235,6 +236,22 @@ You have access to the following tools. To use them, output the specific tag exa
             # ★Strong Hint for LLM (Schema field instruction)
             context += "\n[SYSTEM INSTRUCTION: User wants to schedule an event. You MUST fill the 'action_command' field with '[ACTION:ADD_EVENT|Summary|Time]'. Do not put it in the main response.]\n"
 
+        # --- Topic Repetition Prevention ---
+        # Simple heuristic: Check last few AI responses for keywords to avoid loops (e.g. Gundam news)
+        try:
+             # Get recent history manually since _get_recent_history returns list of dicts
+             if hasattr(self, 'history_manager'):
+                 # Fix: Use correct method get_session_history
+                 recent_history = self.history_manager.get_session_history(limit=5)
+                 # Note: HistoryManager returns structured dicts with 'role' and 'content'
+                 recent_ai_msgs = [h['content'] for h in recent_history if h.get('role') in ['ai', 'model']]
+                 if recent_ai_msgs:
+                     # Summarize last 3 topics lightly
+                     recent_topics_summary = " | ".join([m[:30] + "..." for m in recent_ai_msgs[:3]]) # Newest is first
+                     context += f"\n[Constraint: Recent Topics to AVOID repeating]\n{recent_topics_summary}\n- If user says 'Let's chat', pick a NEW topic not in this list.\n"
+        except Exception as e:
+             self.log_to_debug(f"Topic Check Error: {e}", 'warn')
+
         # Generate Response
         response_text = ""
         suggestions_list = []
@@ -257,30 +274,29 @@ You have access to the following tools. To use them, output the specific tag exa
                 except Exception as e:
                     self.log_to_debug(f"Image Data Processing Error: {e}", 'error')
 
-        # 1. 生成実行 (JSONモード)
-        # 1. 生成実行 (JSONモード)
-        # Check for YouTube URL (Native Analysis)
-        # Supports: youtube.com/watch?v=..., m.youtube.com, youtu.be, shorts
-        youtube_pattern = r'(https?://)?(www\.|m\.)?(youtube\.com/(?:watch\?v=|v/|embed/|shorts/)|youtu\.be/)([\w-]{11})'
-        yt_match = re.search(youtube_pattern, message)
-        
-        if yt_match and self._ai_engine:
-            video_url = yt_match.group(0)
-            self.log_to_debug(f"📺 YouTube URL Detected: {video_url}", 'info')
+            # 1. 生成実行 (JSONモード)
+            # Check for YouTube URL (Native Analysis)
+            # Supports: youtube.com/watch?v=..., m.youtube.com, youtu.be, shorts
+            youtube_pattern = r'(https?://)?(www\.|m\.)?(youtube\.com/(?:watch\?v=|v/|embed/|shorts/)|youtu\.be/)([\w-]{11})'
+            yt_match = re.search(youtube_pattern, message)
             
-            # Explicitly log start of analysis
-            self.log_to_debug(f"▶ Starting Video Analysis...", 'info')
-            
-            try:
-                result = self._ai_engine.analyze_youtube_video(video_url, message)
-                self.log_to_debug(f"✅ Video Analysis ResultKeys: {list(result.keys()) if result else 'None'}", 'info')
-            except Exception as e:
-                self.log_to_debug(f"❌ Video Analysis Failed (API Level): {e}", 'error')
-                # Fallback to standard generation if video fails
-                result = self._ai_engine.generate_response(message, image=image_obj)
-        else:
-            # Standard Generation
-            result = self._ai_engine.generate_response(message, image=image_obj)
+            if yt_match and self._ai_engine:
+                video_url = yt_match.group(0)
+                self.log_to_debug(f"📺 YouTube URL Detected: {video_url}", 'info')
+                
+                # Explicitly log start of analysis
+                self.log_to_debug(f"▶ Starting Video Analysis...", 'info')
+                
+                try:
+                    result = self._ai_engine.analyze_youtube_video(video_url, message)
+                    self.log_to_debug(f"✅ Video Analysis ResultKeys: {list(result.keys()) if result else 'None'}", 'info')
+                except Exception as e:
+                    self.log_to_debug(f"❌ Video Analysis Failed (API Level): {e}", 'error')
+                    # Fallback to standard generation if video fails
+                    result = self._ai_engine.generate_response(message, context=context, image=image_obj)
+            else:
+                # Standard Generation - PASS CONTEXT!
+                result = self._ai_engine.generate_response(message, context=context, image=image_obj)
 
         # 2. データの取り出し (安全確実 - AI Engineが必ずDictを返す)
         response_text = result.get("text", "")
@@ -297,39 +313,80 @@ You have access to the following tools. To use them, output the specific tag exa
         # 2.5 URL Liveness Check (Pruning)
         response_text = UrlValidator.validate_and_clean(response_text)
 
-        # 3. サジェスト補完 (最低限)
-        if len(suggestions_list) < 2:
-            suggestions_list = ["詳しく教えて", "面白いね", "他には？", "そうなんだ"]
+        # 3. サジェスト生成 (SuggestionEngine Integration)
+        self.log_to_debug("🚀 Checking Suggestions Logic...", 'info') # Debug Log
         
-        final_suggestions = suggestions_list[:3] # Limit AI suggestions to 3
+        # Fixed Suggestions (Navigation)
+        fixed_suggestions = ["もっと詳しく教えて", "他の話題について"]
         
-        # Inject Chaos/Random Topic
-        if hasattr(self, 'topic_selector') and hasattr(self, 'interest_manager'):
-            candidates = self.interest_manager.load_topics()
-            selection = self.topic_selector.decide_topic(candidates)
-            if selection['source'] == 'chaos':
-                 final_suggestions.append(f"💡 {selection['topic']}について")
+        # Dynamic Suggestions (from AI result or SuggestionEngine)
+        # Note: AIEngine might already return some suggestions via main prompt.
+        # But per specific request, we want to expand/overwrite?
+        # User spec: "chat メソッドの最後で、これまでの簡易サジェスト生成を廃止し、以下のようにリストを構築"
         
-        # --- Guaranteed Love Slot Logic ---
-        # Ensure at least one suggestion is affectionate
+        dynamic_suggestions = []
+        
+        # Method A: Use suggestions from main AI response
+        if suggestions_list:
+             dynamic_suggestions.extend(suggestions_list)
+        
+        # Method B: Fill with SuggestionEngine if short (Target 8 dynamic)
+        if len(dynamic_suggestions) < 8:
+             needed = 8 - len(dynamic_suggestions)
+             
+             if not hasattr(self, 'suggestion_engine'):
+                 from ..services.suggestion_engine import SuggestionEngine
+                 self.suggestion_engine = SuggestionEngine(self._ai_engine)
+             
+             # Construct context
+             history_text = f"User: {message}\nAI: {response_text}"
+             profile_txt = "Unknown"
+             user_name = "あなた"
+
+             if hasattr(self, 'user_manager') and self.user_manager:
+                 profile_txt = self.user_manager.get_profile_context()
+                 # Attempt to get precise name
+                 if hasattr(self.user_manager, 'user_config') and 'name' in self.user_manager.user_config:
+                      user_name = self.user_manager.user_config['name']
+                 # Fallback: Parse from profile text if config not direct
+                 elif "Name:" in profile_txt:
+                      m = re.search(r"Name:\s*(.*)", profile_txt)
+                      if m: user_name = m.group(1).strip()
+
+             try:
+                 # Request suggestions with Name
+                 se_suggestions = self.suggestion_engine.generate(history_text, profile_txt, user_name)
+                 
+                 # Append unique
+                 for s in se_suggestions:
+                     if s not in dynamic_suggestions and len(dynamic_suggestions) < 8:
+                         dynamic_suggestions.append(s)
+             except Exception as e:
+                 self.log_to_debug(f"SuggestionEngine Error: {e}", 'error')
+
+        # Fallback: If still < 8 for some reason, pad with generic
+        while len(dynamic_suggestions) < 8:
+            dynamic_suggestions.append("...その他")
+
+        # Combine: Fixed(2) + Dynamic(8)
+        final_suggestions = fixed_suggestions + dynamic_suggestions[:8]
+        
+        # Debug Log
+        self.log_to_debug(f"✅ Final Suggestions Dump: {final_suggestions}", 'info')
+
+        # --- Guaranteed Love Slot Logic (Applied to Final List) ---
         from ..services.affection_manager import AffectionManager
         has_love = any(AffectionManager.is_affectionate(s) for s in final_suggestions)
         
         if not has_love:
-            # Inject Love Topic (Replace the last one to maintain limit, or append if room)
             love_topic = AffectionManager().get_random_affection()
-            
-            # Formatting: Add Prefix for Frontend detection
             love_suggestion = f"❤ {love_topic}"
-            
-            if len(final_suggestions) >= 3:
-                final_suggestions[-1] = love_suggestion # Replace last (usually chaos or random)
+            if len(final_suggestions) >= 10:
+                final_suggestions[-1] = love_suggestion 
             else:
                 final_suggestions.append(love_suggestion)
 
-        # 4. 汎用的な「他の話題」の追加 (常に最後)
-        if not any("他の話題" in s for s in final_suggestions):
-            final_suggestions.append("他の話題もしてみたい")
+        # 4. (Deleted legacy logic)
 
         # 4. TTS生成ガード (ここがクラッシュ防止の要！)
         audio_path = None
