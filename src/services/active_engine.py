@@ -165,23 +165,34 @@ class ActiveEngine:
             
             check_prompt = f"""
 [Visual Context]
-User's Screen Description: {vision_text}
+The user's screen description (provided by vision AI): "{vision_text}"
+[Task]
 
-[Situation]
-You are purely observing. 
-1. Categorize the user's activity into ONE of: [work, media, social, health, other].
-2. Decide if you should speak based on the category.
-   - work: Coding, Documents, Debugging. (Interrupt only if critical or long idle)
-   - media: YouTube, Movies, Music. (Comment on content)
-   - social: Discord, SNS, Chat. (Join conversation)
-   - health: Late night, Eye strain. (Care for user)
-   - other: General browsing.
+Analyze the situation based on the screen description.
 
-[Action]
-If you decide to speak, put the text in 'response' field.
-If not, leave 'response' empty.
-In 'thought' field, start with "Category: [category]". Then explain reasoning.
-"""
+Decide if you should speak to the user (SoulMate Persona).
+
+OUTPUT MUST BE IN JAPANESE.
+
+[Categories]
+
+work: Coding, IDE, Debugging.
+
+media: YouTube, Music, Video.
+
+social: Chat, Discord, SNS.
+
+health: Late night, Eye strain.
+
+[Language Constraint]
+
+The visual description is in English, BUT your response MUST be in JAPANESE.
+
+Do NOT reply in English.
+
+Translate the context into Japanese conversation naturally.
+
+[Output Format (JSON)] {{ "thought": "Category: [category]. Reasoning in Japanese...", "action_command": "category:[category]", "response": "ここに必ず日本語で話す内容を入れる (空欄なら話さない)", "emotion": "happy", "suggestions": ["話題1", "話題2"] }} """
             
             result = self.ai_engine.generate_response(
                 message="Based on the screen, should you say something?", 

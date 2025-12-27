@@ -140,7 +140,12 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
     def _configure_ai(self, settings):
         """Override to include User Profile Context"""
         api_key = settings.get('api_key')
-        model = settings.get('model_name', 'gemini-3.0-flash-preview')
+        model = settings.get('model_name', 'gemini-3-flash-preview')
+
+        # Safety: Force correct model name if old config exists
+        if model == "gemini-3.0-flash-preview":
+            model = "gemini-3-flash-preview"
+
         persona_id = settings.get('current_persona_id', 'default')
 
         # 1. Load Real Data (Deep Context)

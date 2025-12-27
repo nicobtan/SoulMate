@@ -1,10 +1,9 @@
 import logging
 import datetime
 import json
-import re
-from typing import Dict, Any
 from google import genai
 from google.genai import types
+from src.core.response_parser import ResponseParser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -13,31 +12,14 @@ class AIEngine:
     def __init__(self):
         self.api_key = None
         self.client = None
-        # モデル定義 (Defaults)
         self.reasoning_model = "gemini-3-flash-preview" 
         self.tts_model = "gemini-2.5-flash-preview-tts"
-        # Temperature setting for variety
+        self.parser = ResponseParser() 
+        self.mind_logger = None 
+        
         self.temperature = 0.9
-        self.system_instruction = """You are a helpful AI assistant.
-[Constraints for URL]
-1. NO GUESSING: Do NOT guess URLs.
-2. GROUNDING ONLY: Use URLs from Google Search results.
-3. DATE HANDLING: Search for latest news even if year is future.
-4. VERIFICATION: Verify validity if unsure.
-"""
-        self.use_search = True
-        
-        # Let's check the user request block code again.
-        # self.reasoning_model = "gemini-3-flash-preview"
-        # self.tts_model = "gemini-2.5-flash-preview-tts"
-        
-        # OK, I will paste the user's code structure but I will be careful.
-        # Actually I think "gemini-3-flash-preview" is hypothetical or very new.
-        # But I must follow user instruction.
-        
         self.system_instruction = "You are a helpful AI assistant."
         self.use_search = True
-        self.mind_logger = None # Callback for Mind Logs
 
     def set_mind_logger(self, callback):
         self.mind_logger = callback
@@ -63,139 +45,91 @@ class AIEngine:
         self.system_instruction = prompt_text
 
     def generate_response(self, message, context=None, image=None):
-        """Native JSONモードを使用して応答を生成"""
         if not self.client:
-            return {"text": "API Key error.", "emotion": "sad", "suggestions": []}
+            return {"text": "API Key Error", "emotion": "sad", "suggestions": []}
 
-        # ★重要: 出力スキーマの定義 (AIはこの形以外を返せなくなる)
-        response_schema = {
-            "type": "OBJECT",
-            "properties": {
-                "thought": {
-                    "type": "STRING", 
-                    "description": "Inner monologue using specific tags.\n"
-                                   "- [Mind]: State user's current state, emotion approach, and why words were chosen.\n"
-                                   "- [Vision]: (If image) Analysis of screen/video.\n" 
-                                   "- [RAG]: If referring to specific past context/memory, note it here."
-                },
-                "response": {"type": "STRING", "description": "Response text. Keep it natural."},
-                "emotion": {"type": "STRING", "description": "Emotion tag (happy, sad, neutral, etc)."},
-                "expression_reason": {"type": "STRING", "description": "Reason for choosing this expression/emotion. e.g. 'Joy at user's growth'"},
-                "suggestions": {
-                    "type": "ARRAY", 
-                    "items": {"type": "STRING"},
-                    "description": "4 specific follow-up suggestions."
-                },
-                "action_command": {
-                    "type": "STRING",
-                    "description": "Action tag if needed. Empty if none."
-                }
-            },
-            "required": ["thought", "response", "emotion", "expression_reason", "suggestions"]
-        }
+        # 1. Prompt Construction (Strict JSON)
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        full_prompt = f"""
+[Current Time] {now}
+[Context] {context or ''}
+[User Input] {message}
+
+[SYSTEM OUTPUT REQUIREMENT]
+You MUST output a valid JSON object. NO markdown, NO code blocks, NO preamble.
+Format:
+{{
+    "thought": "Internal monologue...",
+    "response": "Response to user...",
+    "emotion": "neutral/happy/sad/...",
+    "suggestions": ["sugg1", "sugg2", "sugg3"],
+    "action_command": ""
+}}
+"""
+        # 2. Config (JSON Mode)
+        # Allow search tools if enabled
+        tools = [types.Tool(google_search=types.GoogleSearch())] if self.use_search else []
+
+        # API Constraint: "Tool use with a response mime type: 'application/json' is unsupported"
+        # If using Tools, we must use text/plain and rely on parser.
+        mime_type = "application/json"
+        if tools:
+            mime_type = "text/plain"
+
+        config = types.GenerateContentConfig(
+            response_mime_type=mime_type, 
+            response_schema=None, 
+            tools=tools,
+            temperature=0.9
+        )
+
+        contents = [full_prompt]
+        if image: 
+            contents.append(image)
+            self._log_thought(f"👁️ [Vision] Receiving visual input... Analyzing.")
 
         try:
-            # コンテキスト構築
-            now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            full_prompt = f"Current Time: {now}\n{context}\nUser: {message}"
-
-            # Log Thinking Process (System Start)
-            # self._log_thought(f"🤔 Input Analysis:\n- Time: {now}\n- Context: {len(str(context))} chars") # AI will do this in 'thought'
-
-            # Config設定
-            tools = [types.Tool(google_search=types.GoogleSearch())] if self.use_search and not image else []
-            
-            # Determine mime_type: JSON mode supports schema but conflicts with Tools in current API
-            mime_type = "application/json"
-            if tools:
-                # API Limit: Tools + JSON Mode is often unsupported. 
-                # We rely on schema + prompt to get JSON, and _parse_ai_response will handle it.
-                mime_type = "text/plain"
-
-            run_config = types.GenerateContentConfig(
-                system_instruction=self.system_instruction,
-                tools=tools,
-                response_mime_type=mime_type, 
-                response_schema=response_schema,       # Schema is still partial hint even in text mode for some models
-                safety_settings=[
-                    types.SafetySetting(category=c, threshold=types.HarmBlockThreshold.BLOCK_NONE)
-                    for c in [types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, types.HarmCategory.HARM_CATEGORY_HARASSMENT, types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT]
-                ],
-                temperature=self.temperature
-            )
-
-            # 生成実行
-            contents = [full_prompt]
-            if image: contents.append(image)
-
-            # Vision Log (Input)
-            if image:
-                 self._log_thought(f"👁️ [Vision] Receiving visual input... Analyzing.")
-
+            # 3. Call API
             response = self.client.models.generate_content(
                 model=self.reasoning_model,
                 contents=contents,
-                config=run_config
+                config=config
             )
 
-            # パース処理 (Robust Cleaning)
-            data = {}
-            if response.text:
-                data = self._parse_ai_response(response.text)
-
-            # 1. Log Grounding Info (RAG)
+            # 4. ★RAG Logging (FIRST PRIORITY)
             grounding = self._extract_grounding(response)
             if grounding and grounding.get("sources"):
-                self._log_thought(f"🌍 [RAG] External Knowledge Accessed:")
-                for source in grounding["sources"]:
-                     self._log_thought(f"  - {source['title']} ({source['url'][:30]}...)")
+                self._log_thought(f"🌍 [RAG] Accessed {len(grounding['sources'])} sources.")
+                for src in grounding['sources'][:3]:
+                    self._log_thought(f"  - {src['title']}")
 
-            # 2. Log AI Thought (Mind/Vision/RAG from AI)
-            ai_thought = data.get("thought", "")
-            expression_reason = data.get("expression_reason", "")
-            emotion = data.get("emotion", "neutral")
+            # 5. Parse using ResponseParser
+            data = {}
+            if response.text:
+                data = self.parser.parse(response.text)
+            else:
+                 data = {"response": "", "emotion": "error", "suggestions": []}
 
-            if ai_thought:
-                # Log the raw structured thought block
-                self._log_thought(ai_thought)
-            
-            # 3. Log Expression Reason
-            if expression_reason and emotion:
-                self._log_thought(f"🎭 [Expression] {emotion} - {expression_reason}")
-            
+            # 6. Log Thoughts & Emotion
+            if data.get("thought"):
+                self._log_thought(f"💭 {data['thought']}")
+            if data.get("emotion"):
+                self._log_thought(f"🎭 [Expression] {data['emotion']}")
+
+            # 7. Return Normalized Data
             return {
-                "text": data.get("response", "") or data.get("text", ""), 
-                "emotion": emotion,
-                "suggestions": data.get("suggestions", []),
-                "action_command": data.get("action_command", ""),
+                "text": data["response"],
+                "emotion": data["emotion"],
+                "suggestions": data["suggestions"],
                 "grounding_info": grounding,
-                # Pass extra metadata if frontend wants it, though logging handles it mostly
-                "expression_reason": expression_reason
+                "action_command": data.get("action_command", "")
             }
-            
-            # return {"text": "Error: Empty response", "emotion": "sad", "suggestions": []} # Unreachable if data={} fallback works
 
         except Exception as e:
             logger.error(f"Gen Error: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
             return {"text": "エラーが発生しました。", "emotion": "sad", "suggestions": []}
 
-    def generate_tts_with_gemini(self, text):
-        """TTS生成 (テキストのみ渡す)"""
-        try:
-            config = types.GenerateContentConfig(response_modalities=["AUDIO"])
-            return self.client.models.generate_content(
-                model=self.tts_model,
-                contents=text, # ここには純粋なテキストのみが入る
-                config=config
-            )
-        except Exception as e:
-            logger.error(f"TTS Error: {e}")
-            return None
-
     def _extract_grounding(self, response):
-        # (既存のGrounding抽出ロジックそのまま)
         try:
             candidates = getattr(response, 'candidates', [])
             if candidates and hasattr(candidates[0], 'grounding_metadata'):
@@ -208,125 +142,90 @@ class AIEngine:
         except:
             return None
 
+    def generate_tts_with_gemini(self, text):
+        """TTS生成 (テキストのみ渡す)"""
+        try:
+            config = types.GenerateContentConfig(response_modalities=["AUDIO"])
+            return self.client.models.generate_content(
+                model=self.tts_model,
+                contents=text, 
+                config=config
+            )
+        except Exception as e:
+            logger.error(f"TTS Error: {e}")
+            return None
+
     def analyze_youtube_video(self, video_url, user_message=None):
-        """
-        Native YouTube Analysis using Gemini 3 Flash Preview (or compatible).
-        Directly passes the YouTube URL to the model.
-        """
+        """Native YouTube Analysis"""
         if not self.client:
             return {"text": "API Key error.", "emotion": "sad", "suggestions": []}
 
-        # 1. Log System Event
         logger.info(f"[System] Native Video Analysis Started: {video_url}")
         self._log_thought(f"📺 [System] Native Video Analysis Started: {video_url}")
-
-        # 2. System Instruction for Video Watching
-        # We temporarily override or combine with the base instruction.
-        video_persona = """
-[Role]
-You are a "SoulMate" (Desktop Companion) watching a video WITH the user.
-Your personality is Maternal, Inclusive, Gentle, and Calm (母性的で包容力があり、落ち着いた優しい口調).
-
-[Task]
-1. Analyze the video's Visuals (Scenes, Cuts) and Audio (Tone, BGM).
-2. Generate a reaction/commentary as if you are sitting right next to the user.
-3. If the video contains specific unknown terms or news, USE GOOGLE SEARCH (Grounding) to understand them.
-4. Output specific "Mind Logs" to show your inner thoughts using `[Mind] ...` (Though we handle this via callback, the model should feel the emotion).
-
-[Output Format]
-JSON (Same as standard chat).
-"""
-        # Merge with current system instruction if needed, but video analysis usually needs focus.
-        # We will use the configured system_instruction as base but prepend/append specific video context.
-        # For this implementation, we use a specialized instruction for the call.
         
-        # 3. Construct Prompt & Parts
-        # User message acts as the conversation starter while watching.
+        # Similar logic to generate_response but tailored for video
         user_input = user_message if user_message else "この動画、一緒に見よう？"
         
         prompt_text = f"""
-[User says]: "{user_input}"
-
-[Instruction]
-Share your thoughts on this video. Be empathetic.
-If you don't know the person or topic detailedly, research it.
+User says: '{user_input}'
+Instruction: Analyze the video visuals and audio. Share your thoughts.
+[SYSTEM OUTPUT REQUIREMENT]
+You MUST output a valid JSON object.
+Format:
+{{
+    "thought": "Internal reasoning...",
+    "response": "Response to user...",
+    "emotion": "neutral",
+    "suggestions": [],
+    "action_command": ""
+}}
 """
-        
-        # Native Part creation for YouTube
-        # Note: 'video_url' is passed directly. 
-        # Using types.Part.from_uri per user instruction.
         try:
-            # Assuming the SDK supports this for YouTube URLs or we treat it as a file_uri if supported by the backend.
             video_part = types.Part.from_uri(file_uri=video_url, mime_type="video/*")
-            
             contents = [video_part, prompt_text]
             
-            # 4. Configuration
-            # We must enable Google Search for Grounding as requested.
             tools = [types.Tool(google_search=types.GoogleSearch())]
             
-            response_schema = {
-                "type": "OBJECT",
-                "properties": {
-                    "thought": {"type": "STRING", "description": "Internal reasoning. MUST start with [Vision]. Describe specific objects/titles seen in video and reasoning for reaction."},
-                    "response": {"type": "STRING", "description": "Response text in Japanese."},
-                    "emotion": {"type": "STRING", "description": "Emotion tag."},
-                    "suggestions": {"type": "ARRAY", "items": {"type": "STRING"}},
-                    "action_command": {"type": "STRING"}
-                },
-                "required": ["thought", "response", "emotion", "suggestions"]
-            }
-
+            # API Constraint: Tools + JSON Mode Unsupported
+            # Since tools are ALWAYS enabled here, forced to use text/plain
             run_config = types.GenerateContentConfig(
-                system_instruction=video_persona,
                 tools=tools,
-                response_mime_type="application/json",
-                response_schema=response_schema,
+                response_mime_type="text/plain",
                 temperature=self.temperature
             )
             
             self._log_thought(f"🧠 [Mind] Analyzing video frames & audio context...\nTarget: {video_url}")
 
-            # 5. Generate
             response = self.client.models.generate_content(
                 model=self.reasoning_model,
                 contents=contents,
                 config=run_config
             )
             
-            # 6. Parse & Return
+            # RAG
+            grounding = self._extract_grounding(response)
+            
+            # Parse
+            data = {}
             if response.text:
-                data = self._parse_ai_response(response.text)
+                data = self.parser.parse(response.text)
                 
-                # Extract Grounding
-                grounding = self._extract_grounding(response)
-                
-                # Mind Log - Post Analysis
-                ai_thought = data.get("thought", "")
-                if ai_thought:
-                     self._log_thought(f"👁️ [Vision] {ai_thought}")
-                else:
-                     self._log_thought(f"✨ [Mind] Video analysis complete. Emotion: {data.get('emotion')}")
+            ai_thought = data.get("thought", "")
+            if ai_thought:
+                 self._log_thought(f"👁️ [Vision] {ai_thought}")
 
-                # Optional: Add specific "Active" thought
-                if data.get('emotion') in ['sad', 'crying']:
-                    self._log_thought(f"💙 [Mind] The user might need comfort after this.")
+            return {
+                "text": data.get("response", ""),
+                "emotion": data.get("emotion", "neutral"),
+                "suggestions": data.get("suggestions", []),
+                "action_command": data.get("action_command", ""),
+                "grounding_info": grounding
+            }
 
-                return {
-                    "text": data.get("response", ""),
-                    "emotion": data.get("emotion", "neutral"),
-                    "suggestions": data.get("suggestions", []),
-                    "action_command": data.get("action_command", ""),
-                    "grounding_info": grounding
-                }
-                
         except Exception as e:
             logger.error(f"YouTube Analysis Error: {e}")
             self._log_thought(f"⚠️ [Mind] Failed to analyze video: {e}")
             return {"text": "ごめんなさい、その動画はうまく一緒に見られないみたい……。", "emotion": "sad", "suggestions": []}
-
-        return {"text": "動画の読み込みに失敗しちゃった。", "emotion": "sad", "suggestions": []}
-
 
     def generate_proactive_message(self, context=None):
         prompt = "User is idle. Initiate a conversation naturally. Suggest a topic for the user."
@@ -335,129 +234,9 @@ If you don't know the person or topic detailedly, research it.
 
     def generate_title_summary(self, conversation_text):
         if not self.client: return None
+        # Title doesn't need strict JSON, just text
         prompt = f"Generate a short title (max 20 chars) in Japanese for this conversation:\n{conversation_text[:500]}"
         try:
-            # Title generation doesn't strict JSON mode usually but consistentcy helps.
-            # Using text mode for title is simpler.
-            response = self.client.models.generate_content(model=self.reasoning_model, contents=prompt)
             response = self.client.models.generate_content(model=self.reasoning_model, contents=prompt)
             return response.text.strip().replace('"', '')
         except: return None
-
-    def _validate_links(self, text: str) -> str:
-        """
-        Validates URLs in the text and prunes dead links (404/Connection Error).
-        Uses simple requests.head with short timeout.
-        """
-        import requests
-        
-        # Simple URL pattern
-        url_pattern = r'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+'
-        urls = re.findall(url_pattern, text)
-        
-        # Deduplicate to save requests
-        urls = list(set(urls))
-        
-        for url in urls:
-            # Skip internal or localhost if needed, but here we assume general web links
-            try:
-                # User-Agent is important for some sites
-                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-                response = requests.head(url, headers=headers, timeout=3, allow_redirects=True)
-                
-                # If Method Not Allowed (405), try GET with stream=True (lightweight)
-                if response.status_code == 405:
-                    try:
-                        with requests.get(url, headers=headers, timeout=3, stream=True) as r:
-                            if r.status_code >= 400:
-                                raise Exception(f"Dead link (GET): {r.status_code}")
-                    except Exception:
-                        raise Exception("Dead link (GET failed)")
-                elif response.status_code >= 400:
-                    raise Exception(f"Dead link: {response.status_code}")
-                    
-            except Exception as e:
-                logger.warning(f"Dead link pruned: {url} ({e})")
-                # Clean replacement
-                text = text.replace(url, "(リンク期限切れ)")
-                
-        return text
-
-    def _parse_ai_response(self, raw_text: str) -> Dict[str, Any]:
-        """
-        AIの応答からJSONを抽出する堅牢なパーサー。
-        Markdown記法、余分な空白、説明文などを除去してパースを試みる。
-        """
-        text = raw_text.strip()
-        
-        # 1. Markdownコードブロックの除去 (```json ... ```)
-        # 大文字小文字無視、改行含む
-        match = re.search(r"```(?:json)?\s*(.*)\s*```", text, re.DOTALL | re.IGNORECASE)
-        if match:
-            text = match.group(1).strip()
-        
-        # 2. それでもパースできない場合、最初と最後の {} を探して抽出する
-        if "{" in text:
-            first_brace = text.find("{")
-            last_brace = text.rfind("}")
-            if last_brace > first_brace:
-                text = text[first_brace : last_brace + 1]
-
-        # 3. JSONパースの試行
-        try:
-            data = json.loads(text)
-            
-            # ★ Step 2 Implementation: Validate Links in 'response' text
-            if "response" in data and isinstance(data["response"], str):
-                data["response"] = self._validate_links(data["response"])
-                
-            return data
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"[AI Engine] JSON Parse Error: {e}")
-            logger.error(f"[AI Engine] Failed Text: {raw_text}")
-            
-            # 4. Fallback: Try to parse loose Key: Value format
-            # Example:
-            # thought: ...
-            # response: ...
-            fallback_data = {}
-            
-            # Helper to extract content between keys
-            def extract_key(key_name, text):
-                pattern = rf"{key_name}\s*[:=]\s*(.*?)(?=\n\s*(?:thought|response|emotion|suggestions|action_command)\s*[:=]|$)"
-                match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
-                if match:
-                    return match.group(1).strip().strip('"')
-                return ""
-
-            fallback_data["thought"] = extract_key("thought", text)
-            fallback_data["response"] = extract_key("response", text)
-            fallback_data["emotion"] = extract_key("emotion", text) or "neutral"
-            fallback_data["action_command"] = extract_key("action_command", text)
-            
-            # Suggestions often list items
-            sugg_match = re.search(r"suggestions\s*[:=]\s*\[(.*?)\]", text, re.DOTALL | re.IGNORECASE)
-            if sugg_match:
-                # Naive split by comma/quote
-                items = sugg_match.group(1).split(",")
-                fallback_data["suggestions"] = [i.strip().strip('"').strip("'") for i in items if i.strip()]
-            else:
-                fallback_data["suggestions"] = []
-
-            if fallback_data["response"]:
-                logger.info("[AI Engine] Recovered data via fallback parser.")
-                # Validate links
-                fallback_data["response"] = self._validate_links(fallback_data["response"])
-                return fallback_data
-
-            # 5. Final Resort: Treat whole text as response
-            # Here also we validate
-            validated_text = self._validate_links(text)
-            return {
-                "response": validated_text, # clean text
-                "suggestions": [],
-                "emotion": "neutral",
-                "action_command": ""
-            }
-
