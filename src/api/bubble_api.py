@@ -27,14 +27,10 @@ class BubbleApi:
         """
         logger.info(f"API: Smart Bubble Generation Request")
         if hasattr(self, 'bubble_service'):
-            # Use get_smart_bubble for dynamic content
-            bubble = self.bubble_service.get_smart_bubble()
+            # Use generate_manual_bubble for prioritized content (Love > Mind > Smart)
+            bubble = self.bubble_service.generate_manual_bubble()
             if bubble:
-                # Must ensure it's registered in active bubbles (get_smart_bubble does NOT add to active dict usually? Wait check service)
-                # create_smart_bubble DOES register it in _active_bubbles in the service code I saw earlier? 
-                # Let's check service code: 
-                # "packet = ...; self._active_bubbles[action_id] = packet; return packet" 
-                # Yes, get_smart_bubble adds it to _active_bubbles.
+                # Must ensure it's registered in active bubbles
                 return bubble
             else:
                 return {"status": "skipped", "message": "No bubble generated (Limit or Duplicate)"}

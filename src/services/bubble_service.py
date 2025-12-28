@@ -392,7 +392,7 @@ class BubbleService:
 
         return {
             "text": f"💭 {label}",
-            "category": "topics",
+            "category": "mind",
             "action_id": f"BUBBLE_MIND_{int(time.time())}",
             "metadata": {**ctx, "full_content": content}, # Store full content here
             "type": "discovery"
@@ -422,6 +422,49 @@ class BubbleService:
     def get_test_bubble(self):
         return self.get_smart_bubble()
 
+    def _generate_love_bubble(self):
+        """Generates a love/affection bubble."""
+        try:
+            from .affection_manager import AffectionManager
+            text = AffectionManager().get_random_affection()
+            ctx = self._get_time_context()
+            return {
+                "text": f"❤ {text}",
+                "category": "love",
+                "action_id": f"BUBBLE_LOVE_{int(time.time())}",
+                "metadata": ctx,
+                "type": "discovery"
+            }
+        except:
+             return None
+
+    def generate_manual_bubble(self):
+        """
+        Generates a bubble with strict priority for Manual Spawn (Button).
+        Priority:
+        1. Love (10% chance)
+        2. MindVault (If available, High Priority)
+        3. Normal Smart Bubble (Fallback)
+        """
+        # 1. Love (10% chance)
+        if random.random() < 0.1:
+            love = self._generate_love_bubble()
+            if love: return love
+            
+        # 2. MindVault (Priority)
+        ctx = self._get_time_context()
+        mind_bubble = self._generate_mind_bubble_llm(ctx)
+        if mind_bubble:
+            # Force category to 'mind' for Purple styling
+            mind_bubble['category'] = 'mind'
+            # Register in active bubbles
+            self._active_bubbles[mind_bubble['action_id']] = mind_bubble
+            logger.info(f"[Manual] Generated MindBubble: {mind_bubble['text']}")
+            return mind_bubble
+            
+        # 3. Fallback
+        return self.get_smart_bubble()
+
     def handle_action(self, action_id: str):
         """
         Handle the action triggered by the bubble with Date/Time Grounding.
@@ -446,8 +489,46 @@ class BubbleService:
              
              # Grounding Instruction Construction
              grounding_instruction = ""
-             if cat == "topics" or "ニュース" in text_content or "事情" in text_content:
-                 grounding_instruction = """
+             
+             # Check if this is a MindVault bubble
+             is_mind_bubble = action_id.startswith("BUBBLE_MIND") or cat == "mind"
+             
+             if is_mind_bubble:
+                 # --- MindVault Logic (Deep Conversation / NO SEARCH) ---
+                 full_content = packet.get('metadata', {}).get('full_content', text_content)
+                 prompt = f"""
+[Topic Selection]
+User picked a topic from their MindVault: "{full_content}"
+
+[System Instruction]
+- **MODE**: Deep Conversation / Philosophy / Empathy
+- **NO SEARCHING**: Do NOT search for this topic. Do NOT mention external news, videos, or links.
+- **NO TRENDS**: Do NOT say "In 2025..." or "Recently...".
+- **GOAL**: Discuss this specifically based on the user's note. Ask for their thoughts or share a personal (AI) perspective.
+
+[Current Time] {time_str}
+
+[Output Requirement]
+Response Format: **TOON (Token-Oriented Object Notation)**
+- Use your Persona's tone.
+- Friendly and engaging.
+- If it's a question, wait for user answer.
+- Provide EXACTLY 5 suggestions (4 specific follow-ups + "他の話題について").
+
+response:
+  text: Your friendly deep response here...
+emotion: neutral
+suggestions:
+  - Deep Follow-up 1
+  - Deep Follow-up 2
+  - Deep Follow-up 3
+  - Deep Follow-up 4
+  - 他の話題について
+"""
+             else:
+                 # --- Normal Bubble Logic (Grounding Enabled) ---
+                 if cat == "topics" or "ニュース" in text_content or "事情" in text_content:
+                     grounding_instruction = """
 IMPORTANT: The user is interested in this topic.
 **USE GOOGLE SEARCH TOOL** to find the LATEST information about it.
 - **PROVIDE URLs**: You MUST include the link to the news/video you found.
@@ -455,7 +536,7 @@ IMPORTANT: The user is interested in this topic.
 - Verifiable facts are preferred over general statements.
 """
 
-             prompt = f"""
+                 prompt = f"""
 [System Notification]
 User clicked a bubble: "{text_content}" (Category: {cat}).
 [Current Time] {time_str}

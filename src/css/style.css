@@ -426,6 +426,17 @@ body {
     color: white;
 }
 
+/* MindVault Bubble (Purple) */
+.soul-bubble.bubble-mind,
+.soul-bubble.mind {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+    /* Amethyst */
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 15px rgba(155, 89, 182, 0.6);
+    /* Glow */
+}
+
 /* Default / Normal / Discovery */
 /* Default / Normal / Discovery */
 .soul-bubble.bubble-normal,
