@@ -664,4 +664,28 @@
 - [x] **Refactor**: `ResponseParser` の完全分離と堅牢化 (思考漏れ防止)
 - [x] **Bug Fix**: `gemini-3-flash-preview` 404エラーの修正 (`main.py` Config Safety)
 - [x] **Bug Fix**: Proactive Modeでの英語応答漏れ (Prompt Hardening)
-- [x] **Bug Fix**: RAGログ消失問題の修正 (`_extract_grounding` Priority)
+## フェーズ90: MindVault連携 (Docs Sync Core) [完了]
+- [x] **認証基盤拡張**
+    - [x] `GoogleAuthManager` に Docs API Scope を追加。
+- [x] **同期の実装**
+    - [x] `DocsSyncService`: 指定されたGoogle Doc ("MindVault") を定期的に取得。
+    - [x] **Markdown変換**: ドキュメントの内容をMarkdown形式でローカル (`settings/MindVault.md`) に保存。
+    - [x] **アーカイブ処理**: 処理済みの内容はドキュメント内で `### 保存済み` セクションへ移動 (削除せず履歴保持)。
+
+## フェーズ91: Granular Parsing & AI Labeling [完了]
+- [x] **データ認識の高度化**
+    - [x] `MindLoader`: 箇条書き (`- `) を個別のエントリーとして認識する粒度解析。
+    - [x] **Timestamp Parsing**: `[Archived: YYYY-MM-DD]` タグからエントリーの日時を特定。
+    - [x] **Category Parsing**: `## ヘッダー` からカテゴリを自動判別。
+- [x] **AIラベリング**
+    - [x] `BubbleService`: 長文のメモをAI (Gemini) で15文字以内のキャッチーな短いラベルに要約し、バルーンに表示。
+
+## フェーズ92: Bubble UX & Deep Conversation (Polish) [完了]
+- [x] **能動的な思考喚起**
+    - [x] **Forced Startup**: アプリ起動時、MindVaultに未読メモがあれば必ず1つをバルーンとして出現させる。
+    - [x] **Manual Priority**: バルーンボタン（手動）押下時、MindVaultのメモを最優先で表示 (Love > Mind > Normal)。
+- [x] **Deep Conversation Mode**
+    - [x] **Grounding Off**: MindVault由来のトピックでは検索（Google Search）を**完全無効化**。
+    - [x] **Empathy Prompt**: ニュースやトレンドではなく、ユーザーのメモの深層（哲学・感情）に寄り添う専用プロンプトを実装。
+- [x] **Visual Feedback**
+    - [x] **Purple Style**: MindVault由来のバルーンに専用のアメジスト色（紫）と発光エフェクトを適用し、他と差別化。
