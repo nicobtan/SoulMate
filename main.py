@@ -23,6 +23,7 @@ from src.api.settings_api import SettingsApiMixin
 from src.api.chat_api import ChatApiMixin
 from src.api.bubble_api import BubbleApi
 from src.api.user_api import UserApiMixin
+from src.api.history_api import HistoryApiMixin
 from src.services.bubble_service import BubbleService
 from src.services.history_manager import HistoryManager
 
@@ -31,7 +32,7 @@ from src.services.user_manager import UserManager
 from src.services.interest_manager import InterestManager
 from src.services.topic_selector import TopicSelector
 
-class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin):
+class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin):
     def __init__(self):
         super().__init__() # Initialize BaseApiMixin attributes
         self.services = self # Mixin Pattern: API instance itself is the service container
@@ -40,8 +41,18 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         self._config_manager = ConfigManager()
         self._ai_engine = AIEngine()
         self._persona_manager = PersonaManager()
+        self._persona_manager = PersonaManager()
         self._memory_manager = MemoryManager()
         self.history_manager = HistoryManager()
+
+        # Database Manager (SQLite)
+        from src.services.db_manager import DatabaseManager
+        self.db_manager = DatabaseManager()
+        self.db_manager.init_db()
+        
+        # Register to Core Instance (for ChatApi access)
+        from src import core_instance
+        core_instance.set_db(self.db_manager)
         
         # User & Interest Manager
         self.user_manager = UserManager()
@@ -59,6 +70,13 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # 2. RAG Log (Memory Search -> Frontend RAG Tab)
         # Using lambda to route to log_to_debug with 'rag' type
         self._memory_manager.set_rag_logger(lambda msg: self.log_to_debug(msg, 'rag'))
+
+        # --- Diary Generator (Phase 89) ---
+        from src.services.diary_generator import DiaryGenerator
+        self.diary_generator = DiaryGenerator(self)
+        # Async Check on Startup
+        threading.Thread(target=self.diary_generator.check_and_generate_diary, daemon=True).start()
+
 
         # TTS Engine
         try:

@@ -442,6 +442,61 @@
         background: #45475a;
         border-radius: 10px;
     }
+
+    /* Tab Style */
+    .btn-tab {
+        background: transparent;
+        color: #585b70;
+        border: 1px solid var(--border-color);
+        padding: 5px 15px;
+    }
+
+    .btn-tab.active {
+        background: var(--accent-color);
+        color: #11111b;
+        border-color: var(--accent-color);
+    }
+
+    /* Diary Specific */
+    .diary-content-view {
+        padding: 30px 40px;
+        /* 上下は30px, 左右は40px */
+        background: #fffdf5;
+        /* Paper-ish */
+        color: #4a4a4a;
+        font-family: 'Yu Mincho', serif;
+        line-height: 1.8;
+        overflow-y: auto;
+        height: 100%;
+        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
+
+        /* User Request: Wider Text Area */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        /* Center the content */
+    }
+
+    .diary-inner-container {
+        width: 100%;
+        max-width: 900px;
+        /* Allow wider text */
+    }
+
+    .diary-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #ddd;
+        padding-bottom: 10px;
+    }
+
+    .diary-date {
+        color: #888;
+        font-size: 14px;
+        margin-bottom: 30px;
+        text-align: right;
+    }
 </style>
 </head>
 
@@ -457,6 +512,12 @@
         </div>
 
         <div class="controls-group">
+            <!-- Tabs -->
+            <div class="tab-group" style="display:flex; gap:10px; margin-right:20px;">
+                <button id="tab-history" class="action-btn btn-tab active">Chat History</button>
+                <button id="tab-diary" class="action-btn btn-tab">Diary</button>
+            </div>
+
             <button id="manual-save-btn" class="action-btn btn-save" title="現在の会話を保存します">
                 <span>💾</span> 保存 (Save)
             </button>

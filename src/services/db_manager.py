@@ -40,9 +40,21 @@ class DatabaseManager:
                     session_id INTEGER,
                     role TEXT,
                     content TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     meta_json TEXT, -- For storing extra data like suggestions
                     FOREIGN KEY(session_id) REFERENCES sessions(id)
+                )
+            """)
+            
+            # ★追加: Diaries Table (Phase 89)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS diaries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT UNIQUE, -- "YYYY-MM-DD" (Logical Date)
+                    title TEXT,
+                    content TEXT,
+                    emotion TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             
@@ -253,3 +265,47 @@ class DatabaseManager:
         if row:
             return {"content": row[0], "created_at": row[1]}
         return None
+
+    # --- Diary Methods (Phase 89) ---
+    def get_diary_by_date(self, date_str: str):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM diaries WHERE date = ?", (date_str,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def save_diary(self, date_str, title, content, emotion):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            REPLACE INTO diaries (date, title, content, emotion) 
+            VALUES (?, ?, ?, ?)
+        """, (date_str, title, content, emotion))
+        self.conn.commit()
+
+    def get_logs_in_range(self, start_dt: datetime, end_dt: datetime):
+        """
+        Fetch conversation logs (User/AI) within the timeframe.
+        """
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        query = """
+            SELECT role, content, created_at FROM messages 
+            WHERE created_at >= ? AND created_at < ?
+            ORDER BY created_at ASC
+        """
+        cursor.execute(query, (start_dt, end_dt))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_diary_list(self, limit=30):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, date, title, emotion FROM diaries ORDER BY date DESC LIMIT ?", (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+        
+    def get_diary_entry(self, diary_id):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM diaries WHERE id = ?", (diary_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None

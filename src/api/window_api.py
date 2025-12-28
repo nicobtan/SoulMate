@@ -94,8 +94,8 @@ class WindowApiMixin(BaseApiMixin):
                 'SoulMate Memories', 
                 url=history_path,
                 js_api=self, # Share API instance so it can call get_history_sessions
-                width=800, 
-                height=600,
+                width=1000, 
+                height=800,
                 resizable=True,
                 on_top=True
             )

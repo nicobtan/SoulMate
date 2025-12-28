@@ -7,14 +7,42 @@ const resumeBtn = document.getElementById('resume-btn') as HTMLButtonElement;
 const searchInput = document.getElementById('search-input') as HTMLInputElement;
 const favFilterBtn = document.getElementById('fav-filter-btn') as HTMLElement;
 
+// Tab Elements
+const tabHistory = document.getElementById('tab-history');
+const tabDiary = document.getElementById('tab-diary');
+
+// State
 let selectedSessionId: number | null = null;
 let isFavFilterOn = false;
 let searchTimeout: any = null;
+let currentMode: 'history' | 'diary' = 'history';
 
 // Init
 window.addEventListener('pywebviewready', async () => {
     loadSessions();
 });
+
+// Tab Listeners
+if (tabHistory) {
+    tabHistory.addEventListener('click', () => switchMode('history'));
+}
+if (tabDiary) {
+    tabDiary.addEventListener('click', () => switchMode('diary'));
+}
+
+function switchMode(mode: 'history' | 'diary') {
+    currentMode = mode;
+    if (tabHistory) tabHistory.classList.toggle('active', mode === 'history');
+    if (tabDiary) tabDiary.classList.toggle('active', mode === 'diary');
+
+    // UI Reset
+    if (sessionListEl) sessionListEl.innerHTML = '<div style="padding:20px; text-align:center;">読み込み中...</div>';
+    if (chatViewEl) chatViewEl.innerHTML = '<div style="margin:auto; text-align:center; color:#585b70;"><span style="font-size:3rem; display:block; margin-bottom:10px;">💬</span>左のリストから選択してください</div>';
+    if (resumeBtn) resumeBtn.style.display = (mode === 'history') ? 'block' : 'none'; // Hide resume for diary
+
+    selectedSessionId = null;
+    loadSessions();
+}
 
 // Search & Filter Listeners
 if (searchInput) {
@@ -35,21 +63,26 @@ if (favFilterBtn) {
 const getApi = () => (window as any).pywebview?.api;
 
 async function loadSessions() {
-    console.log("[History] loadSessions called. api ready?", !!getApi());
+    console.log("[History] loadSessions called. Mode:", currentMode);
     const api = getApi();
     if (!api) {
-        // もしapiがまだなら少し待って再試行
         setTimeout(loadSessions, 100);
         return;
     }
+
     const keyword = searchInput ? searchInput.value : "";
 
     try {
-        const sessions = await api.get_history_sessions(keyword, isFavFilterOn);
-        console.log(`[History] Loaded ${sessions.length} sessions.`);
-        renderSessionList(sessions);
+        if (currentMode === 'history') {
+            const sessions = await api.get_history_sessions(keyword, isFavFilterOn);
+            renderSessionList(sessions);
+        } else {
+            // Diary Mode
+            const diaries = await api.get_diary_list();
+            renderDiaryList(diaries);
+        }
     } catch (e) {
-        if (sessionListEl) sessionListEl.innerText = "Error loading history.";
+        if (sessionListEl) sessionListEl.innerText = "Error loading data.";
         console.error("[History] Load failed:", e);
     }
 }
@@ -124,23 +157,86 @@ function renderSessionList(sessions: any[]) {
     });
 }
 
-async function loadDetail(sessionId: number, element: HTMLElement) {
+function renderDiaryList(diaries: any[]) {
+    if (!sessionListEl) return;
+    sessionListEl.innerHTML = '';
+
+    if (diaries.length === 0) {
+        sessionListEl.innerHTML = '<div style="padding:20px; text-align:center;">まだ日記がありません<br><span style="font-size:12px; color:#888;">(翌朝4時に生成されます)</span></div>';
+        // Debug Button
+        const dbgBtn = document.createElement('button');
+        dbgBtn.innerText = "生成テスト (Debug)";
+        dbgBtn.className = "btn-flat";
+        dbgBtn.style.marginTop = "10px";
+        dbgBtn.onclick = async () => {
+            const api = getApi();
+            if (api) {
+                if (confirm("昨日分の日記を強制生成しますか？")) {
+                    await api.generate_diary_manual();
+                    setTimeout(loadSessions, 2000);
+                }
+            }
+        };
+        sessionListEl.appendChild(dbgBtn);
+        return;
+    }
+
+    diaries.forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'session-item';
+        // Use ID for selection
+        if (selectedSessionId === d.id) div.classList.add('active');
+
+        div.innerHTML = `
+            <div class="session-meta">
+                <span class="session-date">${d.date}</span>
+                <div class="session-actions">
+                    <span style="font-size:16px;">${getTargetEmotionIcon(d.emotion)}</span>
+                </div>
+            </div>
+            <div class="session-title">${d.title}</div>
+        `;
+
+        div.addEventListener('click', () => {
+            loadDetail(d.id, div);
+        });
+
+        sessionListEl.appendChild(div);
+    });
+}
+
+function getTargetEmotionIcon(emo: string) {
+    if (!emo) return '📔';
+    if (emo === 'happy') return '😊';
+    if (emo === 'sad') return '😢';
+    if (emo === 'angry') return '💢';
+    if (emo === 'calm') return '😌';
+    return '📔';
+}
+
+async function loadDetail(id: number, element: HTMLElement) {
     const api = getApi();
     if (!api || !chatViewEl) return;
 
     // UI Feedback
     document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
-    selectedSessionId = sessionId;
+    selectedSessionId = id;
 
     chatViewEl.innerHTML = '<div style="margin:auto;">読み込み中...</div>';
 
     try {
-        const messages = await api.get_history_messages(sessionId);
-        renderMessages(messages);
-        if (resumeBtn) resumeBtn.disabled = false;
+        if (currentMode === 'history') {
+            const messages = await api.get_history_messages(id);
+            renderMessages(messages);
+            if (resumeBtn) resumeBtn.disabled = false;
+        } else {
+            // Diary Detail
+            const diary = await api.get_diary_entry(id);
+            renderDiaryDetail(diary);
+        }
     } catch (e) {
-        chatViewEl.innerHTML = 'Error loading messages.';
+        chatViewEl.innerHTML = 'Error loading content.';
     }
 }
 
@@ -165,6 +261,32 @@ function renderMessages(messages: any[]) {
     });
 
     chatViewEl.scrollTop = chatViewEl.scrollHeight;
+}
+
+function renderDiaryDetail(diary: any) {
+    if (!chatViewEl) return;
+    chatViewEl.innerHTML = '';
+
+    if (!diary) {
+        chatViewEl.innerHTML = "Diary not found.";
+        return;
+    }
+
+    const container = document.createElement('div');
+    container.className = 'diary-content-view';
+
+    container.innerHTML = `
+        <div class="diary-inner-container">
+            <div class="diary-date">${diary.date} の日記</div>
+            <div class="diary-title">${diary.title}</div>
+            <div style="white-space: pre-wrap;">${diary.content}</div>
+            <div style="margin-top:40px; text-align:center; opacity:0.6;">
+                Generated by SoulMate
+            </div>
+        </div>
+    `;
+
+    chatViewEl.appendChild(container);
 }
 
 // Resume Button Logic

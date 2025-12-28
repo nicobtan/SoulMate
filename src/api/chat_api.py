@@ -406,9 +406,10 @@ You have access to the following tools. To use them, output the specific tag exa
              self.log_to_debug(f"⚠️ [Calendar] Intent detected but NO Action generated. Response: \"{response_text[:50]}...\"", 'warn')
 
         # DB Saving
-        from src import core_instance
-        db = core_instance.get_db()
-        if db:
+        try:
+            from src import core_instance
+            db = core_instance.get_db()
+            
             active = db.get_active_session()
             session_id = active['id'] if active else db.create_session()
             
@@ -427,6 +428,9 @@ You have access to the following tools. To use them, output the specific tag exa
             if emotion:
                 preview = (response_text[:30] + '...') if len(response_text) > 30 else response_text
                 self.log_to_debug(f"💾 [MEMORY] Saved with tag '{emotion}': \"{preview}\"", 'info')
+
+        except Exception as e:
+            self.log_to_debug(f"DB Save Error: {e}", 'error')
 
         # Logic to Memory
         if self._memory_manager and self._config_manager:
