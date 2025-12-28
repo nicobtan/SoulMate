@@ -10,12 +10,13 @@ const favFilterBtn = document.getElementById('fav-filter-btn') as HTMLElement;
 // Tab Elements
 const tabHistory = document.getElementById('tab-history');
 const tabDiary = document.getElementById('tab-diary');
+const tabInsights = document.getElementById('tab-insights');
 
 // State
 let selectedSessionId: number | null = null;
 let isFavFilterOn = false;
 let searchTimeout: any = null;
-let currentMode: 'history' | 'diary' = 'history';
+let currentMode: 'history' | 'diary' | 'insights' = 'history';
 
 // Init
 window.addEventListener('pywebviewready', async () => {
@@ -29,16 +30,20 @@ if (tabHistory) {
 if (tabDiary) {
     tabDiary.addEventListener('click', () => switchMode('diary'));
 }
+if (tabInsights) {
+    tabInsights.addEventListener('click', () => switchMode('insights'));
+}
 
-function switchMode(mode: 'history' | 'diary') {
+function switchMode(mode: 'history' | 'diary' | 'insights') {
     currentMode = mode;
     if (tabHistory) tabHistory.classList.toggle('active', mode === 'history');
     if (tabDiary) tabDiary.classList.toggle('active', mode === 'diary');
+    if (tabInsights) tabInsights.classList.toggle('active', mode === 'insights');
 
     // UI Reset
     if (sessionListEl) sessionListEl.innerHTML = '<div style="padding:20px; text-align:center;">読み込み中...</div>';
     if (chatViewEl) chatViewEl.innerHTML = '<div style="margin:auto; text-align:center; color:#585b70;"><span style="font-size:3rem; display:block; margin-bottom:10px;">💬</span>左のリストから選択してください</div>';
-    if (resumeBtn) resumeBtn.style.display = (mode === 'history') ? 'block' : 'none'; // Hide resume for diary
+    if (resumeBtn) resumeBtn.style.display = (mode === 'history') ? 'block' : 'none'; // Hide resume for diary/insights
 
     selectedSessionId = null;
     loadSessions();
@@ -76,10 +81,13 @@ async function loadSessions() {
         if (currentMode === 'history') {
             const sessions = await api.get_history_sessions(keyword, isFavFilterOn);
             renderSessionList(sessions);
-        } else {
-            // Diary Mode
+        } else if (currentMode === 'diary') {
             const diaries = await api.get_diary_list();
             renderDiaryList(diaries);
+        } else {
+            // Insights Mode
+            const insights = await api.get_insights_list(50);
+            renderInsightsList(insights);
         }
     } catch (e) {
         if (sessionListEl) sessionListEl.innerText = "Error loading data.";
@@ -205,6 +213,67 @@ function renderDiaryList(diaries: any[]) {
     });
 }
 
+function renderInsightsList(insights: any[]) {
+    if (!sessionListEl) return;
+    sessionListEl.innerHTML = '';
+
+    if (insights.length === 0) {
+        sessionListEl.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">まだ学び（Insights）がありません<br><small>会話画面で右クリックして「議論を保存」してみてください</small></div>';
+        return;
+    }
+
+    insights.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'session-item';
+        if (selectedSessionId === item.id) div.classList.add('active');
+
+        // format date
+        const dateStr = new Date(item.created_at).toLocaleDateString();
+
+        div.innerHTML = `
+            <div class="session-meta">
+                <span class="session-date">${dateStr}</span>
+                <button class="icon-btn" title="AI Memory">🧠</button>
+            </div>
+            <div class="session-title">${item.title}</div>
+        `;
+        div.addEventListener('click', () => {
+            selectedSessionId = item.id;
+            // Clear others
+            document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+            div.classList.add('active');
+            renderInsightDetail(item);
+        });
+        sessionListEl.appendChild(div);
+    });
+}
+
+function renderInsightDetail(item: any) {
+    if (!chatViewEl) return;
+    chatViewEl.innerHTML = '';
+
+    const container = document.createElement('div');
+    container.className = 'diary-content-view';
+    // Style override for Mind vibe
+    container.style.background = 'linear-gradient(135deg, #1e1e2e 0%, #2a2a3e 100%)';
+    container.style.color = '#cdd6f4';
+
+    container.innerHTML = `
+        <div class="diary-inner-container">
+            <div style="font-size:3rem; text-align:center; margin-bottom:10px;">🧠</div>
+            <div class="diary-date" style="color:#a6adc8;">Deep Reflection • ${new Date(item.created_at).toLocaleString()}</div>
+            <div class="diary-title" style="border-bottom:1px solid #45475a;">${item.title}</div>
+            <div style="white-space: pre-wrap; font-size:1.1rem; line-height:1.8;">${item.content}</div>
+            
+            <div style="margin-top:40px; padding:15px; background:rgba(255,255,255,0.05); border-radius:10px; font-size:0.9rem;">
+                <span style="display:block; font-weight:bold; color:#f9e2af; margin-bottom:5px;">💡 AI's Thought</span>
+                この内容は長期記憶に保存されました。今後の会話でふとした瞬間に思い出されるかもしれません。
+            </div>
+        </div>
+    `;
+    chatViewEl.appendChild(container);
+}
+
 function getTargetEmotionIcon(emo: string) {
     if (!emo) return '📔';
     if (emo === 'happy') return '😊';
@@ -230,10 +299,18 @@ async function loadDetail(id: number, element: HTMLElement) {
             const messages = await api.get_history_messages(id);
             renderMessages(messages);
             if (resumeBtn) resumeBtn.disabled = false;
-        } else {
+        } else if (currentMode === 'diary') {
             // Diary Detail
             const diary = await api.get_diary_entry(id);
             renderDiaryDetail(diary);
+        } else {
+            // Insights should be handled in list click locally if object is passed?
+            // But if we want consistency with ID loading (e.g. reload):
+            // We don't have api.get_inight(id) yet. 
+            // Ideally renderInsightsList passes the object directly.
+            // If we need fetching by ID, we need api updates.
+            // For now, renderInsightsList handles the click and content rendering directly from list memory.
+            // So this loadDetail is mainly for History/Diary that fetch async detail.
         }
     } catch (e) {
         chatViewEl.innerHTML = 'Error loading content.';
@@ -297,6 +374,7 @@ if (resumeBtn) {
         await api.resume_history_session(selectedSessionId);
     });
 }
+
 
 // --- Manual Save / Clear Buttons ---
 const manualSaveBtn = document.getElementById('manual-save-btn');

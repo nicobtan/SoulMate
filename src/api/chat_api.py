@@ -940,6 +940,58 @@ Output ONLY the suggested text.
             target_window.evaluate_js("if(window.clearChatLog) window.clearChatLog();")
             
         return {'status': 'success', 'new_session_id': new_id}
+    # --- Phase 93: Deep Reflection Trigger ---
+    def save_current_discussion(self):
+        """
+        Triggers the MindFeedbackService analysis in a background thread.
+        Returns immediate response to frontend.
+        """
+        self.log_to_debug("🧠 [MindFeedback] Triggered manually.", 'info')
+
+        def _run_analysis():
+            try:
+                # 1. Initialize Service (Lazy load)
+                from src.services.mind_feedback import MindFeedbackService
+                feedback_service = MindFeedbackService(self) # pass self (api container)
+                
+                # 2. Get history
+                from src import core_instance
+                db = core_instance.get_db()
+                active_session = db.get_active_session()
+                
+                if not active_session:
+                    self.log_to_debug("[MindFeedback] No active session found.", 'warn')
+                    return
+                
+                messages = db.get_messages(active_session['id'], limit=30)
+                
+                # 3. Analyze
+                result = feedback_service.analyze_and_save(messages)
+                
+                if result:
+                     title = result.get('title', 'Unknown')
+                     self.log_to_debug(f"🧠 [MindFeedback] Analysis Complete: {title}", 'info')
+                     # Notify Frontend?
+                     safe_title = title.replace("'", "\\'").replace('"', '\\"')
+                     if self._window:
+                         self._window.evaluate_js(f"window.uiManager.showToast('🧠 議論を保存しました: {safe_title}')")
+                else:
+                     self.log_to_debug("[MindFeedback] Analysis yielded no result.", 'warn')
+
+            except Exception as e:
+                self.log_to_debug(f"[MindFeedback] Background task failed: {e}", 'error')
+
+        # Run in background
+        threading.Thread(target=_run_analysis, daemon=True).start()
+        
+        return {"status": "accepted", "message": "Analysis started in background."}
+
+    def get_insights_list(self, limit=50):
+        """DBからインサイト一覧を取得"""
+        from src import core_instance
+        db = core_instance.get_db()
+        return db.get_insights(limit)
+
     # ★追加: プレビュー用にスクショだけ撮って返すAPI
     def take_screenshot_for_preview(self, mode="screen"):
         self.log_to_debug(f"Taking screenshot for preview (Mode: {mode})...", 'info')

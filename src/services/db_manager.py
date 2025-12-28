@@ -58,6 +58,17 @@ class DatabaseManager:
                 )
             """)
             
+            # ★追加: Insights Table (Phase 93 for Deep Reflection)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS insights (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT,
+                    content TEXT,
+                    related_log_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             # ★追加: マイグレーション (既存DBにカラム追加)
             try:
                 cursor.execute("ALTER TABLE sessions ADD COLUMN is_favorite BOOLEAN DEFAULT 0")
@@ -73,6 +84,24 @@ class DatabaseManager:
             print("[DatabaseManager] DB Initialized.")
         except Exception as e:
             print(f"[DatabaseManager] DB Init Error: {e}")
+
+    # --- Insight Methods (Phase 93) ---
+    def add_insight(self, title: str, content: str, related_log_id: str = None):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO insights (title, content, related_log_id)
+            VALUES (?, ?, ?)
+        """, (title, content, related_log_id))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_insights(self, limit=50):
+        if not self.conn: self.connect()
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM insights ORDER BY created_at DESC LIMIT ?", (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+
 
     def create_session(self, title="New Session"):
         """Creates a new session, sets it as active, and returns its ID."""

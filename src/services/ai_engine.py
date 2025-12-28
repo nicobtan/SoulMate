@@ -238,6 +238,23 @@ Format:
         if context: prompt += f"\nContext: {context}"
         return self.generate_response(prompt)
 
+    def generate_raw_response(self, prompt, model=None):
+        """Generates response without Chat JSON formatting/parser."""
+        if not self.client:
+             logger.error("Client not initialized.")
+             return None
+        
+        try:
+            target_model = model or self.reasoning_model
+            response = self.client.models.generate_content(
+                model=target_model,
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            logger.error(f"Raw Gen Error: {e}")
+            return None
+
     def generate_title_summary(self, conversation_text):
         if not self.client: return None
         # Title doesn't need strict JSON, just text

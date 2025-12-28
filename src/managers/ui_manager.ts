@@ -350,7 +350,7 @@ export class UIManager {
                 });
             }, 0);
         } else {
-            // Settings / Exit / Proactive
+            // Settings / Exit / Proactive / Feedback
             const proactiveMark = this.isProactive ? '✓ ' : '';
             this.contextMenu.innerHTML = `
                 <div class="ctx-item" id="ctx-settings-action">
@@ -360,6 +360,10 @@ export class UIManager {
                 <div class="ctx-item" id="ctx-proactive-toggle">
                     <span class="ctx-icon">👁️</span>
                     <span>Proactive Mode ${proactiveMark}</span>
+                </div>
+                <div class="ctx-item" id="ctx-feedback-action">
+                    <span class="ctx-icon">🧠</span>
+                    <span>議論を保存 (Feedback)</span>
                 </div>
                 <div style="height:1px; background:#444; margin:2px 0;"></div>
                 <div class="ctx-item" id="ctx-exit-action">
@@ -374,11 +378,14 @@ export class UIManager {
                 });
                 document.getElementById('ctx-proactive-toggle')?.addEventListener('click', async () => {
                     this.contextMenu!.style.display = 'none';
-                    // Toggle State
                     const newState = !this.isProactive;
                     this.setProactiveState(newState);
-                    // Call Python API via ApiClient
                     await api.toggle_proactive(newState);
+                });
+                document.getElementById('ctx-feedback-action')?.addEventListener('click', async () => {
+                    this.contextMenu!.style.display = 'none';
+                    // Trigger backend analysis
+                    await (window as any).pywebview.api.save_current_discussion();
                 });
                 document.getElementById('ctx-exit-action')?.addEventListener('click', () => {
                     this.contextMenu!.style.display = 'none';
@@ -390,5 +397,34 @@ export class UIManager {
         this.contextMenu.style.left = `${x}px`;
         this.contextMenu.style.top = `${y}px`;
         this.contextMenu.style.display = 'block';
+    }
+    public showToast(message: string, duration: number = 3000) {
+        let toast = document.getElementById('ui-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'ui-toast';
+            toast.style.position = 'fixed';
+            toast.style.bottom = '30px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.backgroundColor = 'rgba(0,0,0,0.8)';
+            toast.style.color = 'white';
+            toast.style.padding = '10px 20px';
+            toast.style.borderRadius = '5px';
+            toast.style.zIndex = '9999';
+            toast.style.transition = 'opacity 0.5s';
+            document.body.appendChild(toast);
+        }
+
+        toast.innerText = message;
+        toast.style.opacity = '1';
+        toast.style.display = 'block';
+
+        setTimeout(() => {
+            if (toast) {
+                toast.style.opacity = '0';
+                setTimeout(() => { if (toast) toast.style.display = 'none'; }, 500);
+            }
+        }, duration);
     }
 }
