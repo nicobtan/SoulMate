@@ -208,3 +208,55 @@ class MemoryManager:
             
         return context
 
+    def exists_in_mind_vault(self, content_snippet: str) -> bool:
+        """
+        Checks if the content already exists in mind_vault.jsonl.
+        Uses simple substring or hash check.
+        """
+        if not os.path.exists(self.mind_vault_file):
+            return False
+            
+        try:
+            # Hash check might be better for exact matches, but text file edits might change whitespace.
+            # Let's do a simple check. If file allows scaling, we might need a better index.
+            # For now (small user text file), reading lines is fine.
+            with open(self.mind_vault_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    try:
+                        record = json.loads(line)
+                        stored_text = record.get('source_text', '')
+                        # Check strict equality of content or substring?
+                        # MindLoader sends: "【Title】\nContent"
+                        if content_snippet.strip() == stored_text.strip():
+                            return True
+                    except:
+                        continue
+        except Exception as e:
+            logger.error(f"[Memory] Exists check failed: {e}")
+        return False
+
+    def get_random_mind_entry(self) -> dict:
+        """Retrieves a random MindVault entry."""
+        if not os.path.exists(self.mind_vault_file):
+            return None
+            
+        try:
+            import random
+            # Reservoir sampling or load all if small
+            # Assumption: MindVault is hundreds of lines, not millions. Load all keys.
+            entries = []
+            with open(self.mind_vault_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        entries.append(line)
+            
+            if not entries: return None
+            
+            # Pick one
+            rand_line = random.choice(entries)
+            return json.loads(rand_line)
+            
+        except Exception as e:
+            logger.error(f"[Memory] Random retrieval failed: {e}")
+            return None
+

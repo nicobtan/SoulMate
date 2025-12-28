@@ -189,23 +189,32 @@ class BubbleService:
             t = random.choice(fallback_topics)
             dynamic_topics = [f"「{t}」について"]
 
-        # 4. Selection Process
+        # 4. Selection Process with MindVault Integration
         strategy_roll = random.random()
         
         selected_cat = "topics"
         selected_text = "何か話そう？"
-
-        if special_messages and strategy_roll < 0.4:
+        
+        # Priority 1: MindVault (20% chance if available)
+        mind_bubble = None
+        if strategy_roll < 0.2:
+            mind_bubble = self._generate_mind_bubble_llm(ctx)
+            
+        if mind_bubble:
+            # Use the memory bubble
+            # If it returns a full packet-like dict, extract fields
+            selected_text = mind_bubble['text']
+            selected_cat = mind_bubble.get('category', 'topics')
+        elif special_messages and strategy_roll < 0.5: # 0.2 ~ 0.5 (30%)
             msg = random.choice(special_messages)
             selected_cat = msg["cat"]
             selected_text = msg["text"]
-        elif dynamic_topics and strategy_roll < 0.7:
+        elif dynamic_topics and strategy_roll < 0.8: # 0.5 ~ 0.8 (30%)
              selected_text = random.choice(dynamic_topics)
              selected_cat = self._infer_category(selected_text)
         else:
              slot_data = candidates.get(slot, candidates["daytime"])
              available_cats = list(slot_data.keys())
-             selected_cat = random.choice(available_cats)
              selected_cat = random.choice(available_cats)
              selected_text = random.choice(slot_data[selected_cat])
 
@@ -223,8 +232,13 @@ class BubbleService:
              from .affection_manager import AffectionManager
              selected_text = AffectionManager().get_random_affection()
              selected_cat = "love"
+             mind_bubble = None # Override memory if love is forced (rare conflict)
 
         # De-duplication Check
+        if mind_bubble:
+            selected_text = mind_bubble['text']
+            selected_cat = mind_bubble.get('cat', 'topics')
+        
         if selected_text in self._history:
             return None # Retry caller
             
@@ -232,18 +246,22 @@ class BubbleService:
         if len(self._history) > 20: self._history.pop(0)
         
         action_id = f"BUBBLE_{weekday.upper()}_{slot.upper()}_{random.randint(1000,9999)}"
+        if mind_bubble:
+            action_id = mind_bubble.get('action_id', action_id)
         
         packet = {
             "category": selected_cat,
             "text": selected_text,
             "action_id": action_id,
             "metadata": ctx,
-            "type": "discovery" if is_discovery else "normal"
+            "type": "discovery" if is_discovery or mind_bubble else "normal"
         }
         
         self._active_bubbles[action_id] = packet
         logger.info(f"[System] Bubble Injected: {selected_text} ({packet['type']})")
         return packet
+
+
 
     def remove_bubble(self, action_id):
         """Removes a bubble and triggers refill if needed."""
@@ -259,6 +277,7 @@ class BubbleService:
         Smart Refill Logic:
         1. Checks time interval (5 min) unless it's startup or empty.
         2. Loops until MAX is reached.
+        3. Force 1 MindVault bubble on Startup.
         """
         max_b = self._get_max_balloons()
         current = len(self._active_bubbles)
@@ -268,8 +287,7 @@ class BubbleService:
         if current >= max_b:
             return None 
         
-        # User Request: "Immediate 5 on startup"
-        # If count is 0, we imply urgency/startup.
+        # Urgency Check
         is_urgent = (current == 0) or self._startup_mode
         
         # Interval Check (300s = 5min)
@@ -278,26 +296,107 @@ class BubbleService:
             
         logger.info(f"Refilling Bubbles... (Current: {current}, Max: {max_b}, Urgent: {is_urgent})")
         
-        # User Request: "3 bubbles on startup"
         target_fill = max_b
         if self._startup_mode:
             target_fill = min(max_b, 3)
 
         new_bubbles = []
         attempts = 0
+        
+        # ★ Startup Special: Force 1 MindVault Bubble
+        if self._startup_mode:
+            ctx = self._get_time_context()
+            mind_bubble = self._generate_mind_bubble_llm(ctx)
+            if mind_bubble:
+                # Register manually to Active Dictionary
+                action_id = mind_bubble['action_id']
+                self._active_bubbles[action_id] = mind_bubble
+                new_bubbles.append(mind_bubble)
+                logger.info(f"[System] Forced Startup MindBubble: {mind_bubble['text']}")
+        
+        # Normal Fill Loop
         while len(self._active_bubbles) < target_fill and attempts < 10:
             attempts += 1
             bubble = self.get_smart_bubble()
             if bubble:
                 new_bubbles.append(bubble)
         
-        if new_bubbles:
+        if new_bubbles or self._startup_mode:
             self._last_gen_time = now
             self._startup_mode = False # Startup burst done
             
         return new_bubbles
 
-    def register_manual_bubble(self, category, text):
+    def _generate_mind_bubble_llm(self, ctx):
+        """
+        Generates a bubble from MindVault memory using LLM for short label.
+        Replaces parsing logic with generative logic.
+        """
+        if not self.services or not hasattr(self.services, '_memory_manager'):
+             if not self.services or not hasattr(self.services, 'memory_manager'):
+                return None
+             mgr = self.services.memory_manager
+        else:
+             mgr = self.services._memory_manager
+
+        entry = mgr.get_random_mind_entry()
+        if not entry:
+            return None
+            
+        content = entry.get('source_text', '')
+        if not content: return None
+
+        # Generate Short Label via LLM
+        if hasattr(self.services, '_ai_engine'):
+            try:
+                # Instruction to force simple output if possible, but parsing handles dicts anyway
+                prompt = f"Make a short Japanese bubble label (max 15 chars) for this topic: '{content}'. Output ONLY the label text."
+                label_response = self.services._ai_engine.generate_response(prompt)
+                
+                # Robust Extraction Logic
+                label_text = ""
+                if isinstance(label_response, dict):
+                     # TOON or Dict format
+                     if 'text' in label_response: label_text = label_response['text']
+                     elif 'response' in label_response: label_text = label_response['response']
+                     elif 'content' in label_response: label_text = label_response['content']
+                     else: label_text = str(label_response) # Fallback
+                else:
+                     # String or other
+                     label_text = str(label_response)
+                
+                # Clean quotes and TOON artifacts
+                # Sometimes models output `{'text': ...}` stringified
+                label_text = label_text.strip()
+                if label_text.startswith('{') and label_text.endswith('}'):
+                    try:
+                         import json
+                         import re
+                         # Try simple load
+                         jd = json.loads(label_text)
+                         label_text = jd.get('text', jd.get('response', label_text))
+                    except:
+                         # Regex extraction fallback
+                         pass
+
+                label_text = str(label_text).replace('"', '').replace("'", "").replace("「", "").replace("」", "").replace("💭", "").strip()
+                # Final check for length or emptiness
+                if not label_text: label_text = content[:15] + "..."
+
+                label = label_text
+            except Exception as e:
+                logger.warning(f"[Bubble] Label generation failed: {e}")
+                label = content[:15] + "..."
+        else:
+            label = content[:15] + "..."
+
+        return {
+            "text": f"💭 {label}",
+            "category": "topics",
+            "action_id": f"BUBBLE_MIND_{int(time.time())}",
+            "metadata": {**ctx, "full_content": content}, # Store full content here
+            "type": "discovery"
+        }
         """
         Manually register a bubble from frontend (e.g. Topic Button).
         Returns the bubble packet including a valid Action ID.

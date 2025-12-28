@@ -11,10 +11,11 @@ class GoogleAuthManager:
     Handles OAuth 2.0 flow and token management for multiple scopes.
     """
     
-    # Combined Scopes for SoulMate (Calendar + Docs)
+    # Combined Scopes for SoulMate (Calendar + Docs + Drive Search)
     SCOPES = [
         'https://www.googleapis.com/auth/calendar.readonly', # Read Calendar
-        'https://www.googleapis.com/auth/documents'          # Read/Write Docs
+        'https://www.googleapis.com/auth/documents',         # Read/Write Docs
+        'https://www.googleapis.com/auth/drive.readonly'     # Drive File Search
     ]
     
     _instance = None
@@ -27,7 +28,7 @@ class GoogleAuthManager:
                     cls._instance = super(GoogleAuthManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, credentials_path='settings/client_secret.json', token_path='settings/token.pickle'):
+    def __init__(self, credentials_path='settings/client_secret.json', token_path='settings/token_v2.pickle'):
         # Ensure init only runs once
         if getattr(self, '_initialized', False):
             return

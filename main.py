@@ -469,14 +469,27 @@ def create_app():
     if hasattr(api, '_ai_engine') and api._ai_engine:
         api._ai_engine.set_mind_logger(api.log_to_mind)
 
-    # ★ Docs Sync (MindVault) - Startup
+    # ★ Cloud MindVault Sync (Phase 91)
     try:
-        from src.services.docs_sync_service import DocsMemorySync
-        # api has memory_manager (initialized in __init__)
-        docs_sync = DocsMemorySync(api._memory_manager, api_instance=api)
-        threading.Thread(target=docs_sync.sync, daemon=True).start()
+        def sync_mind_vault_flow():
+            import time
+            time.sleep(3) # Wait for network stabilization
+            
+            # 1. Google Doc -> Local MD
+            from src.services.docs_sync import DocsSyncService
+            syncer = DocsSyncService(api) # Pass API for AI Engine access
+            local_md = os.path.join(os.getcwd(), "settings", "MindVault.md")
+            syncer.fetch_and_sync(doc_title="MindVault", local_path=local_md)
+            
+            # 2. Local MD -> DB
+            from src.services.mind_loader import MindLoader
+            loader = MindLoader(api)
+            loader.sync_mind_vault(local_md)
+            
+        threading.Thread(target=sync_mind_vault_flow, daemon=True).start()
+        
     except Exception as e:
-        print(f"[Main] Docs Sync Init Error: {e}")
+        print(f"[Main] CloudSync Init Error: {e}")
 
     webview.start(debug=True)
 
