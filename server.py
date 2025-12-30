@@ -19,7 +19,7 @@ from src.services.tts_engine import TTSEngine
 from src.services.voice_service import VoiceService
 from src.services.user_manager import UserManager
 from src.services.interest_manager import InterestManager
-from src.services.memory_service import MemoryService
+from src.services.memory_manager import MemoryManager
 from src.services.persona_manager import PersonaManager
 from src.services.db_manager import DatabaseManager
 from src.services.migration_service import MigrationService
@@ -41,11 +41,11 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         self.services = self # Mixin Pattern: API instance itself is the service container
         self._config_manager = ConfigManager()
         self._ai_engine = AIEngine()
-        self.calendar_manager = CalendarManager()
+        self._calendar_manager = CalendarManager()
         self.history_manager = HistoryManager()
         self.user_manager = UserManager()
         self.interest_manager = InterestManager()
-        self.memory_service = MemoryService(self._ai_engine)
+        self._memory_manager = MemoryManager()
         self._persona_manager = PersonaManager()
         
         # Load Persona
@@ -55,7 +55,7 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         
         if persona_data:
             base_prompt = persona_data.get('system_prompt', '')
-            mem_context = self.memory_service.get_combined_context()
+            mem_context = self._memory_manager.get_combined_context()
             self._ai_engine.set_system_prompt(f"{base_prompt}\n{mem_context}")
             logger.info(f"Initial Persona Loaded: {current_persona}")
         
@@ -82,14 +82,17 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         model = settings.get('model_name', 'gemini-2.5-flash-lite')
         persona_id = settings.get('current_persona_id', 'default')
 
+        # Safety: Force correct model name if old config exists
+        if model == "gemini-3.0":
+            model = "gemini-3-flash-preview"
         base_prompt = ""
         if self._persona_manager:
             data = self._persona_manager.load_persona(persona_id)
             if data: base_prompt = data.get('system_prompt', '')
 
         user_context = ""
-        if self.memory_service:
-            user_context = self.memory_service.get_combined_context()
+        if self._memory_manager:
+            user_context = self._memory_manager.get_combined_context()
 
         topic_instruction = "Guidance: Use [User Profile] for proactive topics."
         citation_instruction = "Guideline: MUST include URL for search results."
@@ -117,7 +120,7 @@ suggestions:
         
         if self._ai_engine:
             self._ai_engine.set_system_prompt(full_system_prompt)
-            self._ai_engine.configure(api_key=api_key, model_name=model)
+            self._ai_engine.configure(api_key=api_key, reasoning_model=model)
             if self.voice_service and api_key:
                 self.voice_service.set_api_key(api_key)
 

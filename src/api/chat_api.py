@@ -697,6 +697,7 @@ Target Source: {source.upper()} (User Preference vs Serendipity).
 
 [Response Goal]
 Initiate the conversation naturally.
+The output MUST be in JAPANESE (日本語).
 {self.topic_selector.get_instruction(topic, source)}
 """
         

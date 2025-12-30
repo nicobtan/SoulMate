@@ -18,6 +18,27 @@
             <span>履歴を復元</span>
         </div>
     </div>
+
+    <!-- Mobile Menu Button -->
+    <div id="mobile-menu-btn" class="mobile-only">
+        <span style="font-size: 24px; line-height: 1;">≡</span>
+    </div>
+
+    <!-- Mobile Context Menu Overlay -->
+    <div id="mobile-context-menu" class="mobile-overlay hidden">
+        <div class="menu-content">
+            <h3 style="color: #ccc; margin-top: 0;">SoulMate Menu</h3>
+
+            <button onclick="uiManager.toggleWindow('history'); uiManager.closeMobileMenu()">📖 Memories
+                (日記・記憶)</button>
+            <button onclick="uiManager.toggleWindow('settings'); uiManager.closeMobileMenu()">⚙️ Settings (設定)</button>
+            <button onclick="api.force_proactive(); uiManager.closeMobileMenu()">🧠 Force Proactive (思考)</button>
+
+            <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
+                <button onclick="uiManager.closeMobileMenu()" style="background:#555;">Close</button>
+            </div>
+        </div>
+    </div>
     <!-- Libraries -->
     <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.10/browser/pixi.min.js"></script>

@@ -12,10 +12,12 @@ class DiaryGenerator:
 
     def check_and_generate_diary(self, force=False):
         """
-        Checks if a diary entry exists for 'yesterday' (logical 4:00 AM start).
+        checks if a diary entry exists for 'yesterday' (logical 4:00 AM start).
         If not, generates it.
         Run this in a separate thread to avoid blocking startup.
         """
+        import time
+        time.sleep(5) # Wait for Frontend UI to initialize
         if self.generating: return
         
         # Calculate Logical Dates
@@ -56,12 +58,16 @@ class DiaryGenerator:
     def _generate_process(self, date_str, start_dt, end_dt):
         try:
             logger.info(f"[Diary] Generating diary for {date_str}...")
+            if hasattr(self.services, 'log_to_debug'):
+                self.services.log_to_debug(f"[Diary] {date_str} の日記を執筆中...", "info")
             
             # Fetch logs
             logs = self.services.db_manager.get_logs_in_range(start_dt, end_dt)
             
             if not logs:
                 logger.info(f"[Diary] No conversation logs found for {date_str}. Skipping.")
+                if hasattr(self.services, 'log_to_debug'):
+                     self.services.log_to_debug(f"[Diary] {date_str} の会話ログがないため、日記は作成されませんでした。", "info")
                 self.generating = False
                 return
 
@@ -132,7 +138,7 @@ This is NOT a message to the user. It is your private diary.
                 
                 # System Log
                 if hasattr(self.services, 'log_to_debug'):
-                    self.services.log_to_debug(f"[Diary] 機能を執筆しました: {title}", "success")
+                    self.services.log_to_debug(f"[Diary] {date_str} の日記を書き終えました: {title}", "success")
 
         except Exception as e:
             logger.error(f"[Diary] Generation failed: {e}")

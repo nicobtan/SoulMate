@@ -260,3 +260,29 @@ class MemoryManager:
             logger.error(f"[Memory] Random retrieval failed: {e}")
             return None
 
+    def get_combined_context(self):
+        """Constructs a combined context string from recent history and MindVault."""
+        context = ""
+        
+        # 1. Recent History
+        history = self.get_recent_history(limit=5)
+        if history:
+            context += "[Recent Conversation]\n"
+            for h in history:
+                role = h.get('role', 'unknown') # user or ai
+                text = h.get('ai', '') if role == 'ai' else h.get('user', '')
+                # Wait, log_interaction saves {user:..., ai:...} in one line
+                # get_recent_history returns list of these dicts
+                if 'user' in h and h['user']:
+                    context += f"User: {h['user']}\n"
+                if 'ai' in h and h['ai']:
+                    context += f"AI: {h['ai']}\n"
+            context += "\n"
+
+        # 2. Mind Vault
+        mind = self.get_mind_vault_context()
+        if mind:
+            context += f"{mind}\n"
+            
+        return context
+

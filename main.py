@@ -74,8 +74,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # --- Diary Generator (Phase 89) ---
         from src.services.diary_generator import DiaryGenerator
         self.diary_generator = DiaryGenerator(self)
-        # Async Check on Startup
-        threading.Thread(target=self.diary_generator.check_and_generate_diary, daemon=True).start()
+        # Thread started in set_window()
 
 
         # TTS Engine
@@ -254,6 +253,8 @@ Do not preach about health before 02:00 AM.
     def set_window(self, window):
         self._window = window
         self.active_engine.start()
+        # Start Diary Check (Delayed to ensure UI is ready)
+        threading.Thread(target=self.diary_generator.check_and_generate_diary, daemon=True).start()
 
     def push_message_callback(self, message):
         """Callback for ActiveEngine to push messages to UI."""

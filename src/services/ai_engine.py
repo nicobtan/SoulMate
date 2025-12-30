@@ -61,6 +61,10 @@ class AIEngine:
 3. DO NOT update years/dates in URLs to match the current system time (e.g. do not change /2024/ to /2025/).
 4. If you are unsure of a link's validity, do not show it.
 
+[LANGUAGE CONSTRAINT]
+Your "thought" and "response" MUST be in JAPANESE (日本語).
+Even if the system instructions are in English, the FINAL OUTPUT for the user MUST be Japanese.
+
 [SYSTEM OUTPUT REQUIREMENT]
 You MUST output a valid JSON object. NO markdown, NO code blocks, NO preamble.
 Format:
@@ -86,7 +90,8 @@ Format:
             response_mime_type=mime_type, 
             response_schema=None, 
             tools=tools,
-            temperature=0.9
+            temperature=0.9,
+            system_instruction=self.system_instruction
         )
 
         contents = [full_prompt]
@@ -174,7 +179,7 @@ Format:
         
         prompt_text = f"""
 User says: '{user_input}'
-Instruction: Analyze the video visuals and audio. Share your thoughts.
+Instruction: Analyze the video visuals and audio. Share your thoughts in JAPANESE (日本語).
 [SYSTEM OUTPUT REQUIREMENT]
 You MUST output a valid JSON object.
 Format:
@@ -236,6 +241,7 @@ Format:
     def generate_proactive_message(self, context=None):
         prompt = "User is idle. Initiate a conversation naturally. Suggest a topic for the user."
         if context: prompt += f"\nContext: {context}"
+        prompt += "\n[Language Constraint] OUTPUT MUST BE IN JAPANESE (日本語で話してください)."
         return self.generate_response(prompt)
 
     def generate_raw_response(self, prompt, model=None):

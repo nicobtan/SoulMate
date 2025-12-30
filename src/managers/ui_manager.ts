@@ -18,7 +18,11 @@ export class UIManager {
     private suggestionPopup: HTMLElement | null;
     private settingsModal: HTMLElement | null;
 
-    // New Elements
+    // Mobile Elements
+    private mobileMenuBtn: HTMLElement | null;
+    private mobileContextMenu: HTMLElement | null;
+
+    // Context & Panels
     private characterArea: HTMLElement | null;
     private leftPanel: HTMLElement | null;
     private contextMenu: HTMLElement | null;
@@ -38,6 +42,9 @@ export class UIManager {
         this.characterArea = document.getElementById('character-area');
         this.leftPanel = document.getElementById('left-panel');
         this.contextMenu = document.getElementById('context-menu');
+
+        this.mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        this.mobileContextMenu = document.getElementById('mobile-context-menu');
     }
 
     public static getInstance(): UIManager {
@@ -51,6 +58,7 @@ export class UIManager {
         this.initButtons();
         this.initFadeUI();
         this.initContextMenus();
+        this.initMobileMenu();
 
         // Expose global helpers
         (window as any).openChatPanel = this.openChatPanel.bind(this);
@@ -66,6 +74,62 @@ export class UIManager {
         }, { capture: true });
 
         console.log("UIManager Initialized");
+    }
+
+    private initMobileMenu() {
+        if (this.mobileMenuBtn && this.mobileContextMenu) {
+            this.mobileMenuBtn.addEventListener('click', () => {
+                this.mobileContextMenu!.classList.remove('hidden');
+            });
+        }
+    }
+
+    public closeMobileMenu() {
+        if (this.mobileContextMenu) {
+            this.mobileContextMenu.classList.add('hidden');
+        }
+    }
+
+    public toggleWindow(target: string) {
+        if (target === 'settings') {
+            if (this.settingsModal) {
+                this.settingsModal.style.display = 'block';
+                // Ensure it's on top for mobile
+                this.settingsModal.style.zIndex = '5000';
+            }
+        } else if (target === 'history') {
+            // For mobile history, we reuse logic or just show left panel as overlay
+            // Since left-panel is hidden by !important css on mobile, we need to enforce display
+            if (this.leftPanel) {
+                const isHidden = this.leftPanel.style.display === 'none' || getComputedStyle(this.leftPanel).display === 'none';
+
+                if (isHidden) {
+                    this.leftPanel.style.setProperty('display', 'flex', 'important');
+                    this.leftPanel.style.setProperty('position', 'fixed', 'important');
+                    this.leftPanel.style.setProperty('top', '0', 'important');
+                    this.leftPanel.style.setProperty('left', '0', 'important');
+                    this.leftPanel.style.setProperty('width', '100%', 'important');
+                    this.leftPanel.style.setProperty('height', '100dvh', 'important');
+                    this.leftPanel.style.setProperty('z-index', '2000', 'important');
+                    this.leftPanel.style.setProperty('background', 'rgba(0,0,0,0.95)', 'important');
+                    this.leftPanel.style.setProperty('opacity', '1', 'important');
+
+                    // Add close handler if not exists
+                    this.leftPanel.onclick = (e) => {
+                        // Close if clicked on background (simple dismissal)
+                        if (e.target === this.leftPanel) {
+                            this.leftPanel!.style.display = 'none';
+                        }
+                    };
+
+                    // Switch to history tab inside if needed
+                    // Assuming switchLogTab works if we show the panel
+                    this.switchLogTab('history'); // You might need to implement this properly if tabs are separate
+                } else {
+                    this.leftPanel.style.display = 'none';
+                }
+            }
+        }
     }
 
     // --- 1. Layout & Clock ---
