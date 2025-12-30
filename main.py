@@ -352,7 +352,7 @@ Do not preach about health before 02:00 AM.
 
 # --- Background Task for Auto-Titling ---
 def start_background_title_fixer(api_instance):
-    """起動後に裏でこっそりタイトルを直すお掃除タスク (直近の話題で上書き版)"""
+    """起動後に裏でこっそり会話タイトルを修正するタスク (直近の話題に基づいてリネーム)"""
     import time
     def _run():
         import time
@@ -415,7 +415,6 @@ def start_background_title_fixer(api_instance):
             print(f"[TitleFixer] Regenerating title for session {s_id} using LAST conversations...")
             
             # AI要約実行
-            # api_instance._ai_engine access
             if hasattr(api_instance, '_ai_engine') and api_instance._ai_engine:
                  new_title = api_instance._ai_engine.generate_title_summary(context)
                  

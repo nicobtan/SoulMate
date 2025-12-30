@@ -14,6 +14,11 @@ from ..services.affection_manager import AffectionManager
 from ..services.vision_service import vision_service
 
 class ChatApiMixin(BaseApiMixin):
+    """
+    チャット機能を提供するMixin。
+    Apiクラス（デスクトップ）およびHeadlessApiクラス（サーバー）に継承され、
+    共通のチャットロジック（応答生成、ログ記録、TTS呼び出し）を提供します。
+    """
     
     def initialize_persona(self, persona_file="lena.yaml"):
         """JSONモード用のシステムプロンプトをセット"""
@@ -21,35 +26,17 @@ class ChatApiMixin(BaseApiMixin):
         if not hasattr(self, 'resource_manager'):
             self.resource_manager = ResourceManager()
 
-        # Topic Selector
+        # Topic Selector (話題選択ロジック)
         self.topic_selector = TopicSelector()
 
         # 1. ファイル読み込み  (ResourceManagerの実装を信頼)  
-        # Note: If ResourceManager is not present (reverted), we might need fallback or simplistic approach. 
-        # But since user said "resource_manager.get_persona_system_prompt", I assume they want that or existing logic.
-        # Wait, ResourceManager was in the rolled back change? 
-        # The rollback removed src/services/resource_manager.py.
-        # !! CRITICAL: The user code uses ResourceManager but it was likely deleted in rollback.
-        # I must check if I should restore ResourceManager or implement simpler logic here.
-        # User request says: "from ..services.resource_manager import ResourceManager"
-        # I should probably recreate ResourceManager or use simplistic prompt loading if it doesn't exist.
-        
-        # Checking if I need to restore ResourceManager first. 
-        # For now, I will implement a robust prompt loader inside here to avoid dependency hell if file is missing.
-        
-        # Actually, let's just stick to what was there or simple loading if ResourceManager is gone.
-        # The previous code (before rollback) used ResourceManager. Since I rolled back, I don't have it.
-        # I should just load the YAML directly or use a default prompt.
-        
-        # However, the user provided code block USES ResourceManager.
-        # "from ..services.resource_manager import ResourceManager"
-        # I will assume I need to create ResourceManager too? Or just adapt?
-        # I will adapt to standard file reading for stability.
+        # Note: ResourceManagerがロールバックで削除されている可能性があるため、
+        # 簡易的な読み込みロジックも含めています。
         
         base_prompt = "You are a helpful AI."
         user_profile = "User is looking for a chat partner."
         
-        # Try to load persona manually if RM is missing
+        # ファイルから直接読み込みを試行 (フォールバック)
         try:
              import yaml
              with open(f"settings/personas/{persona_file}", 'r', encoding='utf-8') as f:
@@ -58,7 +45,7 @@ class ChatApiMixin(BaseApiMixin):
         except:
              pass
 
-        # Try to load user profile
+        # ユーザープロファイルの読み込み
         try:
              import yaml
              with open("settings/user_profile.yaml", 'r', encoding='utf-8') as f:
@@ -116,7 +103,7 @@ You have access to the following tools. To use them, output the specific tag exa
 
 
     def generate_tts_audio(self, text):
-        """Helper to generate audio using configured provider (VOICEVOX or Google)."""
+        """指定されたプロバイダー（VOICEVOX or Google）を使用して音声を生成するヘルパー関数。"""
         if not self._config_manager:
             return None
             
@@ -125,7 +112,7 @@ You have access to the following tools. To use them, output the specific tag exa
         voice_name = settings.get('voice_type', '3')
         base_dir = self._config_manager.base_dir
         
-        # Clean Text
+        # テキストのクリーニング (URL, アクションタグ除去)
         tts_text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
         tts_text = re.sub(r'\[ACTION:.*?\]', '', tts_text)
         tts_text = tts_text.replace('*', '')
@@ -165,7 +152,14 @@ You have access to the following tools. To use them, output the specific tag exa
 
     # ★修正: chatメソッドが画像を受け取れるように引数を追加
     def chat(self, message, image_data=None, save_user_log=True):
-        """Sends a message (and optional image) to the AI Engine and returns the response object {text, audio}."""
+        """
+        AIエンジンにメッセージ（およびオプションの画像）を送信し、応答（テキスト、音声、ログ）を生成して返します。
+        
+        Args:
+            message (str): ユーザーのメッセージ
+            image_data (str, optional): Base64エンコードされた画像データ
+            save_user_log (bool): ユーザーメッセージをDBに保存するかどうか (Proactiveなど自動トリガー時はFalse)
+        """
         # Log input
         log_msg = f"Chat Received: {message}"
         if image_data: log_msg += " [with image]"
@@ -556,12 +550,16 @@ You have access to the following tools. To use them, output the specific tag exa
 
     def chat_with_vision(self, message, mode="screen"):
         """
-        1. 画面/クリップボードを取得
-        2. ローカルPaliGemmaで解析 (Image -> Text)
-        3. 解析結果をコンテキストとしてGeminiに送信 (Text -> Response)
+        画面またはクリップボードの画像を解析し、チャットコンテキストに含めて応答を生成します。
+        
+        Process:
+        1. 画面/クリップボードを取得 (ImageGrab)
+        2. ローカルPaliGemmaで解析 (Image -> Text Description)
+        3. 解析結果をテキストコンテキストとしてGeminiに送信 (Text -> Response)
+           (※Gemini APIへの画像直接送信ではなく、ローカル解析を挟むことで軽量化/プライバシー配慮を行う設計)
         """
         self.log_to_debug(f"Vision Chat Received: {message} Mode: {mode}", 'info')
-        self.play_filler() # 解析が長いのでフィラーを入れる
+        self.play_filler() # 解析が長いのでフィラー（相槌など）を入れる
         
         # 1. 画像取得 (Capture)
         image = None
@@ -602,12 +600,11 @@ You have access to the following tools. To use them, output the specific tag exa
             return {"text": "画像の取得に失敗しました。", "audio": None, "suggestions": []}
 
         # 2. ローカルVision (PaliGemma) で解析
-        # CPUなのでここで時間がかかります
+        # CPU推論の場合、時間がかかるためログで通知
         self.log_to_debug("👁️ [Vision] PaliGemma is thinking...", 'info')
         
         try:
-            # プロンプトはシンプルに "describe the image" でもOKですが、
-            # PaliGemmaは "caption en" や "detect ..." などタスク指定型です
+            # プロンプトはシンプルに "caption en" で英語の説明文を生成させる
             vision_result = vision_service.analyze_image(image, prompt="caption en")
         except Exception as e:
             vision_result = "解析エラー"
@@ -616,7 +613,7 @@ You have access to the following tools. To use them, output the specific tag exa
         self.log_to_debug(f"👁️ [Vision] Saw: {vision_result}", 'info')
 
         # 3. 解析結果をAIへのプロンプトに組み込む
-        # Geminiには画像を送らず、テキスト情報として渡す
+        # Geminiには画像そのものではなく、テキスト化された視覚情報を渡す
         context_prompt = f"""
 [System Vision Report]
 I looked at the user's screen/image.
@@ -632,7 +629,7 @@ User Message: "{message}"
         return self.chat(context_prompt, image_data=None, save_user_log=True)
 
     def toggle_proactive(self, enabled):
-        """Toggles Proactive Mode (Vision) on/off."""
+        """アクティブモード（自律的な視覚スキャン）のON/OFFを切り替えます。"""
         if not hasattr(self, 'active_engine') or not self.active_engine:
              return {'status': 'error', 'message': 'ActiveEngine not available'}
             
@@ -641,7 +638,7 @@ User Message: "{message}"
         return {'status': 'success', 'enabled': enabled}
 
     def force_proactive(self):
-        """Manually triggers the Proactive Vision Scan."""
+        """プロアクティブスキャン（画面を見て話しかける動作）を手動でトリガーします。"""
         print("DEBUG: ChatApi.force_proactive called!") # DEBUG
         if not hasattr(self, 'active_engine') or not self.active_engine:
              print("DEBUG: ActiveEngine NOT FOUND") # DEBUG
@@ -662,27 +659,30 @@ User Message: "{message}"
         return self.metadata_fetcher.fetch_metadata(url)
 
     def force_talk(self):
-        """Force the AI to initiate conversation (Proactive)."""
+        """
+        AIからの自発的な話しかけ（Force Talk）をトリガーします。
+        ユーザーが非アクティブな時間や、特定のタイミングで呼び出されます。
+        """
         self.log_to_debug("Force Talk Triggered", 'info')
         
-        # 1. Get Candidates from InterestManager (if available)
+        # 1. 候補トピックのロード (InterestManager)
         candidates = []
         if hasattr(self, 'interest_manager') and self.interest_manager:
             candidates = self.interest_manager.load_topics()
 
-        # 2. Decide Topic (Chaos vs Comfort)
+        # 2. トピックの決定 (Chaos vs Comfort バランシング)
         selection = self.topic_selector.decide_topic(candidates)
         topic = selection['topic']
         source = selection['source']  # 'comfort' or 'chaos'
         
-        # 3. Log Choice
+        # 3. ログ出力
         log_icon = "🎲" if source == 'chaos' else "🏠"
         self.log_to_debug(f"[Topic] {log_icon} {source.upper()}: '{topic}'", 'info')
         
         if hasattr(self, 'log_to_mind'):
              self.log_to_mind(f"{log_icon} Topic: {topic} ({source})")
 
-        # 4. Construct Prompt with Grounding Instruction
+        # 4. Prompt with Grounding Instruction
         # We ALWAYS want to search to make the serendipity valid (not hallucination).
         prompt = f"""
 [Situation]
@@ -702,6 +702,7 @@ The output MUST be in JAPANESE (日本語).
 """
         
         # Call chat with save_user_log=False to prevent DB pollution
+        # ユーザー発言として扱わず、AIからの発信として処理
         return self.chat(prompt, save_user_log=False)
 
     def suggest_reply(self):

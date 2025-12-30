@@ -9,6 +9,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AIEngine:
+    """
+    Google GenAI SDK (Gemini API) を利用して、テキスト生成、マルチモーダル入力、
+    RAG（Grounding）、ツール利用などを統括するクラスです。
+    """
     def __init__(self):
         self.api_key = None
         self.client = None
@@ -22,13 +26,24 @@ class AIEngine:
         self.use_search = True
 
     def set_mind_logger(self, callback):
+        """思考プロセス（Mind Log）を出力するためのコールバックを設定します。"""
         self.mind_logger = callback
 
     def _log_thought(self, thought):
+        """内部思考をログに出力します（デスクトップアプリのDebugタブに表示）。"""
         if self.mind_logger:
             self.mind_logger(thought)
 
     def configure(self, api_key, reasoning_model=None, tts_model=None, system_instruction=None):
+        """
+        API設定を初期化または更新します。
+        
+        Args:
+            api_key (str): Google GenAI APIキー
+            reasoning_model (str): 推論用モデル名 (例: gemini-2.0-flash)
+            tts_model (str): 音声合成用モデル名
+            system_instruction (str): システムプロンプト（ペルソナ設定など）
+        """
         self.api_key = api_key
         if reasoning_model: self.reasoning_model = reasoning_model
         if tts_model: self.tts_model = tts_model
@@ -45,10 +60,21 @@ class AIEngine:
         self.system_instruction = prompt_text
 
     def generate_response(self, message, context=None, image=None):
+        """
+        ユーザーの入力に対する応答を生成します。
+        
+        Args:
+            message (str): ユーザーからのメッセージ
+            context (str, optional): 会話の文脈情報
+            image (Any, optional): 画像データ（マルチモーダル入力用）
+        
+        Returns:
+            dict: 応答テキスト、感情、推奨アクションなどを含む辞書
+        """
         if not self.client:
             return {"text": "API Key Error", "emotion": "sad", "suggestions": []}
 
-        # 1. Prompt Construction (Strict JSON)
+        # 1. プロンプト構築 (Strict JSON対応)
         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         full_prompt = f"""
 [Current Time] {now}
@@ -76,12 +102,11 @@ Format:
     "action_command": ""
 }}
 """
-        # 2. Config (JSON Mode)
-        # Allow search tools if enabled
+        # 2. 設定構築 (JSON Mode)
+        # 検索ツールが有効な場合は設定
         tools = [types.Tool(google_search=types.GoogleSearch())] if self.use_search else []
 
-        # API Constraint: "Tool use with a response mime type: 'application/json' is unsupported"
-        # If using Tools, we must use text/plain and rely on parser.
+        # API制約: Tool利用時は response_mime_type: 'application/json' がサポートされない場合があるためテキストモードを使用
         mime_type = "application/json"
         if tools:
             mime_type = "text/plain"
@@ -100,34 +125,34 @@ Format:
             self._log_thought(f"👁️ [Vision] Receiving visual input... Analyzing.")
 
         try:
-            # 3. Call API
+            # 3. API呼び出し
             response = self.client.models.generate_content(
                 model=self.reasoning_model,
                 contents=contents,
                 config=config
             )
 
-            # 4. ★RAG Logging (FIRST PRIORITY)
+            # 4. ★RAG（検索結果）のログ出力 (最優先)
             grounding = self._extract_grounding(response)
             if grounding and grounding.get("sources"):
                 self._log_thought(f"🌍 [RAG] Accessed {len(grounding['sources'])} sources.")
                 for src in grounding['sources'][:3]:
                     self._log_thought(f"  - {src['title']}")
 
-            # 5. Parse using ResponseParser
+            # 5. レスポンスのパース (ResponseParser使用)
             data = {}
             if response.text:
                 data = self.parser.parse(response.text)
             else:
                  data = {"response": "", "emotion": "error", "suggestions": []}
 
-            # 6. Log Thoughts & Emotion
+            # 6. 思考と感情のログ出力
             if data.get("thought"):
                 self._log_thought(f"💭 {data['thought']}")
             if data.get("emotion"):
                 self._log_thought(f"🎭 [Expression] {data['emotion']}")
 
-            # 7. Return Normalized Data
+            # 7. 正規化データの返却
             return {
                 "text": data["response"],
                 "emotion": data["emotion"],
@@ -167,14 +192,21 @@ Format:
             return None
 
     def analyze_youtube_video(self, video_url, user_message=None):
-        """Native YouTube Analysis"""
+        """
+        YouTube動画の内容を分析し、ユーザーと一緒に視聴しているかのようなコメントを生成します。
+        Geminiのネイティブマルチモーダル機能を使用します。
+        
+        Args:
+            video_url (str): YouTube動画のURL
+            user_message (str, optional): ユーザーからのコメント
+        """
         if not self.client:
             return {"text": "API Key error.", "emotion": "sad", "suggestions": []}
 
         logger.info(f"[System] Native Video Analysis Started: {video_url}")
         self._log_thought(f"📺 [System] Native Video Analysis Started: {video_url}")
         
-        # Similar logic to generate_response but tailored for video
+        # 通常の応答生成に似ていますが、動画分析用に調整されています
         user_input = user_message if user_message else "この動画、一緒に見よう？"
         
         prompt_text = f"""
@@ -197,8 +229,8 @@ Format:
             
             tools = [types.Tool(google_search=types.GoogleSearch())]
             
-            # API Constraint: Tools + JSON Mode Unsupported
-            # Since tools are ALWAYS enabled here, forced to use text/plain
+            # API制約: Tool利用時は response_mime_type: 'application/json' がサポートされないためテキストモードを使用
+            # ここでは常に検索ツールが有効
             run_config = types.GenerateContentConfig(
                 tools=tools,
                 response_mime_type="text/plain",
@@ -213,10 +245,10 @@ Format:
                 config=run_config
             )
             
-            # RAG
+            # RAG情報の抽出
             grounding = self._extract_grounding(response)
             
-            # Parse
+            # パース
             data = {}
             if response.text:
                 data = self.parser.parse(response.text)

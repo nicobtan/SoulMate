@@ -36,9 +36,13 @@ logger = logging.getLogger("server")
 
 # --- Headless API Class (Logic Container) ---
 class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
+    """
+    GUIを持たないヘッドレスモード（サーバーモード）用のAPIクラス。
+    FastAPIから利用され、音声合成やAI対話のコアロジックを管理します。
+    """
     def __init__(self):
-        self._window = None # No GUI
-        self.services = self # Mixin Pattern: API instance itself is the service container
+        self._window = None # GUIウィンドウは存在しない
+        self.services = self # Mixinパターン: APIインスタンス自体がサービスコンテナとなる
         self._config_manager = ConfigManager()
         self._ai_engine = AIEngine()
         self._calendar_manager = CalendarManager()
@@ -48,7 +52,7 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         self._memory_manager = MemoryManager()
         self._persona_manager = PersonaManager()
         
-        # Load Persona
+        # ペルソナの読み込み
         settings = self._config_manager.get_all()
         current_persona = settings.get('current_persona_id', 'default')
         persona_data = self._persona_manager.load_persona(current_persona)
@@ -61,7 +65,7 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         
         self.active_engine = None 
         
-        # Init TTS & VoiceService
+        # TTSエンジンおよびVoiceServiceの初期化
         base_dir = os.getcwd()
         key_path = os.path.join(base_dir, "settings", "google-credentials.json")
         try:
@@ -78,11 +82,12 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         print(f"[{level.upper()}] {message}")
 
     def _configure_ai(self, settings):
+        """AIエンジンの設定（モデル、ペルソナ、システムプロンプトの構築）を行います。"""
         api_key = settings.get('api_key')
         model = settings.get('model_name', 'gemini-2.5-flash-lite')
         persona_id = settings.get('current_persona_id', 'default')
 
-        # Safety: Force correct model name if old config exists
+        # 安全策: 古い設定が残っている場合に正しいモデル名へ強制変換
         if model == "gemini-3.0":
             model = "gemini-3-flash-preview"
         base_prompt = ""
@@ -97,7 +102,8 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         topic_instruction = "Guidance: Use [User Profile] for proactive topics."
         citation_instruction = "Guideline: MUST include URL for search results."
         
-        # ★ TOON (Token-Oriented Object Notation) Format Instruction
+        # ★ TOON (Token-Oriented Object Notation) フォーマット指示
+        # JSONではなく、軽量なYAML/Line-based形式を指定して安定性を向上
         format_instruction = """
 Response Format:
 You MUST respond using **TOON (Token-Oriented Object Notation)** format.
@@ -125,11 +131,12 @@ suggestions:
                 self.voice_service.set_api_key(api_key)
 
     def chat(self, message):
+        """ユーザーからのメッセージを受け取り、応答を生成します。"""
         logger.info(f"Chat Request: {message}")
         if not self._ai_engine:
              return {"text": "AI Engine Not Ready", "audio": None, "suggestions": []}
 
-        # 1. Generate (AIEngine now handles TOON parsing)
+        # 1. 生成実行 (AIEngine側でTOONのパースも行われます)
         response_data = self._ai_engine.generate_response(message)
         
         text_to_speak = response_data.get("text", "")
@@ -137,12 +144,13 @@ suggestions:
         suggestions = response_data.get("suggestions", [])
         grounding_info = response_data.get("grounding_info")
 
-        # 2. TTS
+        # 2. TTS (音声合成)
         audio_path = None
         settings = self._config_manager.get_all()
         provider = settings.get('tts_provider', 'voicevox') 
         
         try:
+            # URLなどを除去してクリーンなテキストを作成
             clean_text = re.sub(r'http[s]?://\S+', '', text_to_speak)
             output_dir = os.path.join(os.getcwd(), 'dist/audio')
             if not os.path.exists(output_dir): os.makedirs(output_dir)
@@ -157,7 +165,7 @@ suggestions:
         except Exception as e:
             logger.error(f"TTS Error: {e}")
 
-        # 3. DB Save & History
+        # 3. データベースへの保存 & 履歴更新
         db = core_instance.get_db()
         if db:
             active = db.get_active_session()
