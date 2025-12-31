@@ -113,7 +113,12 @@ class MigrationService:
                 # But since it's a log, maybe we should archive it?
                 # Rename effectively archives it from the active path.
                 try:
-                    os.rename(HISTORY_JSONL, f"{HISTORY_JSONL}.bak")
+                    # Windows: os.rename fails if dst exists.
+                    bak_path = f"{HISTORY_JSONL}.bak"
+                    if os.path.exists(bak_path):
+                        os.remove(bak_path) # Delete old backup to overwrite
+                    os.rename(HISTORY_JSONL, bak_path)
+                    print(f"[Migration] Renamed {HISTORY_JSONL} to {bak_path}")
                 except Exception as e:
                     print(f"[Migration] Rename failed: {e}")
 
