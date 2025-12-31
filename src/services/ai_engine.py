@@ -116,7 +116,13 @@ Format:
             response_schema=None, 
             tools=tools,
             temperature=0.9,
-            system_instruction=self.system_instruction
+            system_instruction=self.system_instruction,
+            safety_settings=[
+                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE")
+            ]
         )
 
         contents = [full_prompt]
@@ -141,10 +147,20 @@ Format:
 
             # 5. レスポンスのパース (ResponseParser使用)
             data = {}
-            if response.text:
-                data = self.parser.parse(response.text)
+            
+            # Check for safety block or empty response
+            text_result = ""
+            try:
+                text_result = response.text
+            except ValueError:
+                # Often caused by Safety Filter blocking the response
+                self._log_thought("⚠️ [Safety] Response blocked by filters.")
+                text_result = ""
+
+            if text_result:
+                data = self.parser.parse(text_result)
             else:
-                 data = {"response": "", "emotion": "error", "suggestions": []}
+                 data = {"response": "（言葉に詰まっているようです……）", "emotion": "sad", "suggestions": []}
 
             # 6. 思考と感情のログ出力
             if data.get("thought"):
@@ -163,7 +179,7 @@ Format:
 
         except Exception as e:
             logger.error(f"Gen Error: {e}")
-            return {"text": "エラーが発生しました。", "emotion": "sad", "suggestions": []}
+            return {"text": f"エラーが発生しました: {str(e)}", "emotion": "sad", "suggestions": []}
 
     def _extract_grounding(self, response):
         try:

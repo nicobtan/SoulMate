@@ -165,12 +165,16 @@ export class ChatManager {
         // Let's check index.ts previous view... it was 'chat-send-btn'.
         // I'll stick to 'chat-send-btn' if 'send-button' is not found.
         const actualSendBtn = document.getElementById('chat-send-btn') || document.getElementById('send-button');
-        if (actualSendBtn) actualSendBtn.addEventListener('click', () => this.sendMessage());
+        if (actualSendBtn) actualSendBtn.addEventListener('click', () => {
+            AudioManager.getInstance().unlock();
+            this.sendMessage();
+        });
 
         if (this.chatInput) {
             this.chatInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
+                    AudioManager.getInstance().unlock(); // Unlock on Enter too
                     this.sendMessage();
                 }
             });
@@ -436,7 +440,7 @@ export class ChatManager {
 
         // 4. Audio
         if (audio) {
-            AudioManager.getInstance().play(audio);
+            AudioManager.getInstance().enqueue(audio);
         }
 
         // 5. Grounding Info (RAG)

@@ -50,6 +50,7 @@ class VoiceService:
             model_id = "gemini-2.5-flash-preview-tts"
             
             logger.info(f"Generating Audio via Gemini TTS... (Model: {model_id}, Voice: {voice_name})")
+            print(f"[AUDIO DEBUG] Generating Audio via Gemini TTS... (Voice: {voice_name})") # Explicit Term Log
             
             # 1. API Call
             # SDKの制約上、現在はRaw PCMが返ってくるため、フォーマット指定は行わずデフォルトを受け取ります
@@ -141,6 +142,7 @@ class VoiceService:
             # Timer Log
             duration = time.time() - start_time
             logger.info(f"[TTS] Gemini Audio Generated in {duration:.3f}s: {filename} (WAV)")
+            print(f"[AUDIO DEBUG] ✅ Audio Generated: {filename} ({duration:.3f}s)")
             
             return final_web_path
 

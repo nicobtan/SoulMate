@@ -130,7 +130,9 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
 
     def generate_tts_audio(self, text):
         """指定されたプロバイダー（VOICEVOX or Google）を使用して音声を生成するヘルパー関数。"""
+        print(f"[DEBUG] generate_tts_audio called: {text[:20]}...")
         if not self._config_manager:
+            print("[DEBUG] config_manager missing")
             return None
             
         settings = self._config_manager.get_all()
@@ -772,6 +774,45 @@ Output ONLY the suggested text.
             # Fallback for now if service missing or mock
             return {'status': 'ignored'}
         return self.services.bubble_service.handle_action(action_id)
+
+    def get_topic_suggestions(self):
+        """Returns a list of suggested topics for the frontend UI."""
+        candidates = []
+        # 1. Try InterestManager
+        if hasattr(self, 'interest_manager') and self.interest_manager:
+            candidates = self.interest_manager.load_topics()
+            
+        # 2. Add some defaults if empty
+        defaults = ["最近のニュースは？", "何か面白い話ある？", "リラックスしたい", "今日の運勢"]
+        if not candidates:
+            candidates = defaults
+        else:
+             candidates.extend(defaults) # Mix
+        
+        # 3. Guaranteed Love Slot (Pink Heart Items)
+        love_items = [
+            "❤ ぎゅっとして", 
+            "❤ 頭なでなでして", 
+            "❤ 大好きだよ", 
+            "❤ 癒やしてほしいな",
+            "❤ 一緒にリラックスしよう"
+        ]
+        import random
+
+        # 4. Construct Final List (User Request: 8 topics + Love + "Another?")
+        random.shuffle(candidates)
+        final_list = candidates[:8] # Pick 8 normal/mixed topics
+
+        # Add Love Item (Ensure at least one)
+        # Check if already in list (unlikely due to candidates construction but safe to force nice one)
+        love_choice = random.choice(love_items)
+        if love_choice not in final_list:
+            final_list.append(love_choice)
+        
+        # Add Navigation
+        final_list.append("別の話題はある？")
+
+        return final_list
 
     def get_manual_bubble(self, category, text):
         """Allows frontend to request a valid bubble packet for manual spawning."""

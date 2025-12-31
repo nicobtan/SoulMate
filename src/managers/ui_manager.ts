@@ -116,8 +116,8 @@ export class UIManager {
                 // Ensure it's on top for mobile
                 this.settingsModal.style.zIndex = '5000';
             }
-        } else if (target === 'history') {
-            // For mobile history, we reuse logic or just show left panel as overlay
+        } else if (target === 'history' || target === 'logs') {
+            // For mobile history/logs, we reuse logic or just show left panel as overlay
             // Since left-panel is hidden by !important css on mobile, we need to enforce display
             if (this.leftPanel) {
                 const isHidden = this.leftPanel.style.display === 'none' || getComputedStyle(this.leftPanel).display === 'none';
@@ -141,9 +141,14 @@ export class UIManager {
                         }
                     };
 
-                    // Switch to history tab inside if needed
-                    // Assuming switchLogTab works if we show the panel
-                    this.switchLogTab('history'); // You might need to implement this properly if tabs are separate
+                    // Switch logic
+                    if (target === 'history') {
+                        // Assuming switchLogTab('history') exists or handled
+                        if ((this as any).switchLogTab) (this as any).switchLogTab('history');
+                    } else {
+                        // Default to system for logs
+                        if ((this as any).switchLogTab) (this as any).switchLogTab('sys');
+                    }
                 } else {
                     this.leftPanel.style.display = 'none';
                 }
@@ -190,10 +195,16 @@ export class UIManager {
 
     // --- 2. Buttons & Interactions ---
     private initButtons() {
+        // Helper to unlock audio on interaction
+        const unlockAudio = () => {
+            import('../services/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
+        };
+
         // Chat Toggle
         if (this.chatToggleBtn) {
             this.chatToggleBtn.addEventListener('click', () => {
                 this.openChatPanel(!uiState.isChatOpen);
+                unlockAudio();
             });
         }
 
@@ -210,6 +221,7 @@ export class UIManager {
         if (mobileBtn && this.settingsModal) {
             mobileBtn.addEventListener('click', () => {
                 this.settingsModal!.style.display = 'block';
+                unlockAudio();
             });
         }
 
@@ -217,6 +229,7 @@ export class UIManager {
             this.suggestionToggleBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.toggleSuggestions();
+                unlockAudio();
             });
         }
 
@@ -224,6 +237,7 @@ export class UIManager {
         const spawnBtn = document.getElementById('spawn-balloon-btn');
         if (spawnBtn) {
             spawnBtn.addEventListener('click', async () => {
+                unlockAudio(); // Unlock here
                 const isMobile = document.body.classList.contains('mobile-mode');
 
                 if (isMobile) {
@@ -242,16 +256,29 @@ export class UIManager {
                             btn.innerText = topic;
                             btn.style.width = '100%';
                             btn.style.padding = '12px';
-                            btn.style.background = '#333';
-                            btn.style.color = 'white';
-                            btn.style.border = '1px solid #555';
                             btn.style.borderRadius = '6px';
                             btn.style.textAlign = 'left';
                             btn.style.cursor = 'pointer';
+                            btn.style.marginBottom = '8px'; // Spacing
+
+                            // Special Styling for Love Items
+                            if (topic.includes('❤')) {
+                                btn.style.background = 'linear-gradient(135deg, #e91e63, #ff4081)';
+                                btn.style.color = 'white';
+                                btn.style.border = '1px solid #ff80ab';
+                                btn.style.fontWeight = 'bold';
+                                btn.style.boxShadow = '0 2px 8px rgba(233, 30, 99, 0.4)';
+                            } else {
+                                btn.style.background = '#333';
+                                btn.style.color = 'white';
+                                btn.style.border = '1px solid #555';
+                            }
 
                             btn.onclick = () => {
                                 // User selected a topic -> Chat
-                                api.chat(topic);
+                                import('./chat_manager.js').then(m => {
+                                    m.ChatManager.getInstance().sendMessage(topic);
+                                });
                                 this.topicModal!.classList.add('hidden');
                                 this.openChatPanel(true); // Ensure chat is open
                             };
@@ -275,6 +302,7 @@ export class UIManager {
         // Status Text Force Trigger
         if (this.statusText) {
             this.statusText.addEventListener('click', async () => {
+                unlockAudio();
                 // Only trigger if enabled and text indicates Proactive
                 if (this.isProactive) {
                     console.log("[UI] Proactive Force Triggered by user.");

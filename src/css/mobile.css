@@ -19,21 +19,20 @@ body.mobile-mode #app-container {
     margin: 0 !important;
 }
 
-/* 2. Character Area (Full Screen) */
+/* 2. Character Area (Full Screen Layer) */
 body.mobile-mode #app-container #character-area {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
     width: 100vw !important;
     height: 100dvh !important;
-    z-index: auto !important;
+    z-index: 10 !important;
+    /* Behind UI but above bg */
     pointer-events: none;
     display: flex !important;
     justify-content: center !important;
     align-items: flex-end !important;
     border: none !important;
-    border: 4px solid red !important;
-    /* Debug Border as requested */
     box-sizing: border-box !important;
 }
 
@@ -45,23 +44,12 @@ body.mobile-mode #app-container #character-area canvas {
     transform: none !important;
 }
 
-/* Allow interaction with buttons inside character area */
-body.mobile-mode #app-container #character-area button,
-body.mobile-mode #app-container #character-area .icon {
+/* Allow interaction with buttons inside character area if any */
+body.mobile-mode #app-container #character-area button {
     pointer-events: auto !important;
 }
 
-/* 3. Layout Changes: Top Section */
-/* Note: body.mobile-mode prefixes were added in previous steps, ensuring they are kept. */
-
-/* ... (Skipping redundant re-declarations for brevity, focusing on fixing the file structure) ... */
-/* Wait, replace_file_content replaces lines. I should be careful not to delete the existing scoped lines unless I'm rewriting the whole file or a block. 
-   The prompt asked me to scope "Strictly". 
-   I will rewrite the TOP section which was global.
-*/
-
-
-/* 3. Layout Changes: Top Section */
+/* 3. Top Section UI Elements */
 
 /* Menu Button -> Top Right */
 body.mobile-mode #mobile-menu-btn {
@@ -80,7 +68,7 @@ body.mobile-mode #mobile-menu-btn {
     justify-content: center;
 }
 
-/* Clock -> Hidden */
+/* Clock -> Hidden on Mobile (Save Space) */
 body.mobile-mode #clock-display {
     display: none !important;
 }
@@ -93,101 +81,171 @@ body.mobile-mode #status-bar {
     left: 50% !important;
     transform: translateX(-50%) !important;
     z-index: 500 !important;
+    font-size: 12px !important;
+    padding: 4px 12px !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    border-radius: 12px !important;
 }
 
-/* Expression Toggle -> Top Left */
+/* Expression Toggle -> Hidden or Top Left */
 body.mobile-mode #expression-test-btn {
-    position: fixed !important;
-    top: 15px !important;
-    left: 15px !important;
-    right: auto !important;
-    bottom: auto !important;
-    z-index: 500 !important;
+    display: none !important;
 }
 
-/* History Button -> Hidden (Moved to Menu) */
+/* History Button -> Hidden (Use Menu) */
 body.mobile-mode #history-btn {
     display: none !important;
 }
 
-/* 4. Chat Panel (Bottom Half) */
-/* ... (Existing scoped rule) ... */
-
-/* Chat Log Area: Hidden by default (Closed State) */
-body.mobile-mode #chat-window,
-body.mobile-mode #chat-log-area {
-    display: none !important;
-    flex-grow: 1;
-    overflow-y: auto;
-    background: rgba(0, 0, 0, 0.7) !important;
-    border: none !important;
-    padding: 10px;
-    padding-bottom: 20px;
-    pointer-events: auto;
-    font-size: 16px;
-    text-shadow: 1px 1px 2px black;
-    backdrop-filter: none !important;
+/* 4. Chat Panel (Bottom Overlay) */
+/* The Container for Chat Log + Input */
+body.mobile-mode #right-panel {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 50dvh !important;
+    /* Cap height */
+    z-index: 200 !important;
+    background: transparent !important;
+    display: flex !important;
+    flex-direction: column !important;
+    pointer-events: none;
+    /* Let clicks pass through empty areas */
 }
 
-/* ... */
+/* Internal Chat Window Wrapper */
+body.mobile-mode #chat-window {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: auto !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    /* Force Remove Glass */
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none;
+    box-shadow: none !important;
+    /* Remove any shadows */
+}
 
-/* Input Area (Pinned to bottom of Right Panel) */
+/* Chat Log Area: The Scrollable Text Part */
+body.mobile-mode #chat-log-area {
+    display: block !important;
+    width: 100% !important;
+    height: 30vh !important;
+    overflow-y: auto !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    /* Force Remove Glass */
+    -webkit-backdrop-filter: none !important;
+    padding: 10px;
+    pointer-events: auto;
+    font-size: 16px;
+    color: white;
+    text-shadow: 2px 2px 4px #000, -1px -1px 0 #000;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+}
+
 body.mobile-mode #input-area {
     width: 100% !important;
-    height: 85px !important;
-    background: #1a1a1a !important;
-    border-top: 1px solid #333;
-    padding: 10px 5px !important;
+    height: auto !important;
+    min-height: 60px;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-top: none !important;
+    padding: 10px !important;
     display: flex !important;
     align-items: center !important;
-    flex-shrink: 0;
     pointer-events: auto !important;
-    z-index: 150 !important;
+    box-sizing: border-box !important;
+}
+
+/* System Log Button (Top Left) */
+body.mobile-mode #sys-log-btn {
+    position: fixed !important;
+    top: 15px !important;
+    left: 15px !important;
+    z-index: 3000 !important;
+    color: white;
+    background: rgba(0, 0, 0, 0.5);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 body.mobile-mode #user-input,
 body.mobile-mode #chat-input {
-    height: 55px !important;
+    height: 44px !important;
     font-size: 16px !important;
+    border-radius: 22px !important;
+    padding-left: 15px !important;
 }
 
-/* 5. Floating Action Buttons */
+/* 5. Floating Action Buttons (Right Side Vertical Stack) */
+/* Stack above the input area */
 body.mobile-mode #chat-toggle-btn {
-    position: fixed !important;
-    bottom: 95px !important;
-    right: 15px !important;
-    z-index: 500 !important;
+    display: none !important;
+    /* Always show chat in split view */
 }
 
 body.mobile-mode #force-talk-btn {
     position: fixed !important;
-    bottom: 155px !important;
+    bottom: 90px !important;
+    /* Above input area */
     right: 15px !important;
     z-index: 500 !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
 body.mobile-mode #spawn-balloon-btn {
     position: fixed !important;
-    top: 70px !important;
+    bottom: 150px !important;
+    /* Above force talk */
     right: 15px !important;
+    top: auto !important;
     left: auto !important;
-    bottom: auto !important;
     z-index: 500 !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
-body.mobile-mode #debug-btn {
+body.mobile-mode #suggestion-toggle-btn {
     position: fixed !important;
-    top: 70px !important;
-    left: 15px !important;
-    bottom: auto !important;
-    right: auto !important;
+    bottom: 210px !important;
+    /* Above spawn btn */
+    right: 15px !important;
+    top: auto !important;
+    left: auto !important;
     z-index: 500 !important;
-    transform: scale(0.8);
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Hide Debug/Vision buttons on Mobile to reduce clutter (use menu for actions) */
+body.mobile-mode #debug-btn,
+body.mobile-mode #vision-btn {
+    display: none !important;
 }
 
 /* 6. Modals & Overlays */
 
-/* Global: Force Hide Mobile Overlays on Desktop */
+/* Force Hide Mobile Overlays on Desktop */
 #mobile-context-menu,
 #topic-selection-modal {
     display: none !important;
@@ -199,7 +257,7 @@ body.mobile-mode #topic-selection-modal:not(.hidden) {
     display: flex !important;
 }
 
-/* Full Screen Modals SCoped */
+/* Full Screen Modals Scoped */
 body.mobile-mode #memory-window,
 body.mobile-mode #settings-window,
 body.mobile-mode #settings-modal,
@@ -213,6 +271,20 @@ body.mobile-mode #left-panel {
     z-index: 5000 !important;
     border-radius: 0 !important;
     transform: none !important;
+    padding-top: 50px !important;
+    /* Space for close btn */
+}
+
+/* Close buttons for modals */
+body.mobile-mode #settings-close-btn,
+body.mobile-mode .close-modal-btn {
+    display: block !important;
+    position: absolute !important;
+    top: 15px !important;
+    right: 15px !important;
+    z-index: 5001 !important;
+    padding: 10px !important;
+    font-size: 24px !important;
 }
 
 /* Specific Context Menu Styling (Mobile Mode) */
@@ -256,23 +328,7 @@ body.mobile-mode .menu-content button {
     border-radius: 5px;
 }
 
-/* For left-panel specifically provided in index.html inspection */
-body.mobile-mode #left-panel {
-    display: none;
-}
-
-/* If left-panel is effectively the history/log window, it should be full screen when active */
-body.mobile-mode #left-panel.active {
-    display: block !important;
-}
-
-body.mobile-mode .window-content,
-body.mobile-mode .settings-group {
-    height: calc(100dvh - 60px) !important;
-    overflow-y: auto;
-}
-
-/* 7. PC専用パーツの消去 (Scoped) */
+/* Hide PC specific handles */
 body.mobile-mode .window-header,
 body.mobile-mode .resize-handle,
 body.mobile-mode .drag-handle,
@@ -280,7 +336,7 @@ body.mobile-mode #close-debug {
     display: none !important;
 }
 
-/* 8. Mobile Only Elements (Scoped) */
+/* Mobile Only Elements */
 body.mobile-mode .mobile-only {
     display: flex !important;
 }

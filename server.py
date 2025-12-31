@@ -88,7 +88,7 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         persona_id = settings.get('current_persona_id', 'default')
 
         # 安全策: 古い設定が残っている場合に正しいモデル名へ強制変換
-        if model == "gemini-3.0":
+        if model == "gemini-3.0" or model == "gemini-3.0-flash-preview":
             model = "gemini-3-flash-preview"
         base_prompt = ""
         if self._persona_manager:

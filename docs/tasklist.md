@@ -734,3 +734,14 @@
     - [x] **Backend**: `ChatApiMixin` に `chat_length_mode` ロジック追加 (Standard/Concise/Short)。
     - [x] **Frontend (Desktop)**: `settings.html` に設定プルダウン追加。
     - [x] **Frontend (Mobile)**: `index.html` 設定モーダルに追加。
+
+## フェーズ100: Web音声再生対応 (Mobile Integration) [完了]
+- [x] **AudioManager拡張 (`src/services/audio_manager.ts`)**
+    - [x] **キューイング実装**: 音声の連続再生用Queueシステムの導入。
+    - [x] **Base64対応**: `data:audio/*` 形式の再生サポート（URL再生と両立）。
+    - [x] **Mobile Unlock**: ユーザー操作（Send/Button Click）時にAudioContextをアンロックする `unlock()` メソッドの実装。
+- [x] **Frontend統合**
+    - [x] `ui_manager.ts`: 主要ボタン（Send, Settings, Suggestionなど）のクリックイベントに `unlock()` をバインド。
+    - [x] `chat_manager.ts`: メッセージ送信時(`Enter`/Click)のUnlockと、再生処理の `enqueue()` への移行。
+- [x] **Backend方針**
+    - [x] 既存のREST API (URL返却) を維持し、Frontend側で堅牢に再生する方針を採用（`voice_service.py` は変更不要）。

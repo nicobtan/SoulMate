@@ -143,10 +143,15 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **Strict UI Scoping**: デスクトップ版とモバイル版のCSS/UIロジックを厳格に分離。
     - Desktop: 常にウィンドウ形式、リッチな設定画面 (`settings.html`)。
     - Mobile: 縦画面最適化、効率的なタップ操作、専用のトピック選択モーダル。
-- **Response Length Control**:
     - AIの返答の長さを「標準」「簡潔 (Concise)」「短文 (Short)」から設定可能に。
     - 「長すぎる説明はいらない」「テキパキ会話したい」というニーズに対応。
     - 設定変更は即座にシステムプロンプトに反映され、再起動なしで適用されます。
+
+### 🔊 Web Audio & Mobile Playback (Phase 100)
+- **Mobile Audio Support**:
+    - **Audio Unlock**: iOS/Android特有の「ユーザー操作なしでの音声再生禁止」制限を回避するため、タップ操作時にオーディオコンテキストを自動的にアンロックする機構を実装。
+    - **Queue System**: 音声再生リクエストをキューイングし、連続したメッセージも途切れることなく順番に再生します。
+    - **Frontend Playback**: サーバー側での再生ではなく、ブラウザ（スマホ）側での直接再生に完全対応。寝転がりながらの通話体験が可能になりました。
 
 ### 🧠 MindVault Integration (Brain Sync)
 - **概要**: ユーザーの「第二の脳」であるGoogle Docs (MindVault) とAIをリアルタイム同期。
