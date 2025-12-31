@@ -1149,7 +1149,8 @@ textarea,
         margin: 0 !important;
 
         /* Gradient Background */
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 20%, rgba(0, 0, 0, 0) 100%) !important;
+        /* Gradient Background REMOVED */
+        background: transparent !important;
         border: none !important;
         box-shadow: none !important;
         transform: none !important;

@@ -338,7 +338,9 @@ export class UIManager {
         if (open === uiState.isChatOpen) return;
         uiState.isChatOpen = open;
 
-        if (this.rightPanel) this.rightPanel.classList.toggle('open', open);
+        if (this.rightPanel) {
+            this.rightPanel.classList.toggle('open', open);
+        }
         if (this.chatToggleBtn) this.chatToggleBtn.classList.toggle('active', open);
 
         await LogManager.getInstance().resizeWindow();

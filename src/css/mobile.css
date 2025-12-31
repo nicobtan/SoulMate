@@ -41,7 +41,8 @@ body.mobile-mode #app-container #character-area canvas {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover !important;
-    transform: none !important;
+    transform: translateY(50px) !important;
+    /* Move character down */
 }
 
 /* Allow interaction with buttons inside character area if any */
@@ -50,8 +51,28 @@ body.mobile-mode #app-container #character-area button {
 }
 
 /* 3. Top Section UI Elements */
+/* ... skipped ... */
 
-/* Menu Button -> Top Right */
+/* ... later in file ... */
+
+body.mobile-mode #input-area {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 60px;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-top: none !important;
+    padding: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    pointer-events: auto !important;
+    box-sizing: border-box !important;
+}
+
 body.mobile-mode #mobile-menu-btn {
     position: fixed !important;
     top: 15px !important;
@@ -59,13 +80,15 @@ body.mobile-mode #mobile-menu-btn {
     left: auto !important;
     z-index: 3000 !important;
     color: white;
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent !important;
     width: 40px;
     height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 /* Clock -> Hidden on Mobile (Save Space) */
@@ -109,10 +132,20 @@ body.mobile-mode #right-panel {
     /* Cap height */
     z-index: 200 !important;
     background: transparent !important;
-    display: flex !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    display: none !important;
+    /* Default hidden */
     flex-direction: column !important;
     pointer-events: none;
     /* Let clicks pass through empty areas */
+}
+
+/* Visibility Toggle via .open class */
+body.mobile-mode #right-panel.open {
+    display: flex !important;
 }
 
 /* Internal Chat Window Wrapper */
@@ -137,6 +170,8 @@ body.mobile-mode #chat-log-area {
     height: 30vh !important;
     overflow-y: auto !important;
     background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
     backdrop-filter: none !important;
     /* Force Remove Glass */
     -webkit-backdrop-filter: none !important;
@@ -154,6 +189,8 @@ body.mobile-mode #input-area {
     height: auto !important;
     min-height: 60px;
     background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     border-top: none !important;
@@ -162,6 +199,7 @@ body.mobile-mode #input-area {
     align-items: center !important;
     pointer-events: auto !important;
     box-sizing: border-box !important;
+    box-shadow: none !important;
 }
 
 /* System Log Button (Top Left) */
@@ -190,17 +228,34 @@ body.mobile-mode #chat-input {
     padding-left: 15px !important;
 }
 
-/* 5. Floating Action Buttons (Right Side Vertical Stack) */
-/* Stack above the input area */
+/* 5. Floating Action Buttons */
+
+/* Chat Toggle Button (Move to Top Right Stack) */
 body.mobile-mode #chat-toggle-btn {
-    display: none !important;
-    /* Always show chat in split view */
+    display: flex !important;
+    position: fixed !important;
+    top: 190px !important;
+    /* Below Balloon (130+48+12) */
+    bottom: auto !important;
+    right: 15px !important;
+    z-index: 500 !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    background: #007bff;
+    color: white;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    border: none;
 }
 
+/* Force Talk (Move to Top Right) */
 body.mobile-mode #force-talk-btn {
     position: fixed !important;
-    bottom: 90px !important;
-    /* Above input area */
+    top: 70px !important;
+    /* Below Menu (15+40+15) */
+    bottom: auto !important;
     right: 15px !important;
     z-index: 500 !important;
     width: 48px !important;
@@ -209,13 +264,14 @@ body.mobile-mode #force-talk-btn {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
+/* Balloon/Topic Button (Move to Top Right) */
 body.mobile-mode #spawn-balloon-btn {
     position: fixed !important;
-    bottom: 150px !important;
-    /* Above force talk */
-    right: 15px !important;
-    top: auto !important;
+    top: 130px !important;
+    /* Below Force Talk (70+48+12) */
+    bottom: auto !important;
     left: auto !important;
+    right: 15px !important;
     z-index: 500 !important;
     width: 48px !important;
     height: 48px !important;
@@ -223,18 +279,77 @@ body.mobile-mode #spawn-balloon-btn {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
-body.mobile-mode #suggestion-toggle-btn {
+/* Aggressive clean-up of potential dark overlays */
+body.mobile-mode #right-panel::before,
+body.mobile-mode #right-panel::after,
+body.mobile-mode #input-area::before,
+body.mobile-mode #input-area::after,
+body.mobile-mode #chat-log-area::before,
+body.mobile-mode #chat-log-area::after {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+}
+
+body.mobile-mode #chat-input {
+    background: rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+}
+
+/* AI Message Bubble (Mobile Readability) */
+body.mobile-mode .message.ai {
+    background: rgba(0, 0, 0, 0.6) !important;
+    padding: 10px !important;
+    border-radius: 10px !important;
+    color: white !important;
+    text-shadow: none !important;
+    /* Remove shadow for cleaner text */
+}
+
+/* Force Talk (Move to Top Right) */
+body.mobile-mode #force-talk-btn {
     position: fixed !important;
-    bottom: 210px !important;
-    /* Above spawn btn */
+    top: 70px !important;
+    /* Below Menu (15+40+15) */
+    bottom: auto !important;
     right: 15px !important;
-    top: auto !important;
-    left: auto !important;
     z-index: 500 !important;
     width: 48px !important;
     height: 48px !important;
     border-radius: 50% !important;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Balloon/Topic Button (Move to Top Right) */
+body.mobile-mode #spawn-balloon-btn {
+    position: fixed !important;
+    top: 130px !important;
+    /* Below Force Talk (70+48+12) */
+    bottom: auto !important;
+    left: auto !important;
+    right: 15px !important;
+    z-index: 500 !important;
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Suggestion Button (Embed in Input Area - Like Desktop) */
+body.mobile-mode #suggestion-toggle-btn {
+    display: flex !important;
+    /* Ensure visible */
+    position: static !important;
+    /* Remove fixed positioning */
+    width: 36px !important;
+    height: 36px !important;
+    margin-right: 5px !important;
+    background: transparent !important;
+    color: #ccc !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: auto !important;
 }
 
 /* Hide Debug/Vision buttons on Mobile to reduce clutter (use menu for actions) */
@@ -295,10 +410,12 @@ body.mobile-mode #mobile-context-menu {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    background: transparent !important;
     display: flex;
     align-items: center;
     justify-content: center;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 body.mobile-mode #mobile-context-menu.hidden,
@@ -307,13 +424,14 @@ body.mobile-mode #topic-selection-modal.hidden {
 }
 
 body.mobile-mode .menu-content {
-    background: #222;
+    background: transparent !important;
     padding: 20px;
     border-radius: 10px;
     width: 80%;
     max-width: 300px;
     text-align: center;
     border: 1px solid #444;
+    box-shadow: none !important;
 }
 
 body.mobile-mode .menu-content button {
