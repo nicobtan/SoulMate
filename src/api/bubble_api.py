@@ -35,3 +35,13 @@ class BubbleApi:
             else:
                 return {"status": "skipped", "message": "No bubble generated (Limit or Duplicate)"}
         return {"status": "error", "message": "Service not ready"}
+
+    def get_topic_suggestions(self):
+        """
+        API: Get 5 topic suggestions.
+        """
+        logger.info(f"API: Get Topic Suggestions Request")
+        if hasattr(self, 'bubble_service'):
+            topics = self.bubble_service.get_topic_suggestions()
+            return topics # Returns list of strings
+        return []

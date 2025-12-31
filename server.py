@@ -303,6 +303,11 @@ async def restore_history():
     if not server_api: raise HTTPException(status_code=500, detail="Not Ready")
     return server_api.restore_history()
 
+@app.get("/api/topics/suggestions")
+async def get_topic_suggestions():
+    if not server_api: raise HTTPException(status_code=500, detail="Not Ready")
+    return server_api.get_topic_suggestions()
+
 # Static / Audio
 os.makedirs("dist/audio", exist_ok=True)
 app.mount("/audio", StaticFiles(directory="dist/audio"), name="audio")

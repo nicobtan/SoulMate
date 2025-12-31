@@ -27,6 +27,11 @@ export class UIManager {
     private leftPanel: HTMLElement | null;
     private contextMenu: HTMLElement | null;
 
+    // Topic Modal Elements
+    private topicModal: HTMLElement | null;
+    private topicList: HTMLElement | null;
+    private closeTopicBtn: HTMLElement | null;
+
     private constructor() {
         this.appContainer = document.getElementById('app-container');
         this.rightPanel = document.getElementById('right-panel');
@@ -45,6 +50,11 @@ export class UIManager {
 
         this.mobileMenuBtn = document.getElementById('mobile-menu-btn');
         this.mobileContextMenu = document.getElementById('mobile-context-menu');
+
+        // Topic Modal
+        this.topicModal = document.getElementById('topic-selection-modal');
+        this.topicList = document.getElementById('topic-list');
+        this.closeTopicBtn = document.getElementById('close-topic-modal');
     }
 
     public static getInstance(): UIManager {
@@ -59,6 +69,7 @@ export class UIManager {
         this.initFadeUI();
         this.initContextMenus();
         this.initMobileMenu();
+        this.initTopicModalListener(); // New Listener Init
 
         // Expose global helpers
         (window as any).openChatPanel = this.openChatPanel.bind(this);
@@ -74,6 +85,14 @@ export class UIManager {
         }, { capture: true });
 
         console.log("UIManager Initialized");
+    }
+
+    private initTopicModalListener() {
+        if (this.closeTopicBtn && this.topicModal) {
+            this.closeTopicBtn.addEventListener('click', () => {
+                this.topicModal!.classList.add('hidden');
+            });
+        }
     }
 
     private initMobileMenu() {
@@ -201,13 +220,54 @@ export class UIManager {
             });
         }
 
-        // Spawn Balloon Button
+        // Spawn Balloon Button -> Topic Selection (Mobile) or Soul Bubble (Desktop)
         const spawnBtn = document.getElementById('spawn-balloon-btn');
         if (spawnBtn) {
             spawnBtn.addEventListener('click', async () => {
-                const bubble = await api.generate_bubble();
-                if (bubble && bubble.text) {
-                    (window as any).showSoulBubble?.(bubble.category, bubble.text, bubble.action_id, bubble.type);
+                const isMobile = document.body.classList.contains('mobile-mode');
+
+                if (isMobile) {
+                    // Mobile: Show Topic Selection Modal
+                    if (this.topicModal && this.topicList) {
+                        this.topicModal.classList.remove('hidden');
+                        this.topicList.innerHTML = '<div class="loading-spinner" style="color:#888;">思考中...</div>';
+
+                        // Fetch Topics
+                        const topics = await api.get_topic_suggestions();
+
+                        // Render
+                        this.topicList.innerHTML = '';
+                        topics.forEach(topic => {
+                            const btn = document.createElement('button');
+                            btn.innerText = topic;
+                            btn.style.width = '100%';
+                            btn.style.padding = '12px';
+                            btn.style.background = '#333';
+                            btn.style.color = 'white';
+                            btn.style.border = '1px solid #555';
+                            btn.style.borderRadius = '6px';
+                            btn.style.textAlign = 'left';
+                            btn.style.cursor = 'pointer';
+
+                            btn.onclick = () => {
+                                // User selected a topic -> Chat
+                                api.chat(topic);
+                                this.topicModal!.classList.add('hidden');
+                                this.openChatPanel(true); // Ensure chat is open
+                            };
+                            this.topicList!.appendChild(btn);
+                        });
+                    }
+                } else {
+                    // Desktop: Spawn Floating Soul Bubble
+                    // Logic restored from previous version
+                    const bubble = await api.generate_bubble();
+                    if (bubble && bubble.text) {
+                        (window as any).showSoulBubble?.(bubble.category, bubble.text, bubble.action_id, bubble.type);
+                    } else {
+                        // Fallback if API returns null/empty
+                        (window as any).showSoulBubble?.('topics', '何かお話ししましょう？', 'manual_fallback', 'discovery');
+                    }
                 }
             });
         }

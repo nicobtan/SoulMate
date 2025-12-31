@@ -233,6 +233,18 @@ export class ApiClient {
         }
     }
 
+    async get_topic_suggestions(): Promise<string[]> {
+        if (this.desktopApi && this.desktopApi.get_topic_suggestions) {
+            return await this.desktopApi.get_topic_suggestions();
+        } else {
+            try {
+                const res = await fetch('/api/topics/suggestions');
+                if (res.ok) return await res.json();
+            } catch (e) { console.error(e); }
+            return ["Topics API Error"];
+        }
+    }
+
     // --- History API (Step 4) ---
     async get_sessions(): Promise<any[]> {
         if (this.desktopApi && this.desktopApi.get_sessions) {

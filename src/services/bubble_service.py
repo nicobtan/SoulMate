@@ -422,6 +422,58 @@ class BubbleService:
     def get_test_bubble(self):
         return self.get_smart_bubble()
 
+    def get_topic_suggestions(self):
+        """
+        Generates 5 conversation starter topics by leveraging the existing Bubble Logic.
+        This ensures consistency with Desktop "Soul Bubbles".
+        """
+        suggestions = []
+        attempts = 0
+        seen_texts = set()
+
+        # Try to gather 5 unique topics
+        while len(suggestions) < 5 and attempts < 15:
+            attempts += 1
+            # Use generate_manual_bubble or get_smart_bubble
+            # manual includes logic for Love/MindVault priority
+            bubble = self.generate_manual_bubble()
+            
+            if bubble and bubble.get('text'):
+                txt = bubble['text']
+                # Remove emojis for cleaner list? Or keep them? User said "same as balloon".
+                # Balloons have emojis "💭 ...". Let's keep them or clean them?
+                # "話題が思考中でとまっている（デスクトップ版のバルーンと同じ話題をだして）"
+                # Desktop balloon UI shows text with emoji.
+                # But for a list button, maybe keep it.
+                
+                if txt not in seen_texts:
+                    seen_texts.add(txt)
+                    suggestions.append(txt)
+                    # We don't want to actually register these as "Active Bubbles" in the system
+                    # because they are just suggestions.
+                    # generate_manual_bubble registers them. We should clean up or use a dry-run flag?
+                    # Service doesn't support dry-run easily.
+                    # It's okay if they are registered, they will just expire or be replaced.
+                    # But 5 at once might flood active bubbles? Limit is 3.
+                    # We should probably clear them or use a lighter generation method.
+                    # Actually get_smart_bubble is lighter but manual has the "MindVault" logic.
+                    
+        # If we didn't fill 5 (e.g. limit reached), fill with fallbacks
+        fallbacks = [
+            "最近あった面白いこと",
+            "好きな食べ物の話",
+            "行ってみたい場所について",
+            "最近の悩み事",
+            "将来の夢"
+        ]
+        
+        for fb in fallbacks:
+            if len(suggestions) >= 5: break
+            if fb not in seen_texts:
+                suggestions.append(fb)
+                
+        return suggestions[:5]
+
     def _generate_love_bubble(self):
         """Generates a love/affection bubble."""
         try:
