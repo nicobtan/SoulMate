@@ -27,5 +27,6 @@
         "work",
         "media",
         "social"
-    ]
+    ],
+    "chat_length_mode": "concise"
 }

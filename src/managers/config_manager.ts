@@ -59,6 +59,13 @@ export class ConfigManager {
                     personaSelect.appendChild(opt);
                 });
                 personaSelect.value = settings.current_persona_id || 'default';
+                personaSelect.value = settings.current_persona_id || 'default';
+            }
+
+            // 5. Chat Length Mode
+            const lengthSelect = document.getElementById('chat-length-select') as HTMLSelectElement;
+            if (lengthSelect) {
+                lengthSelect.value = settings.chat_length_mode || 'standard';
             }
 
             console.log("ConfigManager: Settings Loaded");
@@ -83,7 +90,8 @@ export class ConfigManager {
                     api_key: apiKey,
                     model_name: model,
                     font_size: parseInt(fontSize || '13'),
-                    background_opacity: parseInt(opacity || '0')
+                    background_opacity: parseInt(opacity || '0'),
+                    chat_length_mode: (document.getElementById('chat-length-select') as HTMLSelectElement)?.value || 'standard'
                 };
 
                 try {

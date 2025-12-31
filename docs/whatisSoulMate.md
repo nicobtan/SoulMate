@@ -137,6 +137,16 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
     - **Mind**: `[Mind]` AIの内なる声、感情選択理由、ユーザーの意図解釈を可視化。
     - **Vision**: `[Vision]` AIが認識した画像や動画の内容をテキストで表示。
     - **RAG**: `[RAG]` 記憶や外部情報を参照した際、そのソースを明示。
+    - **Vision**: `[Vision]` AIが認識した画像や動画の内容をテキストで表示。
+
+### 📱 Mobile/Desktop UI Separation & Chat Control
+- **Strict UI Scoping**: デスクトップ版とモバイル版のCSS/UIロジックを厳格に分離。
+    - Desktop: 常にウィンドウ形式、リッチな設定画面 (`settings.html`)。
+    - Mobile: 縦画面最適化、効率的なタップ操作、専用のトピック選択モーダル。
+- **Response Length Control**:
+    - AIの返答の長さを「標準」「簡潔 (Concise)」「短文 (Short)」から設定可能に。
+    - 「長すぎる説明はいらない」「テキパキ会話したい」というニーズに対応。
+    - 設定変更は即座にシステムプロンプトに反映され、再起動なしで適用されます。
 
 ### 🧠 MindVault Integration (Brain Sync)
 - **概要**: ユーザーの「第二の脳」であるGoogle Docs (MindVault) とAIをリアルタイム同期。

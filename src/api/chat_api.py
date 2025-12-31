@@ -21,22 +21,40 @@ class ChatApiMixin(BaseApiMixin):
     """
     
     def initialize_persona(self, persona_file="lena.yaml"):
-        """JSONモード用のシステムプロンプトをセット"""
+        """初期化処理 (文章量調整対応版)"""
+        
+        # 1. 設定の読み込み
+        length_mode = "standard"
+        if self._config_manager:
+            # 設定キー 'chat_length_mode' を取得 (デフォルトは standard)
+            length_mode = self._config_manager.get('chat_length_mode', 'standard')
+
+        # 2. モード別の指示プロンプト定義
+        length_instruction = ""
+        if length_mode == "concise": # 簡潔
+            length_instruction = """
+[LENGTH CONSTRAINT]
+Keep your response concise and to the point. 
+Avoid long explanations or filler words. 
+Limit response to 2-3 sentences max.
+"""
+        elif length_mode == "short": # 短文
+            length_instruction = """
+[LENGTH CONSTRAINT]
+Keep your response EXTREMELY short.
+Use only a single sentence or a short phrase (max 20-30 characters).
+Be snappy and direct.
+"""
+        # standardの場合は指示なし（自然な長さ）
+
+        # 3. ペルソナ読み込み (既存ロジック)
         from ..services.resource_manager import ResourceManager 
         if not hasattr(self, 'resource_manager'):
-            self.resource_manager = ResourceManager()
+             self.resource_manager = ResourceManager()
 
-        # Topic Selector (話題選択ロジック)
-        self.topic_selector = TopicSelector()
-
-        # 1. ファイル読み込み  (ResourceManagerの実装を信頼)  
-        # Note: ResourceManagerがロールバックで削除されている可能性があるため、
-        # 簡易的な読み込みロジックも含めています。
-        
         base_prompt = "You are a helpful AI."
         user_profile = "User is looking for a chat partner."
         
-        # ファイルから直接読み込みを試行 (フォールバック)
         try:
              import yaml
              with open(f"settings/personas/{persona_file}", 'r', encoding='utf-8') as f:
@@ -45,7 +63,6 @@ class ChatApiMixin(BaseApiMixin):
         except:
              pass
 
-        # ユーザープロファイルの読み込み
         try:
              import yaml
              with open("settings/user_profile.yaml", 'r', encoding='utf-8') as f:
@@ -54,13 +71,16 @@ class ChatApiMixin(BaseApiMixin):
         except:
              pass
 
-        # マスタープロンプト (JSONのフォーマット指示はEngine側で行うため、ここは「性格」と「ルール」に集中)
+        # 4. マスタープロンプトの構築 (ここに length_instruction を埋め込む)
         master_prompt = f"""
 {base_prompt}
 
 ##################################################
 [USER PROFILE]
 {user_profile}
+
+##################################################
+{length_instruction}
 
 ##################################################
 [FUNCTIONAL RULES]
@@ -96,10 +116,16 @@ You have access to the following tools. To use them, output the specific tag exa
 - **LATE NIGHT THRESHOLD**: **ALLOW staying up until 2:00 AM.** Do NOT warn the user about sleep before 02:00 AM.
 - **AFTER    2:00 AM**: You may gently suggest sleep ONCE, but do not nag.
 ##################################################
+
+##################################################
+[OUTPUT FORMAT]
+You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion": "...", "suggestions": [...]}}
 """
+        # 5. エンジンにセット
         if self._ai_engine:
             self._ai_engine.set_system_prompt(master_prompt)
-            self.log_to_debug("✅ Persona & Functional Rules Initialized (JSON Mode).", 'info')
+            # ログで確認
+            self.log_to_debug(f"Persona Initialized (Mode: {length_mode})", 'info')
 
 
     def generate_tts_audio(self, text):

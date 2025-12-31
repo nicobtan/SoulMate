@@ -722,3 +722,15 @@
 - [x] **Doc**: `src/services/ai_engine.py` & `active_engine.py` (Core Logic).
 - [x] **Doc**: `src/api/chat_api.py` (Chat Logic).
 
+
+## フェーズ99: UI/UX改善 (モバイル分離 & 文章量設定) [完了]
+- [x] **モバイルUI厳格化**
+    - [x] CSSスコープ分離: `mobile.css` を `body.mobile-mode` に限定し、デスクトップへの干渉を排除。
+    - [x] モーダル制御: デスクトップでモバイル用モーダルが表示されないよう `display: none !important` を徹底。
+- [x] **話題選択UI (Mobile)**
+    - [x] トピック選択モーダルの実装（バルーンボタンの代替）。
+    - [x] `BubbleService` 連携によるスマートな話題提案の表示。
+- [x] **文章量調整機能**
+    - [x] **Backend**: `ChatApiMixin` に `chat_length_mode` ロジック追加 (Standard/Concise/Short)。
+    - [x] **Frontend (Desktop)**: `settings.html` に設定プルダウン追加。
+    - [x] **Frontend (Mobile)**: `index.html` 設定モーダルに追加。

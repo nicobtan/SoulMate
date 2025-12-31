@@ -330,6 +330,15 @@
             </div>
 
             <div class="form-group">
+                <label>文章量 (Response Length)</label>
+                <select id="chat-length-select">
+                    <option value="standard">標準 (Standard)</option>
+                    <option value="concise">簡潔 (Concise)</option>
+                    <option value="short">短文 (Short)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label>能動的発話頻度 (Active Talk Interval)</label>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <input type="range" id="active-interval" min="0" max="120" step="5" value="0"
@@ -585,6 +594,9 @@
                 const currentP = currentSettings.current_persona_id || 'default';
                 personaSelect.value = currentP;
 
+                // Load Chat Length
+                document.getElementById('chat-length-select').value = currentSettings.chat_length_mode || 'standard';
+
 
                 // Active Interval
                 const activeInt = currentSettings.active_talk_interval || 0;
@@ -638,6 +650,7 @@
                 bg_opacity: parseInt(document.getElementById('bg-opacity').value),
                 api_key: document.getElementById('api-key').value,
                 model_name: document.getElementById('model-select').value,
+                chat_length_mode: document.getElementById('chat-length-select').value,
                 tts_provider: document.getElementById('tts-provider').value,
                 voice_type: document.getElementById('voice-select').value,
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
