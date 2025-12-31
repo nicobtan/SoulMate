@@ -1,0 +1,334 @@
+/* mobile.css - Smartphone Overlay UI */
+
+/* 1. 全体設定: 縦スクロール禁止 & アドレスバー対策 */
+html,
+body {
+    width: 100%;
+    height: 100dvh;
+    /* Dynamic Viewport Height */
+    overflow: hidden;
+    position: fixed;
+    margin: 0;
+    padding: 0;
+    background-color: #111;
+}
+
+/* 2. Live2D背景: 全画面化 */
+/* 2. Live2D背景: 全画面化 (Consolidated below) */
+/* See bottom of file for #character-area rules */
+
+/* 3. UIコンテナのリセット */
+.container,
+#app-container {
+    width: 100%;
+    height: 100dvh;
+    padding: 0;
+    margin: 0;
+    pointer-events: none;
+}
+
+/* 4. メッセージウィンドウ: 下部オーバーレイ化 */
+/* 4. メッセージウィンドウ: 上部配置へ変更 */
+/* 4. チャットウィンドウ (上部へ移動) */
+body.mobile-mode #app-container #right-panel,
+#chat-window {
+    position: fixed !important;
+    /* 上部に配置を強制 */
+    top: 0 !important;
+    bottom: auto !important;
+    left: 0 !important;
+    width: 100% !important;
+    /* 画面の上半分程度を占有 */
+    height: 45% !important;
+
+    /* 背景グラデーション削除 (ユーザー要望) */
+    background: transparent !important;
+
+    border: none !important;
+    z-index: 10;
+    pointer-events: none !important;
+    /* パネル自体はクリック透過 */
+    display: flex !important;
+    flex-direction: column;
+    justify-content: flex-start;
+    /* 上寄せ */
+    transform: none !important;
+    /* Ensure children fixed positioning works relative to viewport if possible, or matches expectation */
+}
+
+#chat-content,
+#chat-log-area {
+    pointer-events: auto;
+    /* 文字部分は操作可能 */
+    padding: 20px 20px 40px 20px;
+    font-size: 16px;
+    text-shadow: 1px 1px 2px black;
+    overflow-y: auto;
+    flex-grow: 1;
+
+    /* Remove frosted glass noise */
+    backdrop-filter: none !important;
+    background: transparent !important;
+    /* Managed by parent gradient */
+    border: none !important;
+}
+
+/* 5. 入力エリア: 最下部固定 */
+/* 5. 入力エリア (下部固定の確認) */
+/* 5. 入力エリア (下部固定の確認) - 高さ拡張 */
+#input-area {
+    position: fixed !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 85px !important;
+    /* 60px -> 85px (2行分確保) */
+    background: #1a1a1a !important;
+    z-index: 100 !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 10px 5px !important;
+    box-sizing: border-box !important;
+    pointer-events: auto !important;
+    border-top: 1px solid #333;
+}
+
+#user-input,
+#chat-input {
+    height: 55px !important;
+    /* 40px -> 55px */
+    font-size: 16px !important;
+    /* iOSズーム防止 */
+}
+
+/* 6. システムウィンドウ (Settings/Memories): 全画面モーダル */
+#memory-window,
+#settings-window,
+#settings-modal,
+#left-panel {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    background: rgba(18, 18, 18, 0.98) !important;
+    z-index: 2000 !important;
+    border-radius: 0 !important;
+    transform: none !important;
+}
+
+/* For left-panel specifically provided in index.html inspection */
+#left-panel {
+    display: none;
+    /* Hide default sidebar on mobile, show via menu/toggle if needed or styling appropriately if it IS the menu */
+}
+
+/* If left-panel is effectively the history/log window, it should be full screen when active */
+#left-panel.active {
+    display: block !important;
+}
+
+.window-content,
+.settings-group {
+    height: calc(100dvh - 60px) !important;
+    overflow-y: auto;
+}
+
+/* 7. PC専用パーツの消去 */
+.window-header,
+.resize-handle,
+.drag-handle,
+#close-debug {
+    display: none !important;
+}
+
+/* 8. Mobile Only Elements */
+.mobile-only {
+    display: flex !important;
+}
+
+#mobile-menu-btn {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 3000;
+    color: white;
+    background: rgba(0, 0, 0, 0.5);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: bold;
+    pointer-events: auto;
+}
+
+#mobile-context-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 3001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#mobile-context-menu.hidden {
+    display: none !important;
+}
+
+.menu-content {
+    background: #222;
+    padding: 20px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 300px;
+    text-align: center;
+    border: 1px solid #444;
+}
+
+.menu-content button {
+    display: block;
+    width: 100%;
+    margin: 10px 0;
+    padding: 12px;
+    font-size: 16px;
+    background: #333;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 5px;
+}
+
+/* --- mobile.css 修正版 --- */
+/* 1. 親コンテナの制約を解除 (Flex中央揃えを無効化) */
+/* --- mobile.css 修正版 --- */
+/* 1. 親コンテナの制約を解除 (Flex中央揃えを無効化) */
+body #app-container {
+    display: block !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* 2. キャラクターエリアを画面サイズに強制一致 */
+/* 2. キャラクターエリアを画面サイズに強制一致 */
+/* 2. キャラクターエリア (デバッグ枠の追加) */
+body.mobile-mode #app-container #character-area {
+    /* 既存の配置設定を維持しつつ枠線を追加 */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    z-index: 1 !important;
+    pointer-events: none;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-end !important;
+
+    /* ★デバッグ用: 赤い外枠 */
+    border: 4px solid red !important;
+    box-sizing: border-box !important;
+}
+
+/* 3. Canvas (Live2D描画領域) の設定 */
+body #app-container #character-area canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+
+    /* 画面を埋め尽くす (縦長スマホ対応) */
+    object-fit: cover !important;
+    /* 以前の transform を削除してリセット */
+    transform: none !important;
+}
+
+body #app-container #character-area button {
+    pointer-events: auto;
+}
+
+/* Mobile adjustments for specific buttons if needed */
+#force-talk-btn,
+#chat-toggle-btn {
+    z-index: 50 !important;
+}
+
+/* Mobile adjustments for specific buttons overlapping with input area */
+/* Clock, Status, Buttons need to act like they are "bottom-safe" */
+#clock-display {
+    bottom: 95px !important;
+    /* Input 85px + 10px Gap */
+    left: 10px !important;
+    position: fixed !important;
+    z-index: 200 !important;
+    /* Ensure on top of overlapping elements if any */
+}
+
+/* UI Buttons Container (If grouped) or individual buttons */
+#force-talk-btn,
+#chat-toggle-btn,
+#history-btn,
+#debug-btn,
+#spawn-balloon-btn,
+#expression-test-btn {
+    z-index: 200 !important;
+}
+
+/* Fix for buttons being buried */
+/* All floating bottom buttons lifted above 85px input */
+#debug-btn,
+#history-btn,
+#spawn-balloon-btn,
+#expression-test-btn {
+    bottom: 95px !important;
+    position: fixed !important;
+}
+
+/* Right-side buttons stack */
+#force-talk-btn {
+    bottom: 275px !important;
+    right: 10px !important;
+}
+
+#chat-toggle-btn {
+    bottom: 215px !important;
+    right: 10px !important;
+}
+
+#history-btn {
+    bottom: 155px !important;
+    right: 10px !important;
+}
+
+/* Left/Right Positioning for bottom row */
+#debug-btn {
+    right: 10px !important;
+}
+
+#expression-test-btn {
+    left: 10px !important;
+    bottom: 170px !important;
+    /* Clock(95px) + clearance */
+}
+
+#spawn-balloon-btn {
+    right: 70px !important;
+    bottom: 95px !important;
+}
+
+/* Status Bar */
+#status-bar {
+    /* Usually safe in middle, but ensure Z-index */
+    z-index: 50 !important;
+    /* Lift above input area */
+    position: fixed !important;
+    bottom: 95px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}

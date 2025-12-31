@@ -5,6 +5,13 @@
     --chat-font-size: 13px;
 }
 
+/* Body class added by index.ts if pywebview is present */
+body.desktop-app .mobile-only,
+body.desktop-app #mobile-menu-btn {
+    display: none !important;
+}
+
+
 *,
 *::before,
 *::after {

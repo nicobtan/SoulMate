@@ -12,6 +12,45 @@ import { HistoryManager } from './managers/history_manager.js';
 window.addEventListener('DOMContentLoaded', async () => {
     console.log("SoulMate System Booting...");
 
+    // 0. Detect Environment (Desktop vs Web)
+    const disableMobileCss = () => {
+        const link = document.getElementById('mobile-css-link') as HTMLLinkElement;
+        if (link) {
+            link.disabled = true;
+            console.log("Environment: Mobile CSS Disabled for Desktop Mode");
+        }
+    };
+
+    const handleMobileMode = () => {
+        // Desktop App Mode -> Mobile Class OFF
+        if (document.body.classList.contains('desktop-app')) {
+            document.body.classList.remove('mobile-mode');
+            return;
+        }
+
+        // Web Mode -> ALWAYS Mobile Mode (Allow debugging on PC Browser)
+        document.body.classList.add('mobile-mode');
+    };
+
+    if ((window as any).pywebview) {
+        document.body.classList.add('desktop-app');
+        disableMobileCss();
+        console.log("Environment: Desktop App Detected");
+    } else {
+        // Double check async injection
+        window.addEventListener('pywebviewready', () => {
+            document.body.classList.add('desktop-app');
+            disableMobileCss();
+            document.body.classList.remove('mobile-mode'); // Remove if added
+            console.log("Environment: Desktop App Detected (Async)");
+        });
+
+        // Enable Mobile Mode Handler for Web
+        handleMobileMode();
+        // Remove resize listener as we now force it
+        // window.addEventListener('resize', handleMobileMode);
+    }
+
     // 1. Initialize Managers
     const logManager = LogManager.getInstance();
     const uiManager = UIManager.getInstance();
@@ -114,7 +153,17 @@ window.addEventListener('pywebviewready', async () => {
     // ★ Force Initial Resize to prevent UI clipping
     try {
         await (window as any).pywebview.api.resize_window(500, 500);
+
+        // --- Dev Scoped Features ---
+        const settings = await (window as any).pywebview.api.get_settings();
+        if (settings && settings.dev_skip_confirm === true) {
+            (window as any).confirm = (msg: string) => {
+                console.log(`[Dev] Bypassed confirm: ${msg}`);
+                return true;
+            };
+            console.log("[Dev] confirm() is now bypassed (always returns true)");
+        }
     } catch (e) {
-        console.warn("Initial resize failed", e);
+        console.warn("Initial startup API calls failed", e);
     }
 });

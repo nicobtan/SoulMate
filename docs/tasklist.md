@@ -689,3 +689,36 @@
     - [x] **Empathy Prompt**: ニュースやトレンドではなく、ユーザーのメモの深層（哲学・感情）に寄り添う専用プロンプトを実装。
 - [x] **Visual Feedback**
     - [x] **Purple Style**: MindVault由来のバルーンに専用のアメジスト色（紫）と発光エフェクトを適用し、他と差別化。
+
+## フェーズ93: Deep Reflection (MindFeedback) [完了]
+- [x] **Database**: Update `DBManager` schema to include `insights` table (`src/services/db_manager.py`).
+- [x] **Analysis**: Create `MindFeedbackService` to extract "Deep Insights" and save to DB/Chroma.
+- [x] **Trigger (Backend)**: Add `save_current_discussion` to `ChatApiMixin`.
+- [x] **Frontend**: Add "Insights" tab to History/Memories window.
+- [x] **Trigger (Frontend)**: Add "🧠 議論を保存" to context menu.
+
+## フェーズ94: Mobile Support & Server Exposure [完了]
+- [x] **Backend**: Ensure `server.py` is operational (Fixed `model_name` bug).
+- [x] **Integration**: Update `main.py` (User managed/Skipped).
+- [x] **Frontend (CSS)**: Add Responsive/Mobile styles to `style.css` (Pixel 7a Optimized).
+- [x] **Frontend (UI)**: Add Hamburger Menu for context menu access on mobile.
+- [x] **Verification**: Verify `api_client.ts` fallback logic works.
+
+## フェーズ95: Server Stability fixes [完了]
+- [x] **Bug Fix**: `MemoryManager` startup crash (Added `get_combined_context`).
+- [x] **Verification**: Ensure `server.py` starts correctly.
+
+## フェーズ96: Diary Reliability & Logging [完了]
+- [x] **Enhancement**: Add System Logs (`log_to_debug`) for Diary Generation status (Start/Skip/Success).
+- [x] **Bug Fix**: Defer Diary Check on Desktop (`main.py`) to ensure UI is ready to display startup logs.
+
+## フェーズ97: Language Constraints (Fixing English Bugs) [完了]
+- [x] **Fix**: Force Japanese Output in `AIEngine.generate_response` (Global Safety).
+- [x] **Fix**: Force Japanese Output in `AIEngine.generate_proactive_message` (Idle Talk).
+- [x] **Fix**: Force Japanese Output in `ChatApi.force_talk` (Proactive Trigger).
+
+## フェーズ98: Code Documentation (Japanese Comments) [完了]
+- [x] **Doc**: `server.py` & `main.py` (Entry Points).
+- [x] **Doc**: `src/services/ai_engine.py` & `active_engine.py` (Core Logic).
+- [x] **Doc**: `src/api/chat_api.py` (Chat Logic).
+

@@ -1,5 +1,6 @@
 {
     "api_key": "AIzaSyCB2Pdp4hGkpLm4Ja2qpgOFJYVPaNiGE_U",
+    "dev_skip_confirm": false,
     "model": "gemini-2.5-flash-lite",
     "background_opacity": 0,
     "font_size": 12,
