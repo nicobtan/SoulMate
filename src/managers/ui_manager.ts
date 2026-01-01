@@ -204,7 +204,7 @@ export class UIManager {
         if (this.chatToggleBtn) {
             this.chatToggleBtn.addEventListener('click', () => {
                 this.openChatPanel(!uiState.isChatOpen);
-                unlockAudio();
+                import('../services/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
             });
         }
 
@@ -229,7 +229,7 @@ export class UIManager {
             this.suggestionToggleBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.toggleSuggestions();
-                unlockAudio();
+                import('../services/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
             });
         }
 

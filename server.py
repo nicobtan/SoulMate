@@ -315,5 +315,12 @@ app.mount("/audio", StaticFiles(directory="dist/audio"), name="audio")
 if os.path.exists("dist"):
     app.mount("/", StaticFiles(directory="dist", html=True), name="static")
 
+# --- SocketIO Integration ---
+from src.core.socket_manager import sio
+import socketio
+
+# Wrap FastAPI with SocketIO
+app = socketio.ASGIApp(sio, app)
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
