@@ -122,7 +122,16 @@ suggestions:
 - Use your Persona's tone.
 - Keep it concise.
 """
-        full_system_prompt = f"{base_prompt}\n{user_context}\n{topic_instruction}\n{citation_instruction}\n\n{format_instruction}"
+        continuity_instruction = """
+[CRITICAL INSTRUCTION: CONTEXT CONTINUITY]
+1. If the user's input is short or ambiguous (e.g., "Tell me more", "Why?", "Details?", "Really?"):
+   - You MUST strictly refer to the IMMEDIATE CONVERSATION HISTORY (Short Term Memory).
+   - Elaborate on the TOPIC DISCUSSED IN THE PREVIOUS TURN.
+   - DO NOT switch topics or explain your underlying AI architecture (e.g., Gemini, LLM specs) unless explicitly asked.
+Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Current Scene/Persona Context [Lowest] General Knowledge/System Specs
+"""
+
+        full_system_prompt = f"{base_prompt}\n{user_context}\n{topic_instruction}\n{citation_instruction}{continuity_instruction}\n\n{format_instruction}"
         
         if self._ai_engine:
             self._ai_engine.set_system_prompt(full_system_prompt)

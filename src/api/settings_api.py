@@ -22,6 +22,12 @@ class SettingsApiMixin(BaseApiMixin):
             font_size = settings.get('font_size', 13)
             self._window.evaluate_js(f"document.documentElement.style.setProperty('--chat-font-size', '{font_size}px')")
 
+        # Log Audio Settings Change
+        if 'tts_provider' in settings or 'voice_type' in settings:
+            provider = settings.get('tts_provider', 'Unknown')
+            voice = settings.get('voice_type', 'Unknown')
+            self.log_to_debug(f"🔊 [Audio Config] Updated: Provider='{provider}', Voice='{voice}'", 'info')
+
         return {"status": "success", "settings": self._config_manager.get_all()}
     
     def get_persona_list(self):
@@ -57,37 +63,31 @@ class SettingsApiMixin(BaseApiMixin):
                 {"id": "70", "name": "小夜/SAYO (Recommended)"},
              ]
         
-        if provider == 'gemini':
+        if 'gemini' in provider:
             return [
-                # Female Voices (Approx sorted)
+                # Requested Female Voices
+                {"id": "Achernar", "name": "Achernar (Female - New)"},
                 {"id": "Aoede", "name": "Aoede (Female - Confident)"},
+                {"id": "Autonoe", "name": "Autonoe (Female - New)"},
                 {"id": "Callirrhoe", "name": "Callirrhoe (Female - Gentle)"},
-                {"id": "Charon", "name": "Charon (Male - Deep)"}, 
-                {"id": "Chiron", "name": "Chiron (Male - Generic)"},
-                {"id": "Daphne", "name": "Daphne (Female - Bright)"},
-                {"id": "Dipper", "name": "Dipper (Male - Deep)"},
-                {"id": "Echo", "name": "Echo (Male - Soft)"},
-                {"id": "Eos", "name": "Eos (Female - Warm)"},
-                {"id": "Fenrir", "name": "Fenrir (Male - Strong)"},
-                {"id": "Helios", "name": "Helios (Male - Powerful)"},
-                {"id": "Hera", "name": "Hera (Female - Formal)"},
+                {"id": "Despina", "name": "Despina (Female - New)"},
+                {"id": "Erinome", "name": "Erinome (Female - New)"},
+                {"id": "Gacrux", "name": "Gacrux (Female - New)"},
                 {"id": "Kore", "name": "Kore (Female - Soothing)"},
+                {"id": "Laomedeia", "name": "Laomedeia (Female - New)"},
                 {"id": "Leda", "name": "Leda (Female - Soft)"},
-                {"id": "Luna", "name": "Luna (Female - Calm)"},
-                {"id": "Lysithea", "name": "Lysithea (Female - Gentle)"},
-                {"id": "Mimosa", "name": "Mimosa (Female - Bright)"},
-                {"id": "Morgan", "name": "Morgan (Female/Androgynous - Deep)"},
-                {"id": "Orion", "name": "Orion (Male - Resonant)"},
-                {"id": "Orpheus", "name": "Orpheus (Male - Tenor)"},
-                {"id": "Puck", "name": "Puck (Male - Playful)"},
-                {"id": "Pegasus", "name": "Pegasus (Male - Strong)"},
-                {"id": "Rover", "name": "Rover (Male - Generic)"},
-                {"id": "Themis", "name": "Themis (Female - Formal)"},
-                {"id": "Vega", "name": "Vega (Female - Clear)"},
+                {"id": "Pulcherrima", "name": "Pulcherrima (Female - New)"},
+                {"id": "Sulafat", "name": "Sulafat (Female - New)"},
+                {"id": "Vindemiatrix", "name": "Vindemiatrix (Female - New)"},
                 {"id": "Zephyr", "name": "Zephyr (Female - Calm)"},
-                {"id": "Titan", "name": "Titan (Male - Deep)"},
+                
+                # Others (Male/Existing)
+                {"id": "Charon", "name": "Charon (Male - Deep)"}, 
+                {"id": "Fenrir", "name": "Fenrir (Male - Strong)"},
+                {"id": "Puck", "name": "Puck (Male - Playful)"},
+                {"id": "Orpheus", "name": "Orpheus (Male - Tenor)"},
+                {"id": "Pegasus", "name": "Pegasus (Male - Strong)"},
                 {"id": "Triton", "name": "Triton (Male - Resonant)"},
-                {"id": "Uranus", "name": "Uranus (Male - Strong)"},
             ]
 
         # Default Google lists

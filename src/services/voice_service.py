@@ -33,21 +33,25 @@ class VoiceService:
         Generates audio for the given text.
         Returns the relative path (e.g. 'audio/filename.wav').
         """
-        if provider == "gemini":
-            return self._generate_gemini_audio(text, voice_name)
+        if "gemini" in provider:
+            # provider string is the model_id (e.g., "gemini-2.5-pro-tts")
+            return self._generate_gemini_audio(text, voice_name, model_id=provider)
             
         # Default to VOICEVOX
         return self._generate_voicevox_audio(text, voice_name)
 
-    def _generate_gemini_audio(self, text: str, voice_name: str) -> str:
+    def _generate_gemini_audio(self, text: str, voice_name: str, model_id: str) -> str:
         if not self.genai_client:
             logger.error("GenAI Client not ready. API Key missing.")
             return None
 
         try:
             start_time = time.time()
-            # モデル名: ドキュメント準拠のFlash Preview版
-            model_id = "gemini-2.5-flash-preview-tts"
+            # model_id is passed from settings (provider)
+            
+            # Legacy/Fallback check if 'gemini' generic string passed
+            if model_id == "gemini":
+                model_id = "gemini-2.5-flash-preview-tts"
             
             logger.info(f"Generating Audio via Gemini TTS... (Model: {model_id}, Voice: {voice_name})")
             print(f"[AUDIO DEBUG] Generating Audio via Gemini TTS... (Voice: {voice_name})") # Explicit Term Log

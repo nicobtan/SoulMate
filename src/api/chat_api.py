@@ -152,8 +152,8 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             import time
             start_ts = time.time()
             result_path = None
-            # VoiceService Check (VOICEVOX or Gemini)
-            if provider in ['voicevox', 'gemini'] and getattr(self, 'voice_service', None):
+            # VoiceService Check (VOICEVOX or Gemini variants)
+            if (provider == 'voicevox' or 'gemini' in provider) and getattr(self, 'voice_service', None):
                  # For Gemini, we trust validation is done in VoiceService or Settings
                  result_path = self.voice_service.generate_voice(tts_text.strip(), voice_name=voice_name, provider=provider)
             
