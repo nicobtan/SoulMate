@@ -159,9 +159,9 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         api_key = settings.get('api_key')
         model = settings.get('model_name', 'gemini-3-flash-preview')
 
-        # Safety: Force correct model name if old config exists
-        if model == "gemini-3.0-flash-preview":
-            model = "gemini-3-flash-preview"
+        # Safety: Force correct model name if old config exists (Generic 3.0 -> 3)
+        if 'gemini-3.0' in model:
+            model = model.replace('gemini-3.0', 'gemini-3')
 
         persona_id = settings.get('current_persona_id', 'default')
 

@@ -820,6 +820,10 @@ Target Source: {source.upper()} (User Preference vs Serendipity).
 Initiate the conversation naturally.
 The output MUST be in JAPANESE (日本語).
 {self.topic_selector.get_instruction(topic, source)}
+
+[OUTPUT FORMAT]
+You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion": "...", "suggestions": ["Reply A", "Reply B", ...]}}
+Ensure 'suggestions' contains at least 3 relevant user replies in Japanese.
 """
         
         # Call chat with save_user_log=False to prevent DB pollution

@@ -19,7 +19,7 @@
     "window_y": 522,
     "active_talk_interval": 60,
     "max_balloons": 5,
-    "tts_provider": "gemini-2.5-flash-tts",
+    "tts_provider": "gemini-2.5-flash-preview-tts",
     "mind_vault_docs_id": "1XMApTco5_JWzj-Kij5RzqJsrLtKHy5knBdnebwtOUyo",
     "proactive_vision_interval_min": 15,
     "proactive_silent_mode": false,
