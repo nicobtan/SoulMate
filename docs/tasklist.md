@@ -753,3 +753,15 @@
     - [x] `chat_manager.ts`: メッセージ送信時(`Enter`/Click)のUnlockと、再生処理の `enqueue()` への移行。
 - [x] **Backend方針**
     - [x] 既存のREST API (URL返却) を維持し、Frontend側で堅牢に再生する方針を採用（`voice_service.py` は変更不要）。
+
+## フェーズ101: Gemini 3.0 & Stability Support (New Year Update) [完了]
+- [x] **Gemini 3.0 Pro/Flash Preview 対応**
+    - [x] **Desktop Fix**: `main.py` でのモデル名自動マイグレーション (`gemini-3.0` -> `gemini-3`) 実装。設定ファイルが古くても起動時に修正。
+    - [x] **Server Fix**: `server.py` での設定ロード時の同上マイグレーション実装。
+    - [x] **Settings UI**: `settings_web.html` / `settings.html` のモデル選択肢を最新API仕様 (`gemini-3-pro-preview` 等) に更新。
+- [x] **Gemini 2.5 TTS Preview 対応 (Audio Generation Fixes)**
+    - [x] **Model ID Fix**: `voice_service.py` にて `gemini-2.5-flash-tts` をAPIとして有効な `gemini-2.5-flash-preview-tts` に自動変換するロジック実装 (404/400エラー解消)。
+    - [x] **Force Talk Suggestions Fix**: `chat_api.py` のForce Talkプロンプトに `[OUTPUT FORMAT]` 制約を明記し、サジェスト消失バグを修正。
+- [x] **Stability**
+    - [x] **Socket.IO Reliability**: Web/Server間での音声転送 (`Active Message`) におけるSocket接続の堅牢性向上。
+
