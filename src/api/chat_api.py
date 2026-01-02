@@ -5,6 +5,7 @@ import webbrowser
 import re
 import re
 import json
+import base64
 from .base import BaseApiMixin
 # from .json_helper import _extract_json_from_text # TOON化により不要
 from PIL import ImageGrab
@@ -138,6 +139,7 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
         settings = self._config_manager.get_all()
         provider = settings.get('tts_provider', 'voicevox')
         voice_name = settings.get('voice_type', '3')
+        print(f"[DEBUG] TTS Request - Provider: {provider}, Voice: {voice_name}") # DEBUG LOG
         base_dir = self._config_manager.base_dir
         
         # テキストのクリーニング (URL, アクションタグ除去)
@@ -536,10 +538,101 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             except Exception as e:
                 self.log_to_debug(f"Title Gen Error: {e}", 'warn')
 
+        # --- [Web/Mobile] Send Audio via SocketIO ---
+        # audio_path は "audio/filename.wav" のような相対パスが入っている
+        # Check if self.socketio exists or we can import it dynamically to avoid dependency issues if needed
+        # But user requested hasattr check.
+        
+        # NOTE: HeadlessApi (server.py) MUST inject 'socketio' attribute or we import global sio.
+        # To be safe and self-contained, we try import if attribute missing.
+        sio_ref = getattr(self, 'socketio', None)
+        if not sio_ref:
+            try:
+                from src.core.socket_manager import sio
+                sio_ref = sio
+            except:
+                pass
+
+        if audio_path and sio_ref:
+            try:
+                # distフォルダ内の実ファイルパスを解決
+                # ※ self._config_manager.base_dir がある前提、なければ os.getcwd()
+                base_dir = getattr(self._config_manager, 'base_dir', os.getcwd())
+                
+                # audio_path is "audio/filename.wav" (Web Path).
+                # Local Path is "dist/audio/filename.wav".
+                # Verify logic: audio_path comes from generate_tts_audio -> returns relative path?
+                # User's snippet assumed "audio/filename.wav".
+                # If path starts with audio/, strip it or join with dist?
+                # Dist structure: dist/audio/...
+                
+                # If audio_path DOES NOT start with audio/, handle it.
+                # Assuming standard path "audio/xyz.wav"
+                
+                # Construct real path
+                real_path = os.path.join(base_dir, "dist", audio_path)
+                
+                if os.path.exists(real_path):
+                    with open(real_path, "rb") as f:
+                        audio_data = f.read()
+                        audio_b64 = base64.b64encode(audio_data).decode('utf-8')
+                        
+                        # フロントエンドへ送信
+                        import asyncio
+                        # Check if running in async loop? sio.emit is async unless using call.
+                        # If we are in sync method, we might need to create task.
+                        # However, ChatApiMixin.chat is sync.
+                        # BaseApiMixin methods usually run in threads or sync.
+                        # If we use asyncio.create_task here, it requires running loop.
+                        # Server runs in FastAPI (Async). But chat is called from sync endpoint wrapper?
+                        # No, server.py: chat_endpoint is async, calls server_api.chat (sync).
+                        # So we are in a thread pool? Or just sync on main thread?
+                        # FastAPI runs sync defs in threadpool.
+                        # So no loop.
+                        # We must use sio.emit with sync/async bridge OR assume loop?
+                        # AsyncServer emit is async.
+                        # We need `asyncio.run` or `loop.call_soon_threadsafe`?
+                        # User snippet: `self.socketio.emit(...)`.
+                        # If `sio` is AsyncServer, we must await it.
+                        # If we are in Sync function, we cannot await.
+                        
+                        # Solution: Fire and forget using run_coroutine_threadsafe if loop available, 
+                        # or create new loop?
+                        
+                        # Simpler: Create a small helper to run async emit
+                        def emit_audio():
+                            asyncio.run(sio_ref.emit('play_audio', {'audio': audio_b64}))
+                        
+                        # Wait, asyncio.run creates NEW loop. Might conflict if loop already running.
+                        # server.py runs uvicorn (loop running).
+                        # If we are in threadpool, asyncio.run might be okay.
+                        # Or use `sio_ref.emit` if it's sync server?
+                        # socket_manager.py: `sio = socketio.AsyncServer(async_mode='asgi'...)`
+                        # It IS Async.
+                        
+                        # Robust Sync-to-Async call:
+                        try:
+                            loop = asyncio.get_event_loop()
+                            if loop.is_running():
+                                loop.create_task(sio_ref.emit('play_audio', {'audio': audio_b64}))
+                            else:
+                                asyncio.run(sio_ref.emit('play_audio', {'audio': audio_b64}))
+                        except RuntimeError:
+                            # Likely "no running event loop" -> use asyncio.run
+                             asyncio.run(sio_ref.emit('play_audio', {'audio': audio_b64}))
+
+                        self.log_to_debug(f"📡 [Socket] Sent audio data ({len(audio_b64)} bytes)", 'info')
+                else:
+                    self.log_to_debug(f"⚠️ Audio file not found for streaming: {real_path}", 'warn')
+                    
+            except Exception as e:
+                self.log_to_debug(f"❌ Socket Audio Error: {e}", 'error')
+        # --------------------------------------------
+
         return {
             "text": response_text,
             "audio": audio_path,
-            "suggestions": suggestions_list,
+            "suggestions": final_suggestions,
             "grounding_info": raw_result.get("grounding_info") if isinstance(raw_result, dict) else None
         }
 

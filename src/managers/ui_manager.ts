@@ -77,11 +77,15 @@ export class UIManager {
         // Expose instance for onclick access from HTML
         (window as any).uiManager = this;
 
-        // Global Click to close context menu
+        // Global Click to close context menu & Unlock Audio
         window.addEventListener('click', () => {
             if (this.contextMenu && this.contextMenu.style.display !== 'none') {
                 this.contextMenu.style.display = 'none';
             }
+            // Unlock Audio Context (Mobile Web)
+            import('../services/audio_manager.js').then(({ AudioManager }) => {
+                AudioManager.getInstance().unlock();
+            });
         }, { capture: true });
 
         console.log("UIManager Initialized");

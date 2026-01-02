@@ -52,9 +52,19 @@ class VoiceService:
             # Legacy/Fallback check if 'gemini' generic string passed
             if model_id == "gemini":
                 model_id = "gemini-2.5-flash-preview-tts"
-            
+
+            # Auto-Correct: User specified "gemini-2.5-flash-tts" but API expects "gemini-2.5-flash-preview-tts"
+            if model_id == "gemini-2.5-flash-tts":
+                logger.info("VoiceService: Correcting 'gemini-2.5-flash-tts' to 'gemini-2.5-flash-preview-tts'")
+                model_id = "gemini-2.5-flash-preview-tts"
+
+            # Sanitize Voice Name
+            if voice_name.isdigit() or len(voice_name) < 2:
+                voice_name = "Aoede" # Default to Female-sounding
+                logger.info("VoiceService: Numeric voice name detected. Defaulting to 'Aoede' for Gemini.")
+
             logger.info(f"Generating Audio via Gemini TTS... (Model: {model_id}, Voice: {voice_name})")
-            print(f"[AUDIO DEBUG] Generating Audio via Gemini TTS... (Voice: {voice_name})") # Explicit Term Log
+            print(f"[AUDIO DEBUG] Generating Audio via Gemini TTS... (Voice: {voice_name}, Model: {model_id})")
             
             # 1. API Call
             # SDKの制約上、現在はRaw PCMが返ってくるため、フォーマット指定は行わずデフォルトを受け取ります
@@ -152,6 +162,21 @@ class VoiceService:
 
         except Exception as e:
             logger.error(f"Gemini TTS Error: {e}")
+            
+            # Detailed Debugging for 404/400
+            if "404" in str(e) or "400" in str(e):
+                print("\n[DEBUG] --- Available Gemini Models for this API Key ---")
+                try:
+                    # Generic listing
+                    for m in self.genai_client.models.list(config={'page_size': 100}):
+                        # Filter for likely candidates
+                        name = getattr(m, 'name', str(m))
+                        if "gemini" in name or "flash" in name:
+                            print(f"- {name}")
+                except Exception as le:
+                    print(f"Failed to list models: {le}")
+                print("----------------------------------------------------\n")
+
             import traceback
             traceback.print_exc()
             return None

@@ -129,8 +129,14 @@ export class ApiClient {
         }
     }
 
-    async get_voice_types(provider?: string): Promise<any> {
+    async get_voice_types(provider: string = 'voicevox'): Promise<any> {
         if (this.desktopApi) return await this.desktopApi.get_voice_types(provider);
+        try {
+            const res = await fetch(`/api/voice_types?provider=${provider}`);
+            if (res.ok) return await res.json();
+        } catch (e) {
+            console.error("Failed to fetch voice types:", e);
+        }
         return [];
     }
 

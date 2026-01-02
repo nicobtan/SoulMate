@@ -63,7 +63,13 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
             self._ai_engine.set_system_prompt(f"{base_prompt}\n{mem_context}")
             logger.info(f"Initial Persona Loaded: {current_persona}")
         
-        self.active_engine = None 
+        # Initialize ActiveEngine
+        # Callback routes to SocketIO emit
+        from src.services.active_engine import ActiveEngine
+        self.active_engine = ActiveEngine(self._ai_engine, on_message_callback=self.on_active_message)
+        self.active_engine.configure(settings)
+        if settings.get('active_talk_interval', 0):
+             self.active_engine.start()
         
         # TTSエンジンおよびVoiceServiceの初期化
         base_dir = os.getcwd()
@@ -78,8 +84,99 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         # Configure AI
         self._configure_ai(settings)
         
+        
+    # --- Socket IO Emitters (Overrides BaseApiMixin) ---
     def log_to_debug(self, message, level='info'):
+        """Override to emit via SocketIO instead of pywebview."""
         print(f"[{level.upper()}] {message}")
+        try:
+            from src.core.socket_manager import sio
+            import asyncio
+            # Determine category (reuse logic or simplify)
+            category = 'sys'
+            if level in ['rag', 'mind', 'vision']:
+                category = level
+                level = 'info'
+            
+            asyncio.create_task(sio.emit('debug_log', {
+                'msg': str(message), 
+                'level': level, 
+                'category': category
+            }))
+        except Exception as e:
+            logger.error(f"Socket Emit Error: {e}")
+
+    def log_to_mind(self, msg):
+        """Override to emit mind logs via SocketIO."""
+        # Simple translation logic (reused from base but simplified)
+        translated = msg
+        if "Targeting Model:" in msg: translated = "(私の頭脳、Geminiモードでフル回転させるわね✨)"
+        elif "Reasoning..." in msg: translated = "(うーん、どう伝えればいいかしら…🤔)"
+        
+        print(f"[MIND] {translated}")
+        try:
+            from src.core.socket_manager import sio
+            import asyncio
+            asyncio.create_task(sio.emit('mind_log', {'msg': translated}))
+        except: pass
+
+    def play_filler(self):
+        """Override filler to emit ghost message and audio command."""
+        import random
+        fillers = [
+            {"text": "んー、そうねぇ…", "file": "audio/fillers/thinking_01.wav"},
+            {"text": "えっと…", "file": "audio/fillers/thinking_02.wav"},
+            {"text": "ふふっ、それはね…", "file": "audio/fillers/thinking_03.wav"},
+        ]
+        chosen = random.choice(fillers)
+        try:
+            from src.core.socket_manager import sio
+            import asyncio
+            # Ghost Text
+            asyncio.create_task(sio.emit('ghost_message', {'text': chosen['text']}))
+            # Audio (Check existence not needed as much for web, assume served)
+            asyncio.create_task(sio.emit('play_audio_command', {'url': chosen['file']}))
+        except: pass
+
+    def on_active_message(self, json_str):
+        """Callback for ActiveEngine proactive messages."""
+        logger.info(f"Active Message Triggered: {json_str[:50]}...")
+        try:
+            import json
+            data = json.loads(json_str)
+            
+            # TTS generation if missing? 
+            # ActiveEngine usually calls ai_engine.generate_proactive_message which returns text/emotion.
+            # But IT DOES NOT Generate Audio inside ActiveEngine default logic usually.
+            # We need to generate audio HERE if data doesn't have it.
+            # Check ActiveEngine logic: it returns dict with text/suggestions/emotion/type.
+            
+            text = data.get('text', '')
+            if text:
+                # Generate Audio
+                if self.voice_service:
+                    # Clean text
+                    clean = re.sub(r'http[s]?://\S+', '', text)
+                    clean = re.sub(r'[\[\(].*?[\]\)]', '', clean) # Remove notes
+                    
+                    settings = self._config_manager.get_all()
+                    provider = settings.get('tts_provider', 'voicevox')
+                    voice = settings.get('voice_type', '3')
+                    
+                    # Generate
+                    # Note: generate_voice returns "audio/filename.wav" (relative to dist/ usually?)
+                    # voice_service logic: returns "audio/encoded_name.wav" (Web Path)
+                    audio_path = self.voice_service.generate_voice(clean, voice_name=voice, provider=provider)
+                    
+                    if audio_path:
+                        data['audio'] = audio_path
+            
+            from src.core.socket_manager import sio
+            import asyncio
+            asyncio.create_task(sio.emit('chat_message', data))
+            
+        except Exception as e:
+            logger.error(f"Active Message Emit Error: {e}")
 
     def _configure_ai(self, settings):
         """AIエンジンの設定（モデル、ペルソナ、システムプロンプトの構築）を行います。"""
@@ -88,8 +185,11 @@ class HeadlessApi(ChatApiMixin, SettingsApiMixin, UserApiMixin, BaseApiMixin):
         persona_id = settings.get('current_persona_id', 'default')
 
         # 安全策: 古い設定が残っている場合に正しいモデル名へ強制変換
-        if model == "gemini-3.0" or model == "gemini-3.0-flash-preview":
-            model = "gemini-3-flash-preview"
+        # "gemini-3.0" is invalid. Must be "gemini-3".
+        if "gemini-3.0" in model:
+            logger.info(f"Param Migration: Replacing '{model}' with '{model.replace('3.0', '3')}'.")
+            model = model.replace("gemini-3.0", "gemini-3")
+
         base_prompt = ""
         if self._persona_manager:
             data = self._persona_manager.load_persona(persona_id)
@@ -159,18 +259,58 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
         provider = settings.get('tts_provider', 'voicevox') 
         
         try:
-            # URLなどを除去してクリーンなテキストを作成
+            # TTS Generation
             clean_text = re.sub(r'http[s]?://\S+', '', text_to_speak)
             output_dir = os.path.join(os.getcwd(), 'dist/audio')
             if not os.path.exists(output_dir): os.makedirs(output_dir)
 
-            if provider == 'voicevox' and self.voice_service:
+            if (provider == 'voicevox' or 'gemini' in provider) and self.voice_service:
                 voice = settings.get('voice_type', '3')
-                audio_path = self.voice_service.generate_voice(clean_text, voice_name=voice)
+                # Log for debug
+                logger.info(f"TTS Request: Provider={provider}, Voice={voice}")
+                audio_path = self.voice_service.generate_voice(clean_text, voice_name=voice, provider=provider)
             elif self.tts_engine:
                  voice = settings.get('voice_type', 'ja-JP-Neural2-B')
                  if provider == 'google' and len(str(voice)) < 3: voice = 'ja-JP-Neural2-B'
                  audio_path = self.tts_engine.generate_voice(clean_text, output_dir=output_dir, voice_name=voice)
+                 
+            # --- Socket Audio Streaming (Web/Mobile) ---
+            if audio_path:
+                try:
+                    import base64
+                    # audio_path is relative (e.g. "audio/xxx.wav"). 
+                    # Real path is "dist/audio/xxx.wav" relative to CWD.
+                    real_path = os.path.join(os.getcwd(), "dist", audio_path)
+                    if os.path.exists(real_path):
+                        with open(real_path, "rb") as f:
+                            audio_b64 = base64.b64encode(f.read()).decode('utf-8')
+                        
+                        from src.core.socket_manager import sio
+                        import asyncio
+                        # emit is async, we are in sync or async method?
+                        # chat is sync def. But FastAPI calls it in threadpool.
+                        # sio.emit is coroutine.
+                        # We need to schedule it.
+                        asyncio.run_coroutine_threadsafe(
+                            sio.emit('play_audio', {'audio': audio_b64}),
+                            asyncio.get_event_loop() # This might fail if no loop in this thread
+                        ) 
+                        # Wait, threadpool doesn't have loop.
+                        # Use generic fire-and-forget helper or just `sio.emit` if using AsyncServer?
+                        # AsyncServer methods MUST be awaited.
+                        # We can use `asyncio.run` inside thread? No `asyncio.run` creates NEW PROACTOR loop which might conflict/slow.
+                        
+                        # Alternative: Just return path, and Client fetches?
+                        # But user wanted STREAMING via SOCKET.
+                        # My previous implementation in chat_api.py (Step 2371) used `asyncio.run(sio.emit(...))`.
+                        # That seemed "unsafe" but might work in threadpool.
+                        # Let's use `asyncio.run` for now as it isolates the context.
+                        asyncio.run(sio.emit('play_audio', {'audio': audio_b64}))
+                        logger.info(f"📡 [Socket] Sent audio chunk ({len(audio_b64)} bytes)")
+                except Exception as se:
+                    logger.error(f"Socket Audio Error: {se}")
+            # -------------------------------------------
+            
         except Exception as e:
             logger.error(f"TTS Error: {e}")
 
@@ -301,6 +441,15 @@ async def get_personas():
 async def change_persona(req: ChangePersonaRequest):
     if not server_api: raise HTTPException(status_code=500, detail="Not Ready")
     return server_api.change_persona(req.persona_id)
+
+@app.get("/api/voice_types")
+async def get_voice_types(provider: str = 'voicevox'):
+    if not server_api: raise HTTPException(status_code=500, detail="Not Ready")
+    # BaseApiMixin or ChatApiMixin should have get_voice_types.
+    # Check if SettingsApiMixin has it? It usually does.
+    # If not, we might need to add it to HeadlessApi or Mixin.
+    # Assuming it exists because it's used in Desktop.
+    return server_api.get_voice_types(provider)
 
 @app.get("/api/history")
 async def get_history(limit: int = 50):

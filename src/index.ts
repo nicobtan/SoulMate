@@ -7,6 +7,7 @@ import { ChatManager } from './managers/chat_manager.js';
 import { SoulBubbleManager } from './soul_bubble.js'; // Keep if used directly or move to manager
 import { api } from './api_client.js';
 import { HistoryManager } from './managers/history_manager.js';
+import { SocketClient } from './managers/socket_client.js';
 
 // --- Global Initialization ---
 window.addEventListener('DOMContentLoaded', async () => {
@@ -47,8 +48,26 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         // Enable Mobile Mode Handler for Web
         handleMobileMode();
+        // Limit Mobile Mode Logic
         // Remove resize listener as we now force it
         // window.addEventListener('resize', handleMobileMode);
+    }
+
+    // 0.5 Inject Web Settings (If Container Exists)
+    const settingsContainer = document.getElementById('settings-container');
+    if (settingsContainer) {
+        try {
+            const resp = await fetch('settings_web.html');
+            if (resp.ok) {
+                const html = await resp.text();
+                settingsContainer.innerHTML = html;
+                console.log("Web Settings Injected Successfully.");
+            } else {
+                console.warn("Failed to load settings_web.html");
+            }
+        } catch (e) {
+            console.warn("Settings Injection Error (Expected on Desktop App if file not served):", e);
+        }
     }
 
     // 1. Initialize Managers
@@ -57,6 +76,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     const chatManager = ChatManager.getInstance();
     const configManager = ConfigManager.getInstance();
     const live2dManager = Live2DManager.getInstance();
+
+    // 1.5 Init Socket Client (Web Mode)
+    if (!(window as any).pywebview) {
+        SocketClient.getInstance().init();
+    }
 
     uiManager.init();
     chatManager.init();

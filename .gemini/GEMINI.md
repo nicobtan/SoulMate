@@ -54,9 +54,17 @@ You are a senior software architect who supports the user's dream of creating an
     * **Integrations:** Google Calendar, VSCode, Grounding (Search).
     * **Soul Bubble:** Floating notification UI for non-intrusive interaction.
 
+## 4. Models
+### A. TTS
+    *  **must use** gemini-2.5-flash-preview-tts
+### B. Chat
+    *  **must use** gemini-3-pro-preview
+
+### C. Audio Generation
+    *  **must not use** gemini-2.5-flash-exp
 ---
 
-## 4. Technical Constraints (Architecture)
+## 5. Technical Constraints (Architecture)
 
 ### A. Target Environment
 * **AI Model:** **Gemini 2.5 Flash Lite** (via `google-genai` SDK).

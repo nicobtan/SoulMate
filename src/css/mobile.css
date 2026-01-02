@@ -80,7 +80,8 @@ body.mobile-mode #mobile-menu-btn {
     left: auto !important;
     z-index: 3000 !important;
     color: white;
-    background: transparent !important;
+    background: #34495e !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -209,7 +210,9 @@ body.mobile-mode #sys-log-btn {
     left: 15px !important;
     z-index: 3000 !important;
     color: white;
-    background: rgba(0, 0, 0, 0.5);
+    background: #34495e;
+    /* Dark Blue Grey */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -424,9 +427,11 @@ body.mobile-mode #topic-selection-modal.hidden {
 }
 
 body.mobile-mode .menu-content {
-    background: transparent !important;
+    background: rgba(30, 30, 30, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 12px;
     width: 80%;
     max-width: 300px;
     text-align: center;

@@ -68,10 +68,46 @@ export class ConfigManager {
                 lengthSelect.value = settings.chat_length_mode || 'standard';
             }
 
+            // 6. TTS Settings
+            const ttsProviderSelect = document.getElementById('tts-provider-select') as HTMLSelectElement;
+            const voiceSelect = document.getElementById('voice-type-select') as HTMLSelectElement;
+
+            if (ttsProviderSelect) {
+                ttsProviderSelect.value = settings.tts_provider || 'voicevox';
+
+                // Load Voices based on Provider
+                await this.loadVoices(ttsProviderSelect.value);
+
+                // Set Voice Selection after loading
+                if (voiceSelect && settings.voice_type) {
+                    voiceSelect.value = settings.voice_type;
+                }
+            }
+
             console.log("ConfigManager: Settings Loaded");
 
         } catch (err) {
             console.error("ConfigManager: Load Failed", err);
+        }
+    }
+
+    private async loadVoices(provider: string) {
+        const voiceSelect = document.getElementById('voice-type-select') as HTMLSelectElement;
+        if (!voiceSelect) return;
+
+        voiceSelect.innerHTML = "<option>Loading...</option>";
+        try {
+            const voices = await api.get_voice_types(provider);
+            voiceSelect.innerHTML = "";
+            voices.forEach((v: any) => {
+                const opt = document.createElement('option');
+                opt.value = v.id;
+                opt.innerText = v.name;
+                voiceSelect.appendChild(opt);
+            });
+        } catch (e) {
+            console.error("Load voices failed", e);
+            voiceSelect.innerHTML = "<option>Error</option>";
         }
     }
 
@@ -85,13 +121,19 @@ export class ConfigManager {
                 const fontSize = (document.getElementById('font-size-range') as HTMLInputElement)?.value;
                 const opacity = (document.getElementById('bg-opacity-range') as HTMLInputElement)?.value;
                 const persona = (document.getElementById('persona-select') as HTMLSelectElement)?.value;
+                const lenMode = (document.getElementById('chat-length-select') as HTMLSelectElement)?.value;
+
+                const ttsProvider = (document.getElementById('tts-provider-select') as HTMLSelectElement)?.value;
+                const voiceType = (document.getElementById('voice-type-select') as HTMLSelectElement)?.value;
 
                 const settings = {
                     api_key: apiKey,
                     model_name: model,
                     font_size: parseInt(fontSize || '13'),
                     background_opacity: parseInt(opacity || '0'),
-                    chat_length_mode: (document.getElementById('chat-length-select') as HTMLSelectElement)?.value || 'standard'
+                    chat_length_mode: lenMode || 'standard',
+                    tts_provider: ttsProvider || 'voicevox',
+                    voice_type: voiceType || '3'
                 };
 
                 try {
@@ -103,6 +145,14 @@ export class ConfigManager {
                 } catch (e: any) {
                     alert("保存失敗: " + e.message);
                 }
+            });
+        }
+
+        // TTS Provider Change Listener
+        const ttsProviderSelect = document.getElementById('tts-provider-select') as HTMLSelectElement;
+        if (ttsProviderSelect) {
+            ttsProviderSelect.addEventListener('change', async (e: any) => {
+                await this.loadVoices(e.target.value);
             });
         }
 

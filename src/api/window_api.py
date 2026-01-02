@@ -31,7 +31,7 @@ class WindowApiMixin(BaseApiMixin):
         
         # Resolve path
         # src/api/window_api.py -> src/api -> src -> root -> dist/settings.html
-        settings_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'dist', 'settings.html'))
+        settings_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'dist', 'settings_desktop.html'))
         
         # Check if already open
         if SETTINGS_WINDOW_REF["window"]:

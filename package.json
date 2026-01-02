@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc && copy src\\index.html dist\\index.html && copy src\\settings.html dist\\settings.html && copy src\\history.html dist\\history.html && copy src\\manifest.json dist\\manifest.json && xcopy src\\css dist\\css /S /I /Y && xcopy images dist\\images /S /I /Y && xcopy Live2D dist\\models /S /I /Y",
+    "build": "tsc && copy src\\index.html dist\\index.html && copy src\\settings.html dist\\settings.html && copy src\\settings_desktop.html dist\\settings_desktop.html && copy src\\settings_web.html dist\\settings_web.html && copy src\\history.html dist\\history.html && copy src\\manifest.json dist\\manifest.json && xcopy src\\css dist\\css /S /I /Y && xcopy images dist\\images /S /I /Y && xcopy Live2D dist\\models /S /I /Y",
     "start": "electron ."
   },
   "keywords": [],
