@@ -71,6 +71,14 @@
 - [ ] **モデル切り替えロジックの実装**
     - [ ] 通常会話: `gemini-2.5-flash-lite`
     - [ ] 複雑な相談: `gemini-3.0-preview`
+    - [x] `gemini-2.5-flash-preview-tts`: 動作確認済み。
+    - [ ] `gemini-2.5-pro-preview-tts` / `lite`: 現時点では404エラー (API未公開またはAllowlist制限の可能性)。
+
+## フェーズ123: 能動的会話のUX改善 [完了]
+- [x] **サジェスト整合性 (Consistency)**
+    - [x] **課題**: Active Engineからの能動的な発言（アイドル時等）には、サジェストが固定の3つしか付与されていなかった。
+    - [x] **修正**: `ActiveEngine` の `_trigger_idle_action` にも、通常会話と同じサジェスト生成ロジック（SuggestionEngineによる補完 + Love Slot）を実装。
+    - [x] **結果**: 能動的な会話でも約10個の多様なサジェストが表示されるよう改善。**
 - [x] **記憶システム (RAG)**
     - [x] `logs/chat_history.jsonl` への永続化
     - [x] `chromadb` の統合と検索ロジック

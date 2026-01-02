@@ -401,28 +401,47 @@ NOTE: If vision report mentions "Adobe Media Encoder" or "CS6", it is likely a h
             
             # For now, let's assume we will pass the JSON string, and index.ts needs update.
             # I will assume result is a Dict. I should convert to JSON string.
+            # --- Suggestion Padding Logic (ActiveEngine Idle) ---
+            base_sug = result.get('suggestions', [])
+            fixed = ["もっと詳しく教えて", "他の話題について"]
+            dynamic = [s for s in base_sug if s not in fixed]
+
+            # Ensure 8 items
+            if len(dynamic) < 8:
+                try:
+                    from src.services.suggestion_engine import SuggestionEngine
+                    eng = SuggestionEngine(self.ai_engine)
+                    
+                    hist = f"Context: Idle Talk Triggered.\nAI Spoke: {result.get('text', '')}"
+                    profile_txt = "Unknown"
+                    user_name = "あなた"
+                    
+                    more = eng.generate(hist, profile_txt, user_name)
+                    for ms in more:
+                        if ms not in dynamic and len(dynamic) < 8:
+                            dynamic.append(ms)
+                except Exception as e:
+                    logger.warning(f"Active Idle Suggestion Padding error: {e}")
+            
+            # Fallback
+            while len(dynamic) < 8:
+                dynamic.append("...その他")
+
+            # Combine
+            final_10 = fixed + dynamic[:8]
+            
+            # Love Slot
+            from src.services.affection_manager import AffectionManager
+            if not any(AffectionManager.is_affectionate(s) for s in final_10):
+                 love = f"❤ {AffectionManager().get_random_affection()}"
+                 if len(final_10) >= 10: final_10[-1] = love
+                 else: final_10.append(love)
+
+            result['suggestions'] = final_10
+            # -----------------------------------------------
+
             import json
             json_str = json.dumps(result, ensure_ascii=False)
-            
-            # TTS generation is done in Main.py callback?
-            # Main.py callback takes 'message'. and generates TTS from it.
-            # If 'message' is JSON, TTS engine will read the JSON!
-            # BAD.
-            
-            # Main.py needs refactoring to handle Proactive Push properly.
-            # OR ActiveEngine should handle TTS?
-            # ActiveEngine has no TTS reference.
-            
-            # Let's look at main.py's callback again.
-            # It cleans URLs from 'message' then generates TTS.
-            
-            # Strategy:
-            # Modify Main.py: push_message_callback(message_data) where message_data can be dict.
-            # But callback is defined as taking 'message' string usually.
-            
-            # Quick Fix:
-            # 1. ActiveEngine extracts text for TTS? No, `on_message_callback` is the only output.
-            # 2. Update `main.py` callback to detect if message is JSON string, parse it, extract text for TTS, and pass full JSON to frontend.
             
             if self.on_message_callback:
                 self.on_message_callback(json_str)
