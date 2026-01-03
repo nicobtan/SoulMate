@@ -214,21 +214,18 @@ emotion: happy
 suggestions:
   - Suggestion 1
   - Suggestion 2
-  - Suggestion 3
-  - Suggestion 4
-  - 他の話題について
+  - ...
+  - Suggestion 10
 
 [Output Requirement]
 - Use your Persona's tone.
 - Keep it concise.
+- **MUST provide exactly 10 suggestions.**
 """
         continuity_instruction = """
 [CRITICAL INSTRUCTION: CONTEXT CONTINUITY]
 1. If the user's input is short or ambiguous (e.g., "Tell me more", "Why?", "Details?", "Really?"):
-   - You MUST strictly refer to the IMMEDIATE CONVERSATION HISTORY (Short Term Memory).
-   - Elaborate on the TOPIC DISCUSSED IN THE PREVIOUS TURN.
-   - DO NOT switch topics or explain your underlying AI architecture (e.g., Gemini, LLM specs) unless explicitly asked.
-Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Current Scene/Persona Context [Lowest] General Knowledge/System Specs
+...
 """
 
         full_system_prompt = f"{base_prompt}\n{user_context}\n{topic_instruction}\n{citation_instruction}{continuity_instruction}\n\n{format_instruction}"
@@ -252,6 +249,43 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
         emotion = response_data.get("emotion", "neutral")
         suggestions = response_data.get("suggestions", [])
         grounding_info = response_data.get("grounding_info")
+
+        # --- Suggestion Padding Logic (Ensure 10 items) ---
+        fixed_suggestions = ["もっと詳しく教えて", "他の話題について", "別の話題はある？"]
+        
+        # 1. Remove duplicates
+        unique_suggestions = []
+        for s in suggestions:
+            if s not in unique_suggestions and s not in fixed_suggestions:
+                unique_suggestions.append(s)
+        
+        # 2. Add Fixed if needed (Or just pad)
+        # User wants "Always 10".
+        final_suggestions = unique_suggestions
+        
+        # 3. Dynamic Padding if < 10
+        if len(final_suggestions) < 10:
+            # Add fixed ones first if space
+            for f in fixed_suggestions:
+                if f not in final_suggestions and len(final_suggestions) < 10:
+                    final_suggestions.append(f)
+            
+            # If still < 10, add generic fillers
+            fillers = [
+                "今日のニュースは？", "お話しましょう", "何か面白いこと教えて", 
+                "君の趣味は？", "元気？", "リラックスしたい", "モチベーション上げて"
+            ]
+            import random
+            random.shuffle(fillers)
+            
+            for filler in fillers:
+                if len(final_suggestions) >= 10: break
+                if filler not in final_suggestions:
+                    final_suggestions.append(filler)
+
+        # 4. Limit to 10
+        final_suggestions = final_suggestions[:10]
+        # --------------------------------------------------
 
         # 2. TTS (音声合成)
         audio_path = None
@@ -287,25 +321,17 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
                         
                         from src.core.socket_manager import sio
                         import asyncio
-                        # emit is async, we are in sync or async method?
-                        # chat is sync def. But FastAPI calls it in threadpool.
-                        # sio.emit is coroutine.
-                        # We need to schedule it.
-                        asyncio.run_coroutine_threadsafe(
-                            sio.emit('play_audio', {'audio': audio_b64}),
-                            asyncio.get_event_loop() # This might fail if no loop in this thread
-                        ) 
-                        # Wait, threadpool doesn't have loop.
-                        # Use generic fire-and-forget helper or just `sio.emit` if using AsyncServer?
-                        # AsyncServer methods MUST be awaited.
-                        # We can use `asyncio.run` inside thread? No `asyncio.run` creates NEW PROACTOR loop which might conflict/slow.
-                        
-                        # Alternative: Just return path, and Client fetches?
-                        # But user wanted STREAMING via SOCKET.
-                        # My previous implementation in chat_api.py (Step 2371) used `asyncio.run(sio.emit(...))`.
-                        # That seemed "unsafe" but might work in threadpool.
-                        # Let's use `asyncio.run` for now as it isolates the context.
-                        asyncio.run(sio.emit('play_audio', {'audio': audio_b64}))
+
+                        # Reliable Async Emit
+                        try:
+                            loop = asyncio.get_event_loop()
+                            if loop.is_running():
+                                loop.create_task(sio.emit('play_audio', {'audio': audio_b64}))
+                            else:
+                                asyncio.run(sio.emit('play_audio', {'audio': audio_b64}))
+                        except RuntimeError:
+                             asyncio.run(sio.emit('play_audio', {'audio': audio_b64}))
+
                         logger.info(f"📡 [Socket] Sent audio chunk ({len(audio_b64)} bytes)")
                 except Exception as se:
                     logger.error(f"Socket Audio Error: {se}")
@@ -320,7 +346,7 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
             active = db.get_active_session()
             session_id = active['id'] if active else db.create_session()
             db.add_message(session_id, "user", message)
-            db.add_message(session_id, "ai", text_to_speak, meta={"emotion": emotion, "suggestions": suggestions})
+            db.add_message(session_id, "ai", text_to_speak, meta={"emotion": emotion, "suggestions": final_suggestions})
             
         if self.history_manager:
              self.history_manager.add_message("ai", text_to_speak)
@@ -328,7 +354,7 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
         return {
             "text": text_to_speak,
             "audio": audio_path,
-            "suggestions": suggestions,
+            "suggestions": final_suggestions,
             "emotion": emotion,
             "grounding_info": grounding_info
         }

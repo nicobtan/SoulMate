@@ -782,3 +782,14 @@
     - [x] **Bug Fix**: `save_settings` が古いウィンドウ位置を上書きする問題を修正（ペイロードから除外）。
     - [x] **Enhancement**: `on_window_loaded` に1秒遅延の再配置ロジックを追加し、OS/レンダラーの初期化ズレを吸収。
     - [x] **Stability**: デスクトップモードでの `SocketClient` 自動切断（404エラー回避）。
+
+## フェーズ104: Mobile UI Polish & Suggestion Stability (v0.4.2) [完了]
+- [x] **サジェスト安定化 (Suggestion Logic Fix)**
+    - [x] **Server Logic**: `server.py` の `chat` メソッドに、AI生成数が不足している場合の自動補填ロジック(Padding)を実装。常に10個のサジェストを保証。
+    - [x] **Redundancy**: 固定サジェスト（詳細/話題変更）とランダムトピック（フィラー）による空白埋め処理の追加。
+- [x] **モバイルUI視認性向上 (Visibility Polish)**
+    - [x] **CSS**: `#suggestion-popup` の `mobile.css` 独自定義（入力欄上部への固定配置）。
+    - [x] **Buttons**: 送信ボタン(▶)を青色背景、サジェストボタン(💡)を金色アイコンに変更し視認性を大幅向上。
+    - [x] **Touch Targets**: モバイルでのタップ領域を 40px 以上に拡大。
+- [x] **レイアウト修正**
+    - [x] **Regression Fix**: キャラクター表示の100%スケール維持と背景透過の再確認。

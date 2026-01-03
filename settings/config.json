@@ -14,7 +14,7 @@
     "current_persona_file": "default.yaml",
     "voice_type": "Aoede",
     "bg_opacity": 81,
-    "model_name": "gemini-3.0-pro-preview",
+    "model_name": "gemini-3-pro-preview",
     "window_x": 738,
     "window_y": 234,
     "active_talk_interval": 60,

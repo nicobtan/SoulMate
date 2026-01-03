@@ -31,6 +31,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         // Web Mode -> ALWAYS Mobile Mode (Allow debugging on PC Browser)
         document.body.classList.add('mobile-mode');
+
+        // Ensure CSS is enabled (if previously disabled by desktop logic)
+        const link = document.getElementById('mobile-css-link') as HTMLLinkElement;
+        if (link && link.disabled) {
+            link.disabled = false;
+            console.log("Environment: Mobile CSS Re-enabled");
+        }
     };
 
     if ((window as any).pywebview) {
@@ -49,11 +56,21 @@ window.addEventListener('DOMContentLoaded', async () => {
         // Enable Mobile Mode Handler for Web IF NOT Desktop
         // Default to Desktop view to prevent "Mobile Flash" (Black Bar at bottom)
         const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isSmallScreen = window.innerWidth <= 768; // Simple responsive check
 
-        if (isMobileDevice) {
+        if (isMobileDevice || isSmallScreen) {
             handleMobileMode();
+            console.log(`Environment: Web Mode (Mobile: ${isMobileDevice}, SmallScreen: ${isSmallScreen})`);
         } else {
-            console.log("Environment: PC Browser (Mobile Mode disabled by default)");
+            console.log("Environment: PC Browser (Desktop Width). Resize to <768px to trigger Mobile Mode.");
+
+            // Optional: Dynamic Resize Listener for developers
+            window.addEventListener('resize', () => {
+                if (window.innerWidth <= 768 && !document.body.classList.contains('mobile-mode')) {
+                    handleMobileMode();
+                    console.log("Environment: Switched to Mobile Mode via Resize");
+                }
+            });
         }
     }
 

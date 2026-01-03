@@ -137,8 +137,8 @@ body.mobile-mode #right-panel {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
-    display: none !important;
-    /* Default hidden */
+    display: flex !important;
+    /* Default Visible */
     flex-direction: column !important;
     pointer-events: none;
     /* Let clicks pass through empty areas */
@@ -300,6 +300,23 @@ body.mobile-mode #chat-input {
     color: white !important;
 }
 
+/* Enhanced Send Button for Mobile */
+body.mobile-mode #send-button {
+    background: #007bff !important;
+    /* Solid Blue */
+    color: white !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3) !important;
+    margin-left: 8px !important;
+    font-size: 16px !important;
+    border: none !important;
+}
+
 /* AI Message Bubble (Mobile Readability) */
 body.mobile-mode .message.ai {
     background: rgba(0, 0, 0, 0.6) !important;
@@ -339,20 +356,51 @@ body.mobile-mode #spawn-balloon-btn {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Suggestion Button (Embed in Input Area - Like Desktop) */
+/* Suggestion Button (Embed in Input Area - High Visibility) */
 body.mobile-mode #suggestion-toggle-btn {
     display: flex !important;
-    /* Ensure visible */
     position: static !important;
-    /* Remove fixed positioning */
     width: 36px !important;
     height: 36px !important;
     margin-right: 5px !important;
-    background: transparent !important;
-    color: #ccc !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    /* Brighter background */
+    color: #ffd700 !important;
+    /* Gold */
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    /* Visible border */
+    border-radius: 50% !important;
+    justify-content: center !important;
+    align-items: center !important;
     box-shadow: none !important;
-    border: none !important;
     z-index: auto !important;
+}
+
+/* Suggestion Popup Mobile Override */
+body.mobile-mode #suggestion-popup {
+    position: fixed !important;
+    bottom: 70px !important;
+    /* Above input area */
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-height: 40vh !important;
+    overflow-y: auto !important;
+    background: rgba(30, 30, 30, 0.95) !important;
+    border: 1px solid #444 !important;
+    border-radius: 12px !important;
+    padding: 10px !important;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 8px !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+    z-index: 5000 !important;
+    /* High z-index */
+    display: none;
+    /* Hidden by default, toggled via .visible */
+}
+
+body.mobile-mode #suggestion-popup.visible {
+    display: grid !important;
 }
 
 /* Hide Debug/Vision buttons on Mobile to reduce clutter (use menu for actions) */
