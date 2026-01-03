@@ -177,9 +177,8 @@ class VoiceService:
                     print(f"Failed to list models: {le}")
                 print("----------------------------------------------------\n")
 
-            import traceback
-            traceback.print_exc()
-            return None
+            # Re-raise to allow ChatApi to log this to the UI
+            raise e
 
     def _generate_voicevox_audio(self, text: str, voice_name: str) -> str:
         try:
@@ -215,7 +214,7 @@ class VoiceService:
 
         except requests.exceptions.ConnectionError:
             logger.warning("VOICEVOX is not running on port 50021. Please start VOICEVOX.")
-            return None
+            raise Exception("VOICEVOX Connection Error: Is the Engine running?")
         except Exception as e:
             logger.error(f"TTS Error: {e}")
-            return None
+            raise e
