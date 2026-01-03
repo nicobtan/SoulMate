@@ -765,3 +765,20 @@
 - [x] **Stability**
     - [x] **Socket.IO Reliability**: Web/Server間での音声転送 (`Active Message`) におけるSocket接続の堅牢性向上。
 
+## フェーズ102: Desktop Portrait Layout (450x700) [完了]
+- [x] **縦長レイアウト化 (Portrait Mode)**
+    - [x] **CSS**: `#character-area` を 450x700 に変更し、サイドパネルも 400x700 に合わせて調整。
+    - [x] **Python**: `main.py` の初期ウィンドウサイズを 450x700 に更新。
+    - [x] **Logic**: `log_manager.ts` のウィンドウリサイズ計算式を新レイアウト仕様に更新。
+    - [x] **Mobile Safety**: `mobile.css` の独立性を確認済み（影響なし）。
+
+
+## フェーズ103: Startup Persistence & Background Support (v0.4.1) [完了]
+- [x] **背景カスタマイズ機能**
+    - [x] **HTML/CSS**: `#background-layer` (z-index 0) の実装。
+    - [x] **Settings UI**: `settings_desktop.html` への画像パス入力・参照ボタン追加。
+    - [x] **Settings API**: `select_background_image` (ファイルダイアログ) の実装とBase64変換ロード。
+- [x] **起動時の完全復元 (Startup Fixes)**
+    - [x] **Bug Fix**: `save_settings` が古いウィンドウ位置を上書きする問題を修正（ペイロードから除外）。
+    - [x] **Enhancement**: `on_window_loaded` に1秒遅延の再配置ロジックを追加し、OS/レンダラーの初期化ズレを吸収。
+    - [x] **Stability**: デスクトップモードでの `SocketClient` 自動切断（404エラー回避）。

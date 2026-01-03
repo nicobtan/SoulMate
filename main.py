@@ -259,9 +259,40 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
 
     def set_window(self, window):
         self._window = window
+        # Hook loaded event for startup settings (Background restore)
+        self._window.events.loaded += self.on_window_loaded
+        
         self.active_engine.start()
         # Start Diary Check (Delayed to ensure UI is ready)
         threading.Thread(target=self.diary_generator.check_and_generate_diary, daemon=True).start()
+
+    def on_window_loaded(self):
+        """Called when the main window DOM is ready."""
+        print("[System] Main Window Loaded. Applying startup settings...")
+        
+        # 1. Restore Background Image (via Base64 injection)
+        self.apply_background_image()
+        
+        # 2. Restore Window Position (Explicitly move with delay to bypass renderer init)
+        x = self._config_manager.get('window_x', None)
+        y = self._config_manager.get('window_y', None)
+        
+        if x is not None and y is not None:
+            def delayed_move():
+                import time
+                time.sleep(1.0) # Wait for WebView to fully initialize
+                try:
+                    current_x, current_y = self._window.x, self._window.y
+                    print(f"[System] Delayed Move: Current({current_x}, {current_y}) -> Target({x}, {y})")
+                    if abs(current_x - int(x)) > 10 or abs(current_y - int(y)) > 10:
+                        self._window.move(int(x), int(y))
+                        print("[System] Window Position Corrected.")
+                    else:
+                        print("[System] Window Position already correct.")
+                except Exception as e:
+                    print(f"[System] Failed to move window: {e}")
+            
+            threading.Thread(target=delayed_move, daemon=True).start()
 
     def push_message_callback(self, message):
         """Callback for ActiveEngine to push messages to UI."""
@@ -444,13 +475,18 @@ def create_app():
     # ★ Start Background Title Fixer
     start_background_title_fixer(api)
     
-    initial_width = 500 
-    initial_height = 500
+    initial_width = 450 
+    initial_height = 700
     
     # Load Position from Config
     # default to None (centers window)
-    x = api._config_manager.get('window_x', None)
-    y = api._config_manager.get('window_y', None)
+    raw_x = api._config_manager.get('window_x', None)
+    raw_y = api._config_manager.get('window_y', None)
+    
+    x = int(raw_x) if raw_x is not None else None
+    y = int(raw_y) if raw_y is not None else None
+    
+    print(f"[Main] Initial Window Position: x={x}, y={y}")
     
     window = webview.create_window(
         'SoulMate AI', 

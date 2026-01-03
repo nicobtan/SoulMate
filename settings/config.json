@@ -15,8 +15,8 @@
     "voice_type": "Aoede",
     "bg_opacity": 81,
     "model_name": "gemini-3.0-pro-preview",
-    "window_x": 666,
-    "window_y": 522,
+    "window_x": 738,
+    "window_y": 234,
     "active_talk_interval": 60,
     "max_balloons": 5,
     "tts_provider": "gemini-2.5-flash-preview-tts",
@@ -28,5 +28,6 @@
         "media",
         "social"
     ],
-    "chat_length_mode": "concise"
+    "chat_length_mode": "concise",
+    "background_path": "C:/Users/NatureBreeze/Pictures/_GD/Gemini_Generated_Image_2ic6lk2ic6lk2ic6.png"
 }

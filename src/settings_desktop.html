@@ -278,6 +278,15 @@
             </div>
 
             <div class="form-group">
+                <label>背景画像 (Background Image)</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="bg-path" placeholder="C:/path/to/image.png or URL" readonly>
+                    <button class="btn btn-secondary" onclick="browseBackground()">Browse</button>
+                    <button class="btn btn-danger" onclick="clearBackground()">Clear</button>
+                </div>
+            </div>
+
+            <div class="form-group">
                 <label>ウィンドウ設定</label>
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
                     <input type="checkbox" id="always-on-top" checked> 最前面に表示 (Always on Top)
@@ -566,6 +575,8 @@
                 document.getElementById('bg-opacity').value = currentSettings.bg_opacity || 0;
                 document.getElementById('op-val').innerText = (currentSettings.bg_opacity || 0) + '%';
 
+                document.getElementById('bg-path').value = currentSettings.background_path || '';
+
                 document.getElementById('max-balloons').value = currentSettings.max_balloons || 3;
 
                 document.getElementById('api-key').value = currentSettings.api_key || '';
@@ -652,6 +663,7 @@
                 ...currentSettings,
                 font_size: parseInt(document.getElementById('font-size').value),
                 bg_opacity: parseInt(document.getElementById('bg-opacity').value),
+                background_path: document.getElementById('bg-path').value,
                 api_key: document.getElementById('api-key').value,
                 model_name: document.getElementById('model-select').value,
                 chat_length_mode: document.getElementById('chat-length-select').value,
@@ -670,6 +682,11 @@
 
             const selectedPersona = document.getElementById('persona-select').value;
             const searchTopics = document.getElementById('search-topics').value;
+
+            // Remove window position from generic settings to prevent overwriting with stale boot-time values
+            // (Window position is handled separately by saveWindowPosition)
+            delete newSettings.window_x;
+            delete newSettings.window_y;
 
             try {
                 // Save to Python
@@ -740,6 +757,21 @@
                 el.style.background = "rgba(231, 76, 60, 0.2)";
                 el.style.color = "#e74c3c";
             }
+        }
+
+        async function browseBackground() {
+            try {
+                const path = await window.pywebview.api.select_background_image();
+                if (path) {
+                    document.getElementById('bg-path').value = path.replace(/\\/g, '/'); // Normalize
+                }
+            } catch (e) {
+                console.error("Browse failed", e);
+            }
+        }
+
+        function clearBackground() {
+            document.getElementById('bg-path').value = "";
         }
 
         async function saveWindowPosition() {

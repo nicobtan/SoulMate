@@ -47,6 +47,18 @@ export class ConfigManager {
             if (apiKeyInput) apiKeyInput.value = settings.api_key || '';
             if (modelSelect && settings.model_name) modelSelect.value = settings.model_name;
 
+            // 7. Background Image (Startup)
+            if (settings.background_path) {
+                const bgLayer = document.getElementById('background-layer');
+                if (bgLayer) {
+                    let normalizedPath = settings.background_path.replace(/\\/g, '/');
+                    if (normalizedPath.includes(':') && !normalizedPath.startsWith('file://')) {
+                        normalizedPath = 'file:///' + normalizedPath;
+                    }
+                    bgLayer.style.backgroundImage = `url('${normalizedPath}')`;
+                }
+            }
+
             // 4. Persona
             const personaSelect = document.getElementById('persona-select') as HTMLSelectElement;
             if (personaSelect) {

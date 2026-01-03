@@ -43,17 +43,35 @@ body {
 }
 
 #character-area {
-    flex: 0 0 500px !important;
-    width: 500px !important;
-    height: 500px !important;
-    min-width: 500px !important;
-    min-height: 500px !important;
+    flex: 0 0 450px !important;
+    width: 450px !important;
+    height: 100vh !important;
+    min-width: 450px !important;
+    height: 100vh !important;
+    min-width: 450px !important;
+    min-height: 100vh !important;
     position: relative;
     background: rgba(0, 0, 0, 0);
     overflow: visible;
     cursor: move;
     pointer-events: auto;
     z-index: 100;
+    /* Layer 2: Character */
+}
+
+#background-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    /* Layer 1: Background */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    /* Let clicks pass through */
 }
 
 .pywebview-drag-region {
@@ -70,7 +88,7 @@ body {
     padding: 0 !important;
     margin: 0 !important;
     border: none !important;
-    height: 500px;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.9);
     border-radius: 8px;
     opacity: 0;
@@ -99,7 +117,7 @@ body {
     min-width: 0 !important;
     padding: 0 !important;
     margin: 0 !important;
-    height: 500px;
+    height: 100vh;
     position: relative;
     opacity: 0;
     overflow: hidden;
@@ -107,9 +125,14 @@ body {
     pointer-events: auto;
 }
 
+/* ★ Safety: Hide input area when panel is closed to prevent fixed-position leaks */
+#right-panel:not(.open) #input-area {
+    display: none !important;
+}
+
 #right-panel.open {
-    flex: 0 0 450px !important;
-    width: 450px !important;
+    flex: 0 0 400px !important;
+    width: 400px !important;
     opacity: 1;
     margin-left: 5px !important;
 }
@@ -277,6 +300,8 @@ body {
 /* CSS Class based toggle ensures Grid layout is preserved */
 #suggestion-popup.visible {
     display: grid !important;
+    z-index: 5000;
+    /* Layer 3: UI */
 }
 
 /* Hide by default */

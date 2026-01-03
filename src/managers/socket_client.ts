@@ -10,15 +10,7 @@ export class SocketClient {
     private socket: any;
 
     private constructor() {
-        if (typeof io !== 'undefined') {
-            // Auto-connect to current host
-            this.socket = io({
-                transports: ['websocket', 'polling']
-            });
-            this.initListeners();
-        } else {
-            console.warn("[Socket] socket.io client not found. Web Push disabled.");
-        }
+        // Lazy initialization
     }
 
     public static getInstance(): SocketClient {
@@ -27,8 +19,25 @@ export class SocketClient {
     }
 
     public init() {
-        // Just trigger instance creation
-        console.log("[Socket] Initialized");
+        if (this.socket) return; // Already initialized
+
+        if (typeof io !== 'undefined') {
+            // Auto-connect to current host
+            this.socket = io({
+                transports: ['websocket', 'polling']
+            });
+            this.initListeners();
+            console.log("[Socket] Initialized");
+        } else {
+            console.warn("[Socket] socket.io client not found. Web Push disabled.");
+        }
+    }
+
+    public disconnect() {
+        if (this.socket && this.socket.connected) {
+            this.socket.disconnect();
+            console.log("[Socket] Force disconnected (Desktop Mode)");
+        }
     }
 
     private initListeners() {

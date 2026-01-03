@@ -46,11 +46,15 @@ window.addEventListener('DOMContentLoaded', async () => {
             console.log("Environment: Desktop App Detected (Async)");
         });
 
-        // Enable Mobile Mode Handler for Web
-        handleMobileMode();
-        // Limit Mobile Mode Logic
-        // Remove resize listener as we now force it
-        // window.addEventListener('resize', handleMobileMode);
+        // Enable Mobile Mode Handler for Web IF NOT Desktop
+        // Default to Desktop view to prevent "Mobile Flash" (Black Bar at bottom)
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        if (isMobileDevice) {
+            handleMobileMode();
+        } else {
+            console.log("Environment: PC Browser (Mobile Mode disabled by default)");
+        }
     }
 
     // 0.5 Inject Web Settings (If Container Exists)
@@ -176,7 +180,7 @@ window.addEventListener('pywebviewready', async () => {
 
     // ★ Force Initial Resize to prevent UI clipping
     try {
-        await (window as any).pywebview.api.resize_window(500, 500);
+        await (window as any).pywebview.api.resize_window(450, 700);
 
         // --- Dev Scoped Features ---
         const settings = await (window as any).pywebview.api.get_settings();

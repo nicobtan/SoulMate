@@ -158,7 +158,9 @@ export class Live2DManager {
         if (!this.model || !this.characterArea || !this.app) return;
 
         const frameW = this.characterArea.clientWidth;
-        const frameH = this.characterArea.clientHeight;
+        // const frameH = this.characterArea.clientHeight; 
+        // ★ Fix: Use window.innerHeight to ensure full screen height coverage (avoid black bars)
+        const frameH = window.innerHeight;
         const isMobile = document.body.classList.contains('mobile-mode');
 
         // Resize Renderer

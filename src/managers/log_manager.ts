@@ -10,9 +10,9 @@ export class LogManager {
     public isLogOpen: boolean = false;
 
     // Layout Config (Widths + Margins)
-    private readonly CHAR_WIDTH = 500;
+    private readonly CHAR_WIDTH = 450;
     private readonly LOG_TOTAL_WIDTH = 410; // 400px width + 10px margin
-    private readonly CHAT_TOTAL_WIDTH = 455; // 450px width + 5px margin
+    private readonly CHAT_TOTAL_WIDTH = 405; // 400px width + 5px margin
 
     private constructor() {
         this.leftPanel = document.getElementById('left-panel');
@@ -183,13 +183,13 @@ export class LogManager {
             const isChatOpen = rightPanel ? rightPanel.classList.contains('open') : false;
 
             // Calculate Total Width
-            let targetWidth = this.CHAR_WIDTH; // 500
+            let targetWidth = this.CHAR_WIDTH; // 450
 
             if (this.isLogOpen) targetWidth += this.LOG_TOTAL_WIDTH; // +410
-            if (isChatOpen) targetWidth += this.CHAT_TOTAL_WIDTH;   // +490
+            if (isChatOpen) targetWidth += this.CHAT_TOTAL_WIDTH;   // +405
 
-            // Resize (Height fixed at 500)
-            await (window as any).pywebview.api.resize_window(targetWidth, 500);
+            // Resize (Height fixed at 700)
+            await (window as any).pywebview.api.resize_window(targetWidth, 700);
 
         } catch (e) {
             console.error("Window Resize Failed", e);

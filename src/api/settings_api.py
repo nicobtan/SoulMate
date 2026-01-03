@@ -1,4 +1,6 @@
 from .base import BaseApiMixin
+import webview
+import os
 
 class SettingsApiMixin(BaseApiMixin):
     def get_settings(self):
@@ -21,15 +23,61 @@ class SettingsApiMixin(BaseApiMixin):
             # Font Size
             font_size = settings.get('font_size', 13)
             self._window.evaluate_js(f"document.documentElement.style.setProperty('--chat-font-size', '{font_size}px')")
+            
+            # Background Image - Use the extracted method
+            self.apply_background_image(settings.get('background_path', ''))
 
-        # Log Audio Settings Change
-        if 'tts_provider' in settings or 'voice_type' in settings:
-            provider = settings.get('tts_provider', 'Unknown')
-            voice = settings.get('voice_type', 'Unknown')
-            self.log_to_debug(f"🔊 [Audio Config] Updated: Provider='{provider}', Voice='{voice}'", 'info')
+            # Log Audio Settings Change
+            if 'tts_provider' in settings or 'voice_type' in settings:
+                provider = settings.get('tts_provider', 'Unknown')
+                voice = settings.get('voice_type', 'Unknown')
+                self.log_to_debug(f"🔊 [Audio Config] Updated: Provider='{provider}', Voice='{voice}'", 'info')
 
         return {"status": "success", "settings": self._config_manager.get_all()}
     
+    def apply_background_image(self, bg_path=None):
+        """Helper to inject background image via Base64 to bypass CORS/File restrictions."""
+        if not self._window: return
+
+        # If no arg provided, load from config
+        if bg_path is None:
+             bg_path = self._config_manager.get('background_path', '')
+        
+        bg_data_uri = ''
+        if bg_path:
+            import base64
+            import mimetypes
+            try:
+                # Clean path
+                clean_path = bg_path.replace("file:///", "").replace("file://", "")
+                if os.name == 'nt' and clean_path.startswith('/') and ':' in clean_path:
+                    clean_path = clean_path.lstrip('/')
+                    
+                if os.path.exists(clean_path):
+                    mime_type, _ = mimetypes.guess_type(clean_path)
+                    if not mime_type: mime_type = 'image/png'
+                    
+                    with open(clean_path, "rb") as image_file:
+                        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                        bg_data_uri = f"data:{mime_type};base64,{encoded_string}"
+                        print(f"[SettingsApi] Loaded Background Image ({len(encoded_string)} bytes)")
+                else:
+                        print(f"[SettingsApi] Image not found: {clean_path}")
+            except Exception as e:
+                print(f"[SettingsApi] Error loading background: {e}")
+
+        js_code = f"""
+            const bg = document.getElementById('background-layer');
+            if(bg) {{
+                if('{bg_data_uri}') {{
+                    bg.style.backgroundImage = "url('{bg_data_uri}')";
+                }} else {{
+                    bg.style.backgroundImage = 'none';
+                }}
+            }}
+        """
+        self._window.evaluate_js(js_code)
+
     def get_persona_list(self):
         return self._persona_manager.list_personas()
 
@@ -112,9 +160,26 @@ class SettingsApiMixin(BaseApiMixin):
         """Saves current window position to config."""
         if self._window:
             x, y = self._window.x, self._window.y
+            print(f"[SettingsApi] Saving Window Position: x={x}, y={y}")
             self._config_manager.update({'window_x': x, 'window_y': y})
             return {"status": "success", "x": x, "y": y}
         return {"status": "error", "message": "Window not found"}
+    
+    def select_background_image(self):
+        """Opens a file dialog to select a background image."""
+        if not self._window:
+            return None
+            
+        file_types = ('Image Files (*.png;*.jpg;*.jpeg;*.webp)', 'All files (*.*)')
+        result = self._window.create_file_dialog(
+            dialog_type=webview.OPEN_DIALOG, 
+            allow_multiple=False, 
+            file_types=file_types
+        )
+        
+        if result and len(result) > 0:
+            return result[0]
+        return None
 
     def _configure_ai(self, settings):
         """Updates AI Engine and Persona based on settings."""

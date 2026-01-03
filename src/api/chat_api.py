@@ -804,7 +804,6 @@ User Message: "{message}"
              self.log_to_mind(f"{log_icon} Topic: {topic} ({source})")
 
         # 4. Prompt with Grounding Instruction
-        # We ALWAYS want to search to make the serendipity valid (not hallucination).
         prompt = f"""
 [Situation]
 User is idle. You found an interesting topic: "{topic}".
@@ -826,9 +825,29 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
 Ensure 'suggestions' contains at least 3 relevant user replies in Japanese.
 """
         
-        # Call chat with save_user_log=False to prevent DB pollution
-        # ユーザー発言として扱わず、AIからの発信として処理
-        return self.chat(prompt, save_user_log=False)
+        # ★ Async Execution to prevent Timeout "Server disconnected"
+        def _run_background():
+            try:
+                # Call chat with save_user_log=False
+                result = self.chat(prompt, save_user_log=False)
+                
+                # Manual Push to Frontend
+                import json
+                if hasattr(self, 'push_message_callback'):
+                    # chat returns dict, format strict
+                    # We might need to conform to what handleResponseObject expects
+                    # handleResponseObject expects: text, audio, suggestions, emotion
+                    # result has: text, audio, suggestions, emotion, grounding_info
+                    
+                    # Ensure JSON string
+                    self.push_message_callback(json.dumps(result, ensure_ascii=False))
+            except Exception as e:
+                self.log_to_debug(f"ForceTalk Async Error: {e}", 'error')
+
+        threading.Thread(target=_run_background, daemon=True).start()
+
+        # Return "Accepted" immediately
+        return {"text": "", "status": "processing_in_background"}
 
     def suggest_reply(self):
         """Generates a suggested user reply based on history."""
