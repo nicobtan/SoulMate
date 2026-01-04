@@ -193,7 +193,18 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
         # Log input
         log_msg = f"Chat Received: {message}"
         if image_data: log_msg += " [with image]"
+        if image_data: log_msg += " [with image]"
         self.log_to_debug(log_msg, 'info')
+        
+        # --- COMMAND: /dify [tag] ---
+        if message.startswith("/dify"):
+            tag = message.replace("/dify", "").strip() or "AI"
+            self.trigger_dify_workflow(tag)
+            return {
+                "text": f"Difyワークフローを実行しました (Tag: {tag})。\nログを確認してください。",
+                "audio": None,
+                "suggestions": []
+            }
         
         # 0. Latency Masking: Filler
         self.play_filler()
@@ -768,6 +779,15 @@ User Message: "{message}"
         self.log_to_debug("🚀 Force-Triggering Proactive Scan...", 'info')
         # We run it in background to not block the UI
         threading.Thread(target=self.active_engine.force_proactive_scan, daemon=True).start()
+        return {'status': 'success'}
+
+    def trigger_dify_workflow(self, tag="AI"):
+        """Dify Workflowを手動でトリガーします。"""
+        if not hasattr(self, 'active_engine') or not self.active_engine:
+             return {'status': 'error', 'message': 'ActiveEngine not available'}
+        
+        self.log_to_debug(f"▶ Triggering Dify Workflow (Tag: {tag})...", 'info')
+        self.active_engine.force_dify_workflow(tag)
         return {'status': 'success'}
 
     def get_url_metadata(self, url):

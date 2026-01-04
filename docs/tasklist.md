@@ -792,4 +792,13 @@
     - [x] **Buttons**: 送信ボタン(▶)を青色背景、サジェストボタン(💡)を金色アイコンに変更し視認性を大幅向上。
     - [x] **Touch Targets**: モバイルでのタップ領域を 40px 以上に拡大。
 - [x] **レイアウト修正**
-    - [x] **Regression Fix**: キャラクター表示の100%スケール維持と背景透過の再確認。
+- [x] **Regression Fix**: キャラクター表示の100%スケール維持と背景透過の再確認。
+
+## フェーズ105: Dify連携 & デスクトップ安定化 (v0.4.3) [完了]
+- [x] **Dify連携基盤 (Dify Integration)**
+    - [x] **Client**: `src/services/dify_client.py` クラスの作成 (Dify Workflow API連携)。
+    - [x] **Error Handling**: API接続エラー時のレスポンス詳細出力と、接続失敗時のグレースフルハンドリング。
+    - [x] **Verification**: テストスクリプトでの動作確認完了。
+- [x] **WebSocketログ修正 (Desktop Silence)**
+    - [x] **Cause**: PyWebview注入前の `SocketClient` 初期化による競合(Race Condition)。
+    - [x] **Fix**: `index.ts` にて初期化ロジックを遅延させ、デスクトップモード判定を確実化。不要なWebSocket接続(404エラー)を排除。

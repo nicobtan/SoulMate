@@ -21,6 +21,12 @@ export class SocketClient {
     public init() {
         if (this.socket) return; // Already initialized
 
+        // Desktop Mode Check: Skip Socket.IO to avoid 404 errors (Main.py doesn't serve socket.io)
+        if ((window as any).pywebview) {
+            console.log("[Socket] Desktop Mode detected. Skipping Socket.IO connection.");
+            return;
+        }
+
         if (typeof io !== 'undefined') {
             // Auto-connect to current host
             this.socket = io({

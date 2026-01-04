@@ -4,6 +4,7 @@ import logging
 import random
 from .news_collector import NewsCollector
 from .vision_service import vision_service
+from .dify_client import DifyClient
 from PIL import ImageGrab
 
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +15,7 @@ class ActiveEngine:
         self.ai_engine = ai_engine
         self.on_message_callback = on_message_callback
         self.log_callback = log_callback
+        self.dify_client = None # Initialized in configure
         # self.news_collector = NewsCollector() # Deprecated for now, logic moved to AIEngine
         
         self.is_running = False
@@ -67,9 +69,61 @@ class ActiveEngine:
             self.proactive_silent_mode = settings.get('proactive_silent_mode', False)
             self.scan_targets = settings.get('proactive_targets', ["work", "media", "social", "health"])
             logger.info(f"ActiveEngine: Silent={self.proactive_silent_mode}, Targets={self.scan_targets}")
+
+            # Dify Client Init
+            dify_key = settings.get('dify_api_key', "")
+            if not dify_key:
+                # Fallback for Development (Verify key from script)
+                dify_key = "app-drlsmEcN9o1qJTxJyJzQtbIz"
+                logger.info("ActiveEngine: Using Dev Dify Key.")
+
+            if dify_key:
+                # Initialize with log callback pointing to _send_log
+                self.dify_client = DifyClient(
+                    api_key=dify_key, 
+                    log_callback=lambda msg: self._send_log(msg, "info", "sys")
+                )
+                logger.info("ActiveEngine: DifyClient initialized.")
             
         except Exception as e:
             logger.error(f"Failed to configure ActiveEngine: {e}")
+
+    def force_dify_workflow(self, tag="AI"):
+        """Manually trigger Dify Workflow."""
+        threading.Thread(target=self._run_dify_workflow, args=(tag,), daemon=True).start()
+
+    def _run_dify_workflow(self, tag):
+        if not self.dify_client:
+             self._send_log("Dify Client not ready.", "warning", "sys")
+             return
+
+        self._send_log(f"Triggering Dify Search (Tag: {tag})...", "info", "sys")
+        try:
+            result = self.dify_client.fetch_note_article(tag)
+            if result:
+                msg = result.get('message', '')
+                url = result.get('url', '')
+                
+                # Speak result
+                import json
+                payload = {
+                    "text": f"Difyから面白い記事を見つけたわ。\n{msg}",
+                    "emotion": "happy",
+                    "suggestions": ["リンクを開く", "詳しく教えて", "他のニュース"],
+                    "type": "proactive"
+                }
+                
+                # If URL exists, append to text or handle specially?
+                # For now just speak the summary. URL can be in suggestions or handled by 'Linkify' if in text.
+                if url:
+                    payload["text"] += f"\n{url}"
+
+                if self.on_message_callback:
+                    self.on_message_callback(json.dumps(payload, ensure_ascii=False))
+            else:
+                self._send_log("Dify returned no results.", "warning", "sys")
+        except Exception as e:
+            self._send_log(f"Dify Workflow Failed: {e}", "error", "sys")
 
     def set_proactive_mode(self, enabled):
         self.proactive_mode = enabled

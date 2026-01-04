@@ -99,9 +99,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     const live2dManager = Live2DManager.getInstance();
 
     // 1.5 Init Socket Client (Web Mode)
-    if (!(window as any).pywebview) {
-        SocketClient.getInstance().init();
-    }
+    // Delay initialization to ensure pywebview has time to inject (Desktop Mode check)
+    setTimeout(() => {
+        if (!(window as any).pywebview) {
+            console.log("Environment: Web Mode Confirmed (No pywebview). Initializing Socket.");
+            SocketClient.getInstance().init();
+        } else {
+            console.log("Environment: Desktop Mode Confirmed (pywebview found). Socket skipped.");
+        }
+    }, 500); // 500ms delay
 
     uiManager.init();
     chatManager.init();

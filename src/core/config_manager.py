@@ -37,7 +37,8 @@ class ConfigManager:
             },
             "proactive_vision_interval_min": 5,
             "proactive_silent_mode": False,
-            "proactive_targets": ["work", "media", "health"]
+            "proactive_targets": ["work", "media", "health"],
+            "dify_api_key": ""
         }
 
     def load(self):
