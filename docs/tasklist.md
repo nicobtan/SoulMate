@@ -798,7 +798,22 @@
 - [x] **Dify連携基盤 (Dify Integration)**
     - [x] **Client**: `src/services/dify_client.py` クラスの作成 (Dify Workflow API連携)。
     - [x] **Error Handling**: API接続エラー時のレスポンス詳細出力と、接続失敗時のグレースフルハンドリング。
+- [x] **能動的アクション実装 (Active Browser Action)**
+    - [x] **Backend**: `ActiveEngine` を改修し、Dify結果を `Soul Bubble` として登録するロジック実装。
+    - [x] **Action**: `BubbleService` にURLオープン機能 (`webbrowser.open`) を実装し、ユーザーのクリックでブラウザを起動。
+    - [x] **UI Integration**: `main.py` から `showSoulBubble` をキックするプッシュ通信フローを確立。
     - [x] **Verification**: テストスクリプトでの動作確認完了。
 - [x] **WebSocketログ修正 (Desktop Silence)**
     - [x] **Cause**: PyWebview注入前の `SocketClient` 初期化による競合(Race Condition)。
-    - [x] **Fix**: `index.ts` にて初期化ロジックを遅延させ、デスクトップモード判定を確実化。不要なWebSocket接続(404エラー)を排除。
+    - [x] **Fix**: `main.py` の `on_window_loaded` イベント発火まで接続を遅延させることで解決。
+
+## フェーズ106: Voice Input Implementation (Desktop) [作業中]
+- [x] **Backend Implementation**
+    - [x] **Dependencies**: `faster-whisper`, `pyaudio` の導入
+    - [x] **Service**: `src/services/voice_input_manager.py` 作成 (Whisper Loading, PyAudio Recording)
+    - [x] **API**: `src/api/voice_api.py` 作成 (Mixin)
+    - [x] **Integration**: `main.py` への統合
+- [x] **Frontend Implementation**
+    - [x] **UI**: マイクボタンの実装 (HTML/CSS)
+    - [x] **Logic**: `VoiceInputManager` (TypeScript) の実装
+    - [x] **Hotkey**: グローバルホットキー連携 (`keyboard` + Frontend Sync)

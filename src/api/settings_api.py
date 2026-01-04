@@ -32,6 +32,12 @@ class SettingsApiMixin(BaseApiMixin):
                 provider = settings.get('tts_provider', 'Unknown')
                 voice = settings.get('voice_type', 'Unknown')
                 self.log_to_debug(f"🔊 [Audio Config] Updated: Provider='{provider}', Voice='{voice}'", 'info')
+            
+            # Re-configure Voice Hotkey
+            if hasattr(self, 'configure_voice_hotkey'):
+                self.configure_voice_hotkey(settings)
+
+            self.log_to_debug(f"✅ [System] Settings Saved: (Hotkeys updated)", 'info')
 
         return {"status": "success", "settings": self._config_manager.get_all()}
     

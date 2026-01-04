@@ -21,9 +21,12 @@ export class SocketClient {
     public init() {
         if (this.socket) return; // Already initialized
 
-        // Desktop Mode Check: Skip Socket.IO to avoid 404 errors (Main.py doesn't serve socket.io)
-        if ((window as any).pywebview) {
-            console.log("[Socket] Desktop Mode detected. Skipping Socket.IO connection.");
+        // Desktop Mode Check: Robust check using multiple indicators
+        // pywebview injects 'window.pywebview'
+        const isDesktop = (window as any).pywebview !== undefined;
+
+        if (isDesktop) {
+            console.log("🛑 [Socket] Desktop Mode (pywebview) detected. Socket.IO connection DISABLED to prevent 404s.");
             return;
         }
 
@@ -33,9 +36,9 @@ export class SocketClient {
                 transports: ['websocket', 'polling']
             });
             this.initListeners();
-            console.log("[Socket] Initialized");
+            console.log("✅ [Socket] Initialized (Web Mode)");
         } else {
-            console.warn("[Socket] socket.io client not found. Web Push disabled.");
+            console.warn("⚠️ [Socket] socket.io client not found. Web Push disabled.");
         }
     }
 

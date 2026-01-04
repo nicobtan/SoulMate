@@ -14,7 +14,7 @@
     "current_persona_file": "default.yaml",
     "voice_type": "Aoede",
     "bg_opacity": 81,
-    "model_name": "gemini-3-pro-preview",
+    "model_name": "gemini-3.0-pro-preview",
     "window_x": 738,
     "window_y": 234,
     "active_talk_interval": 60,
@@ -29,5 +29,10 @@
         "social"
     ],
     "chat_length_mode": "concise",
-    "background_path": "C:/Users/NatureBreeze/Pictures/_GD/Gemini_Generated_Image_2ic6lk2ic6lk2ic6.png"
+    "background_path": "C:/Users/NatureBreeze/Pictures/_GD/Gemini_Generated_Image_2ic6lk2ic6lk2ic6.png",
+    "dify_api_key": "",
+    "audio_input_device_index": 1,
+    "stt_model_size": "small",
+    "voice_input_hotkey": "alt+q",
+    "voice_input_mode": "toggle"
 }

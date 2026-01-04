@@ -24,6 +24,7 @@ from src.api.chat_api import ChatApiMixin
 from src.api.bubble_api import BubbleApi
 from src.api.user_api import UserApiMixin
 from src.api.history_api import HistoryApiMixin
+from src.api.voice_api import VoiceApiMixin
 from src.services.bubble_service import BubbleService
 from src.services.history_manager import HistoryManager
 
@@ -32,7 +33,7 @@ from src.services.user_manager import UserManager
 from src.services.interest_manager import InterestManager
 from src.services.topic_selector import TopicSelector
 
-class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin):
+class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin):
     def __init__(self):
         super().__init__() # Initialize BaseApiMixin attributes
         self.services = self # Mixin Pattern: API instance itself is the service container
@@ -97,6 +98,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
  
         # Active Engine
         self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback, log_callback=self.log_to_debug)
+        self.active_engine.set_bubble_service(self.bubble_service) # Inject Bubble Service
         self.active_engine.configure(self._config_manager.get_all())
         
         # Connect VisionService Logging
@@ -106,6 +108,9 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # Apply Initial Config
         settings = self._config_manager.get_all()
         self._configure_ai(settings)
+        # Apply Voice Hotkey
+        if hasattr(self, 'configure_voice_hotkey'):
+             self.configure_voice_hotkey(settings)
 
         # Calendar Manager & Auto-Auth
         self._calendar_manager = CalendarManager()
@@ -315,6 +320,18 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
                     expr_name = data.get("name", "neutral")
                     self._window.evaluate_js(f"if(window.setExpression) window.setExpression('{expr_name}')")
                     return # Stop here, no TTS
+
+                if "type" in data and data["type"] == "bubble":
+                    # Trigger Soul Bubble
+                    cat = data.get("category", "topics")
+                    txt = data.get("text", "")
+                    aid = data.get("action_id", "")
+                    b_type = data.get("type_ui", "discovery") # 'discovery' makes it purple
+                    
+                    # Call showSoulBubble directly
+                    js = f"showSoulBubble('{cat}', '{txt}', '{aid}', '{b_type}')"
+                    self._window.evaluate_js(js)
+                    return # Stop here
                     
                 if "response" in data:
                     tts_text = data["response"]

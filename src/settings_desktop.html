@@ -251,6 +251,7 @@
         <button class="tab-btn" onclick="showTab('user')">👤 User Profile</button>
         <button class="tab-btn" onclick="showTab('voice')">🔊 Voice & Sound</button>
         <button class="tab-btn" onclick="showTab('integrations')">🔗 Integrations</button>
+        <button class="tab-btn" onclick="showTab('voice-input')">🎤 Voice Input</button>
     </div>
 
     <div class="content">
@@ -458,6 +459,46 @@
 
         </div>
 
+        <div id="voice-input" class="tab-pane">
+            <h2>音声入力設定 (Voice Input)</h2>
+            <div class="form-group">
+                <label>入力デバイス (Microphone)</label>
+                <select id="mic-select">
+                    <option value="">Default</option>
+                </select>
+                <button class="btn btn-secondary" style="margin-top:5px; font-size:11px;"
+                    onclick="refreshMics()">デバイス一覧を更新</button>
+            </div>
+            <div class="form-group">
+                <label>認識モデルサイズ (Model Size)</label>
+                <select id="stt-model-select">
+                    <option value="tiny">Tiny (最速/精度低)</option>
+                    <option value="base" selected>Base (推奨)</option>
+                    <option value="small">Small (高精度/少し重い)</option>
+                    <option value="medium">Medium (重い/要GPU)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>ホットキー (Global Hotkey)</label>
+                <input type="text" id="voice-hotkey" placeholder="例: right_ctrl, f12, ctrl+space"
+                    style="font-family: 'Consolas', monospace;">
+                <div class="helper-text">マイクのON/OFFを切り替えるキー。空欄で無効。</div>
+            </div>
+
+            <div class="form-group">
+                <label>入力モード (Input Mode)</label>
+                <div style="display:flex; gap:20px; align-items:center; margin-top:5px;">
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                        <input type="radio" name="voice-mode" value="toggle" checked> Toggle (切り替え)
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                        <input type="radio" name="voice-mode" value="push_to_talk"> Push-to-Talk (押している間)
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <div id="proactive" class="tab-pane">
             <h2>Proactive Mode (能動的視覚監視)</h2>
 
@@ -542,6 +583,25 @@
 
         // --- Logic ---
         let currentSettings = {};
+
+        // --- Voice Input Logic ---
+        async function refreshMics() {
+            const sel = document.getElementById('mic-select');
+            sel.innerHTML = "<option>Loading...</option>";
+            try {
+                const devices = await window.pywebview.api.get_audio_devices();
+                sel.innerHTML = "<option value=''>Default Device</option>";
+                devices.forEach(d => {
+                    let opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.innerText = d.name;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error("Mic load error:", e);
+                sel.innerHTML = "<option>Error</option>";
+            }
+        }
 
         async function loadVoices(provider) {
             const voiceSelect = document.getElementById('voice-select');
@@ -652,6 +712,24 @@
 
                 document.getElementById('mind-vault-id').value = currentSettings.mind_vault_docs_id || '';
 
+                // Voice Input Load
+                await refreshMics();
+                if (currentSettings.audio_input_device_index !== undefined) {
+                    document.getElementById('mic-select').value = currentSettings.audio_input_device_index;
+                }
+                if (currentSettings.stt_model_size) {
+                    document.getElementById('stt-model-select').value = currentSettings.stt_model_size;
+                }
+
+                document.getElementById('voice-hotkey').value = currentSettings.voice_input_hotkey || '';
+
+                const vMode = currentSettings.voice_input_mode || 'toggle';
+                if (vMode === 'push_to_talk') {
+                    document.querySelector('input[name="voice-mode"][value="push_to_talk"]').checked = true;
+                } else {
+                    document.querySelector('input[name="voice-mode"][value="toggle"]').checked = true;
+                }
+
             } catch (e) {
                 console.error("Failed to load settings:", e);
                 alert("設定の読み込みに失敗しました: " + e);
@@ -677,6 +755,10 @@
                 proactive_targets: ['work', 'media', 'social', 'health'].filter(t => document.getElementById('target-' + t).checked),
                 max_balloons: parseInt(document.getElementById('max-balloons').value),
                 mind_vault_docs_id: document.getElementById('mind-vault-id').value.trim(),
+                audio_input_device_index: document.getElementById('mic-select').value === "" ? null : parseInt(document.getElementById('mic-select').value),
+                stt_model_size: document.getElementById('stt-model-select').value,
+                voice_input_hotkey: document.getElementById('voice-hotkey').value.trim(),
+                voice_input_mode: document.querySelector('input[name="voice-mode"]:checked').value,
                 // Add others
             };
 

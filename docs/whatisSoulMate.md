@@ -149,6 +149,7 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 
 ### 🤖 Dify Integration & Desktop Stability (v0.4.3)
 - **External Brain (Dify)**: Dify Workflow APIと連携するための `DifyClient` を実装。外部の高度な推論フローや検索フローを活用可能に。
+- **Active Browser Action**: Difyが発見した情報（URL）をSoul Bubbleとして提示し、ユーザーのクリックによりブラウザを自動的に開く「能動的行動」を実現。
 - **Log Silence**: デスクトップ版での不要なWebSocket接続エラーを修正し、ログをクリーンアップ。
 
 ## ユーザーの想い

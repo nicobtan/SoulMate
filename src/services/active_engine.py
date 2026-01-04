@@ -11,11 +11,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ActiveEngine:
-    def __init__(self, ai_engine, on_message_callback, log_callback=None):
+    def __init__(self, ai_engine, on_message_callback, log_callback=None, bubble_service=None):
         self.ai_engine = ai_engine
         self.on_message_callback = on_message_callback
         self.log_callback = log_callback
         self.dify_client = None # Initialized in configure
+        self.bubble_service = bubble_service # Injected dependency
         # self.news_collector = NewsCollector() # Deprecated for now, logic moved to AIEngine
         
         self.is_running = False
@@ -35,6 +36,10 @@ class ActiveEngine:
         self.scan_lock = threading.Lock() # Prevent concurrent scans
         self.proactive_silent_mode = False
         self.scan_targets = ["work", "media", "social", "health"]
+
+    def set_bubble_service(self, service):
+        """ dependency injection setter """
+        self.bubble_service = service
 
     def configure(self, settings):
         """Updates settings dynamically."""
@@ -104,22 +109,127 @@ class ActiveEngine:
                 msg = result.get('message', '')
                 url = result.get('url', '')
                 
-                # Speak result
-                import json
-                payload = {
-                    "text": f"Difyから面白い記事を見つけたわ。\n{msg}",
-                    "emotion": "happy",
-                    "suggestions": ["リンクを開く", "詳しく教えて", "他のニュース"],
-                    "type": "proactive"
-                }
-                
-                # If URL exists, append to text or handle specially?
-                # For now just speak the summary. URL can be in suggestions or handled by 'Linkify' if in text.
-                if url:
-                    payload["text"] += f"\n{url}"
+                logger.info(f"[Dify] Received: {msg} (URL: {url})")
 
-                if self.on_message_callback:
-                    self.on_message_callback(json.dumps(payload, ensure_ascii=False))
+                # Strategy Change: Use SoulBubble for Proposal
+                if self.bubble_service:
+                    import time
+                    # We create a manual bubble packet directly or use a helper?
+                    # Since BubbleService manages active bubbles, we'd better construct a packet and inject it.
+                    # Or use a new method on BubbleService?
+                    # Let's verify BubbleService structure. It has `_active_bubbles`.
+                    # We can manually insert it.
+                    
+                    action_id = f"DIFY_{int(time.time())}"
+                    
+                    # Create a friendly bubble text
+                    # Shorten message for bubble if too long?
+                    bubble_text = f"💡 {msg[:20]}..." if len(msg) > 20 else f"💡 {msg}"
+                    # Actually, the Dify message is usually a summary. Let's use it as 'text' but maybe formatted.
+                    # If it's too long, the bubble UI might be weird.
+                    # Dify message: "Note記事を見つけたわ: タイトル..."
+                    # Let's assume it's suitable.
+                    
+                    packet = {
+                        "category": "topics",
+                        "text": f"Dify新着: {msg}",
+                        "action_id": action_id,
+                        "metadata": {
+                            "url": url,
+                            "full_content": msg
+                        },
+                        "type": "discovery" # Purple styling for 'discovery' or maybe 'manual'?
+                    }
+                    
+                    # Inject
+                    self.bubble_service._active_bubbles[action_id] = packet
+                    
+                    # Log
+                    self._send_log(f"Generated Dify Bubble: {action_id}", "info", "sys")
+                    
+                    # Push to UI immediately via on_message_callback (Wait, this callback is for CHAT/TTS?)
+                    # No, we need to show the bubble.
+                    # Main.py monitors bubble service? 
+                    # Main.py has a loop `bubble_loop` that calls `refill_bubbles`.
+                    # But that loop only PULLS new refills.
+                    # It DOES NOT push existing bubbles unless they are returned by `refill_bubbles`.
+                    # Wait, `bubble_loop` calls `refill_bubbles` which returns *new* bubbles.
+                    # If we inject directly into `_active_bubbles`, the UI won't know until... never?
+                    # We need to explicitly push this bubble to UI.
+                    
+                    # Let's inspect main.py bubble_loop again.
+                    # It calls `packets = self.bubble_service.refill_bubbles()`.
+                    # So we need to PUSH it.
+                    
+                    if self.on_message_callback:
+                        # Construct JS call for Bubble
+                        import json
+                        # We need to execute JS. ActiveEngine `on_message_callback` typically sends Chat/TTS JSON.
+                        # It might not be wired to `evaluate_js`.
+                        # Main.py: self.active_engine = ActiveEngine(..., self.push_message_callback)
+                        # push_message_callback handles JSON "type": "expression" etc.
+                        # But to show bubble, we need `showSoulBubble`.
+                        # Does `push_message_callback` handle arbitrary JS? No.
+                        
+                        # We need a way to call JS.
+                        # ActiveEngine doesn't have direct access to `_window`.
+                        # BUT, we can use `self.log_callback` which calls `log_to_debug`.
+                        # Or we can rely on `bubble_service` to allow checking?
+                        
+                        # Alternative: modifying `refill_bubbles` to return our injected bubble.
+                        # Or, simply `on_message_callback` with a special type?
+                        # Main.py `push_message_callback` handles:
+                        # 1. JSON parse -> if "type" == "expression" -> setExpression.
+                        # 2. else -> TTS/Chat.
+                        
+                        # It lacks `showSoulBubble` dispatch.
+                        # We should stick to the loop in `main.py` picking it up?
+                        # NO, the loop only picks up `refill_bubbles` return values.
+                        
+                        # FIX: We should execute `refill_bubbles` NOW? 
+                        # No, `refill_bubbles` generates NEW bubbles.
+                        
+                        # Hack: We can use the text-to-speech to ANNOUNCE the bubble, 
+                        # but we want the BUBBLE UI.
+                        
+                        # Let's assume we can add a new type to `push_message_callback` in Main.py?
+                        # No, I should act within existing constraints if possible.
+                        # But I can modify Main.py `push_message_callback` easily (I have the file).
+                        
+                        # Better approach:
+                        # Provide `ActiveEngine` with a way to trigger bubbles. 
+                        # Pass `api` to ActiveEngine? NO, circular.
+                        
+                        # The cleanest way:
+                        # 1. In `bubble_service`, add `register_and_get_packet`.
+                        # 2. In `main.py`'s `bubble_loop`, it only checks refill.
+                        # 3. Modify `main.py` bubble_loop to ALSO check for "pending push" bubbles?
+                        # Or easier: Modify `main.py` -> `push_message_callback` to handle `type: bubble`.
+                        
+                        # Let's DO THAT. It's robust.
+                        # 1. ActiveEngine sends JSON with type="bubble".
+                        # 2. Main.py receives it, calls `showSoulBubble`.
+                        pass
+
+                    # For now, let's prepare the payload assuming Main.py update
+                    bubble_payload = {
+                        "type": "bubble",
+                        "category": "topics",
+                        "text": f"Dify: {msg}",
+                        "action_id": action_id,
+                        "metadata": {"url": url}
+                    }
+                    import json
+                    if self.on_message_callback:
+                        self.on_message_callback(json.dumps(bubble_payload, ensure_ascii=False))
+
+                    # Also register in Service so handle_action works
+                    self.bubble_service._active_bubbles[action_id] = packet
+
+                else:
+                    logger.warning("BubbleService not linked to ActiveEngine. Falling back to Log.")
+                    self._send_log(f"Got Dify Article: {msg} (No Bubble Service)", "warning", "sys")
+
             else:
                 self._send_log("Dify returned no results.", "warning", "sys")
         except Exception as e:

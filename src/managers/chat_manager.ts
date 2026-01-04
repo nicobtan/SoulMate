@@ -39,6 +39,9 @@ export class ChatManager {
         // Expose global hook for Backend Push
         (window as any).receiveMessage = this.handlePushMessage.bind(this);
 
+        // Expose Voice Input Helper
+        (window as any).toggleVoiceInput = () => this.toggleVoiceInput();
+
         // Expose global hook for History Restoration (Signal)
         (window as any).reloadSession = async (sessionId: number) => {
             console.log(`[ChatManager] Reloading session ${sessionId}...`);
@@ -52,6 +55,47 @@ export class ChatManager {
             } catch (e) {
                 console.error("Failed to reload session:", e);
                 this.addLog("セッションの復元に失敗しました", 'ai');
+            }
+        };
+
+        // ★追加: Pythonから呼び出される状態同期関数
+        (window as any).updateMicUiState = (state: string) => {
+            const btn = document.getElementById('mic-btn');
+            const input = document.getElementById('chat-input') as HTMLTextAreaElement;
+            if (!btn || !input) return;
+
+            // グローバル変数 isRecording (クラス内変数) を更新
+            this.isRecording = (state === 'recording');
+
+            // クラスのリセット
+            btn.classList.remove('recording', 'processing');
+
+            if (state === 'recording') {
+                btn.classList.add('recording');
+                input.placeholder = "Listening... (Hotkey)";
+                UIManager.getInstance().updateStatus("Listening...");
+            } else if (state === 'processing') {
+                btn.classList.add('processing');
+                input.placeholder = "Processing...";
+                UIManager.getInstance().updateStatus("Thinking...");
+            } else {
+                // idle
+                input.placeholder = "Type a message...";
+                UIManager.getInstance().updateStatus("Active");
+            }
+        };
+
+        // ★追加: 音声認識結果を受け取って入力欄に入れる関数
+        (window as any).insertVoiceText = (text: string) => {
+            const input = document.getElementById('chat-input') as HTMLTextAreaElement;
+            if (input) {
+                if (input.value.trim().length > 0) {
+                    input.value += " " + text;
+                } else {
+                    input.value = text;
+                }
+                input.focus();
+                input.scrollTop = input.scrollHeight;
             }
         };
     }
@@ -281,6 +325,63 @@ export class ChatManager {
             UIManager.getInstance().updateStatus("Error", false);
             // If error, also output to raw log or console
             console.error(e);
+        }
+    }
+
+    // Voice Input Logic
+    private isRecording = false;
+
+    public async toggleVoiceInput() {
+        const btn = document.getElementById('mic-btn');
+        const input = document.getElementById('chat-input') as HTMLTextAreaElement;
+
+        if (!btn || !input) return;
+
+        if (!this.isRecording) {
+            // Start
+            try {
+                // デバイスIDは設定から自動で読まれるか、Python側でデフォルトを使用 (null = default)
+                await (window as any).pywebview.api.start_voice_input(null);
+                this.isRecording = true;
+                btn.classList.add('recording');
+                input.placeholder = "Listening...";
+                UIManager.getInstance().updateStatus("Listening...");
+            } catch (e) {
+                console.error("Mic start error:", e);
+                alert("マイクの起動に失敗しました");
+            }
+        } else {
+            // Stop
+            this.isRecording = false;
+            btn.classList.remove('recording');
+            btn.classList.add('processing'); // 処理中
+            UIManager.getInstance().updateStatus("Thinking...");
+
+            try {
+                const res = await (window as any).pywebview.api.stop_voice_input();
+                btn.classList.remove('processing');
+                UIManager.getInstance().updateStatus("Active");
+
+                if (res.status === 'success' && res.text) {
+                    // テキスト挿入ロジック
+                    if (input.value.trim().length > 0) {
+                        input.value += " " + res.text;
+                    } else {
+                        input.value = res.text;
+                    }
+                    // カーソルを末尾へ
+                    input.focus();
+                    input.scrollTop = input.scrollHeight;
+                } else {
+                    console.log("No speech detected or error");
+                }
+                input.placeholder = "Type a message... (Shift+Enter for new line)";
+            } catch (e) {
+                console.error("Mic stop error:", e);
+                btn.classList.remove('processing');
+                input.placeholder = "Error";
+                UIManager.getInstance().updateStatus("Error");
+            }
         }
     }
 

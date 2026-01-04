@@ -535,6 +535,7 @@ class BubbleService:
         time_ctx = self._get_time_context()
         time_str = time_ctx['formatted'] # e.g. "2025-12-16 (Tuesday) 19:30"
         
+
         # Trigger Active Talk via API
         api = self.services
         if api and hasattr(api, '_ai_engine'):
@@ -545,6 +546,20 @@ class BubbleService:
              # Check if this is a MindVault bubble
              is_mind_bubble = action_id.startswith("BUBBLE_MIND") or cat == "mind"
              
+             # Check for URL Action (Dify / Search)
+             url_action = packet.get('metadata', {}).get('url', '')
+             if url_action:
+                 logger.info(f"Bubble Action: Opening URL {url_action}")
+                 import webbrowser
+                 webbrowser.open(url_action)
+                 # We still want to talk about it, so we continue to generation.
+                 grounding_instruction = f"""
+IMPORTANT: You just opened a browser for the user to show: {text_content}
+URL: {url_action}
+- Mention that you opened it.
+- Ask if they find it interesting.
+"""
+
              if is_mind_bubble:
                  # --- MindVault Logic (Deep Conversation / NO SEARCH) ---
                  full_content = packet.get('metadata', {}).get('full_content', text_content)
@@ -579,7 +594,7 @@ suggestions:
 """
              else:
                  # --- Normal Bubble Logic (Grounding Enabled) ---
-                 if cat == "topics" or "ニュース" in text_content or "事情" in text_content:
+                 if not url_action and (cat == "topics" or "ニュース" in text_content or "事情" in text_content):
                      grounding_instruction = """
 IMPORTANT: The user is interested in this topic.
 **USE GOOGLE SEARCH TOOL** to find the LATEST information about it.
