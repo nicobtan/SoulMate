@@ -817,3 +817,4 @@
     - [x] **UI**: マイクボタンの実装 (HTML/CSS)
     - [x] **Logic**: `VoiceInputManager` (TypeScript) の実装
     - [x] **Hotkey**: グローバルホットキー連携 (`keyboard` + Frontend Sync)
+    - [x] **UI**: モダンなホットキー入力 (Recorder) の実装

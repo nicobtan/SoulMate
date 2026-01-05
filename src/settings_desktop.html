@@ -237,6 +237,33 @@
             background: rgba(231, 76, 60, 0.2);
             color: #e74c3c;
         }
+
+        /* Hotkey Recorder Styles */
+        .hotkey-recorder input.recording {
+            border-color: #e74c3c !important;
+            background-color: rgba(231, 76, 60, 0.1) !important;
+            color: #e74c3c !important;
+        }
+
+        #btn-record-hotkey.recording {
+            background-color: #e74c3c !important;
+            color: white !important;
+            animation: pulse-red 1.5s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+            }
+        }
     </style>
 </head>
 
@@ -481,9 +508,14 @@
 
             <div class="form-group">
                 <label>ホットキー (Global Hotkey)</label>
-                <input type="text" id="voice-hotkey" placeholder="例: right_ctrl, f12, ctrl+space"
-                    style="font-family: 'Consolas', monospace;">
-                <div class="helper-text">マイクのON/OFFを切り替えるキー。空欄で無効。</div>
+                <div class="hotkey-recorder" style="display:flex; gap:10px; align-items:center;">
+                    <input type="text" id="voice-hotkey" placeholder="Click Record..." readonly
+                        style="font-family: 'Consolas', monospace; cursor:default; caret-color:transparent;">
+                    <button id="btn-record-hotkey" class="btn btn-secondary" style="min-width: 60px;"
+                        onclick="toggleHotkeyRecord()">🔴 REC</button>
+                    <button class="btn btn-secondary" style="min-width: 40px;" onclick="clearHotkey()">❌</button>
+                </div>
+                <div class="helper-text">マイクのON/OFFを切り替えるキー。「REC」を押してからキーを入力してください。</div>
             </div>
 
             <div class="form-group">
@@ -583,6 +615,88 @@
 
         // --- Logic ---
         let currentSettings = {};
+
+        // --- Hotkey Recorder Logic ---
+        let isRecordingHotkey = false;
+
+        function toggleHotkeyRecord() {
+            const input = document.getElementById('voice-hotkey');
+            const btn = document.getElementById('btn-record-hotkey');
+
+            if (isRecordingHotkey) {
+                stopHotkeyRecord();
+                return;
+            }
+
+            // Start Recording
+            isRecordingHotkey = true;
+            btn.innerText = "STOP";
+            btn.classList.add('recording');
+            input.classList.add('recording');
+            input.value = "Press keys...";
+
+            // Add Global Listeners
+            document.addEventListener('keydown', handleHotkeyInput);
+        }
+
+        function stopHotkeyRecord() {
+            isRecordingHotkey = false;
+            const input = document.getElementById('voice-hotkey');
+            const btn = document.getElementById('btn-record-hotkey');
+
+            btn.innerText = "🔴 REC";
+            btn.classList.remove('recording');
+            input.classList.remove('recording');
+
+            document.removeEventListener('keydown', handleHotkeyInput);
+        }
+
+        function clearHotkey() {
+            const input = document.getElementById('voice-hotkey');
+            input.value = "";
+            stopHotkeyRecord();
+        }
+
+        function handleHotkeyInput(e) {
+            if (!isRecordingHotkey) return;
+            e.preventDefault();
+
+            if (e.key === 'Escape') {
+                stopHotkeyRecord();
+                return;
+            }
+
+            const keys = [];
+            // Modifiers
+            if (e.ctrlKey && e.key !== 'Control') keys.push('ctrl');
+            if (e.shiftKey && e.key !== 'Shift') keys.push('shift');
+            if (e.altKey && e.key !== 'Alt') keys.push('alt');
+            if (e.metaKey && e.key !== 'Meta') keys.push('windows');
+
+            // Main Key
+            let key = e.key.toLowerCase();
+            const location = e.location;
+
+            // Map special keys for 'keyboard' library
+            if (key === 'control') key = location === 2 ? 'right ctrl' : 'ctrl';
+            else if (key === 'shift') key = location === 2 ? 'right shift' : 'shift';
+            else if (key === 'alt') key = location === 2 ? 'right alt' : 'alt';
+            else if (key === 'meta') key = 'windows';
+            else if (key === ' ') key = 'space';
+            else if (key === 'arrowup') key = 'up';
+            else if (key === 'arrowdown') key = 'down';
+            else if (key === 'arrowleft') key = 'left';
+            else if (key === 'arrowright') key = 'right';
+            else if (key === 'delete') key = 'delete';
+
+            keys.push(key);
+
+            // Deduplicate if needed (e.g. ctrl+control is handled by logic above)
+            // Join
+            const hotkeyStr = keys.join('+');
+            const input = document.getElementById('voice-hotkey');
+            input.value = hotkeyStr;
+        }
 
         // --- Voice Input Logic ---
         async function refreshMics() {
