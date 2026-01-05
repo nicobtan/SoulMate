@@ -1,0 +1,24 @@
+[
+    {
+        "id": "default",
+        "name": "Lena",
+        "description": "植物学の知識を持つ、芯の強いお姉さん",
+        "model_id": "fav_usaneko_alwb",
+        "persona_id": "lena",
+        "voice": {
+            "provider": "gemini-2.5-flash-preview-tts",
+            "voice_name": "Aoede"
+        }
+    },
+    {
+        "id": "liiv4_sample",
+        "name": "Liiv4 Model",
+        "description": "Liiv4さん提供のモデル",
+        "model_id": "liiv4_sample_v1",
+        "persona_id": "cool_assistant",
+        "voice": {
+            "provider": "gemini-2.5-flash-preview-tts",
+            "voice_name": "Puck"
+        }
+    }
+]

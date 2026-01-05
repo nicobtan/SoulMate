@@ -34,5 +34,8 @@
     "audio_input_device_index": 1,
     "stt_model_size": "small",
     "voice_input_hotkey": "alt+q",
-    "voice_input_mode": "toggle"
+    "voice_input_mode": "toggle",
+    "current_character_id": "default",
+    "current_model_id": "fav_usaneko_alwb",
+    "voice_name": "Aoede"
 }

@@ -116,9 +116,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 3. Initialize Live2D
-    const modelPath = 'models/fav_usaneko_alwb/fav_usaneko_alwb.model3.json';
     try {
-        await live2dManager.init('character-area', modelPath);
+        await live2dManager.initialize();
         logManager.log("Live2D Initialized", "info", "sys");
     } catch (e) {
         console.error("Live2D Init Error", e);

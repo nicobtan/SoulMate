@@ -25,7 +25,9 @@ from src.api.bubble_api import BubbleApi
 from src.api.user_api import UserApiMixin
 from src.api.history_api import HistoryApiMixin
 from src.api.voice_api import VoiceApiMixin
+from src.api.character_api import CharacterApiMixin
 from src.services.bubble_service import BubbleService
+from src.services.character_service import CharacterService
 from src.services.history_manager import HistoryManager
 
 from src.services.user_manager import UserManager
@@ -33,7 +35,7 @@ from src.services.user_manager import UserManager
 from src.services.interest_manager import InterestManager
 from src.services.topic_selector import TopicSelector
 
-class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin):
+class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin, CharacterApiMixin):
     def __init__(self):
         super().__init__() # Initialize BaseApiMixin attributes
         self.services = self # Mixin Pattern: API instance itself is the service container
@@ -57,9 +59,11 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         
         # User & Interest Manager
         self.user_manager = UserManager()
-        self.user_manager = UserManager()
         self.interest_manager = InterestManager()
         self.topic_selector = TopicSelector()
+        
+        # Character Service
+        self.character_service = CharacterService(self)
         
         # Soul Bubble Service
         self.bubble_service = BubbleService(self)

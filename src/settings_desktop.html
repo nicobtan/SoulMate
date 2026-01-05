@@ -238,6 +238,80 @@
             color: #e74c3c;
         }
 
+        /* Character Grid */
+        .character-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 10px 0;
+        }
+
+        .char-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: default;
+            /* Changed from pointer */
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .char-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .char-card.active {
+            border-color: #00c8ff;
+            background: rgba(0, 200, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 200, 255, 0.2);
+        }
+
+        .char-card.active::after {
+            content: "ACTIVE";
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #00c8ff;
+            color: #000;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .char-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #333;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+        }
+
+        .char-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #fff;
+        }
+
+        .char-desc {
+            font-size: 11px;
+            color: #aaa;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+
         /* Hotkey Recorder Styles */
         .hotkey-recorder input.recording {
             border-color: #e74c3c !important;
@@ -273,6 +347,7 @@
         <div style="padding: 20px; font-weight: bold; color: #fff; font-size: 18px;">SoulMate <span
                 style="font-size:10px; color:#666;">v0.2</span></div>
         <button class="tab-btn active" onclick="showTab('general')">⚙️ 基本設定</button>
+        <button class="tab-btn" onclick="showTab('character-settings')">👤 Character</button>
         <button class="tab-btn" onclick="showTab('ai')">🧠 AI & Persona</button>
         <button class="tab-btn" onclick="showTab('proactive')">👁️ Proactive</button>
         <button class="tab-btn" onclick="showTab('user')">👤 User Profile</button>
@@ -334,6 +409,16 @@
             <div style="margin-top:10px;">
                 <button class="btn btn-secondary" onclick="saveWindowPosition()">現在の位置を保存</button>
                 <span id="pos-result" style="font-size:11px; margin-left:10px; color:#aaa;"></span>
+            </div>
+        </div>
+
+        <div id="character-settings" class="tab-pane">
+            <h2>Character Profiles</h2>
+            <p class="setting-desc" style="font-size: 12px; color: #aaa; margin-bottom: 15px;">パートナーの外見、性格、声を一括で変更します。
+            </p>
+
+            <div id="character-list" class="character-grid">
+                <div class="loading-spinner" style="padding:20px; text-align:center;">Loading profiles...</div>
             </div>
         </div>
 
@@ -717,6 +802,82 @@
             }
         }
 
+        // --- Character Logic ---
+        async function loadCharacters() {
+            const list = document.getElementById('character-list');
+            if (!list) return;
+
+            list.innerHTML = '<div class="loading-spinner" style="padding:20px; text-align:center;">Loading...</div>';
+            try {
+                // API呼び出し 
+                const profiles = await window.pywebview.api.get_character_profiles();
+                const currentSettings = await window.pywebview.api.get_settings(); // 現在の設定を取得
+                const currentId = currentSettings.current_character_id || 'default';
+
+                list.innerHTML = ''; // クリア
+
+                if (!profiles || profiles.length === 0) {
+                    list.innerHTML = '<div style="padding:20px;">No profiles found.</div>';
+                    return;
+                }
+
+                profiles.forEach(p => {
+                    const card = document.createElement('div');
+                    card.className = `char-card ${p.id === currentId ? 'active' : ''}`;
+                    card.onclick = () => activateCharacter(p.id);
+
+                    // アイコンは仮で名前の頭文字
+                    const initial = p.name ? p.name.charAt(0) : '?';
+
+                    card.innerHTML = `
+                        <div class="char-icon">${initial}</div>
+                        <div class="char-name">${p.name}</div>
+                        <div class="char-desc">${p.description || ''}</div>
+                    `;
+                    list.appendChild(card);
+                });
+            } catch (e) {
+                console.error("Failed to load profiles:", e);
+                list.innerHTML = '<div class="error" style="padding:20px;">Failed to load profiles.</div>';
+            }
+        }
+
+        async function activateCharacter(profileId) {
+            if (!confirm("キャラクターを切り替えますか？\n(会話の文脈や声の設定も変更されます)")) return;
+
+            try {
+                // API呼び出し
+                const res = await window.pywebview.api.switch_character(profileId);
+
+                if (res.status === 'success') {
+                    const profile = res.profile;
+
+                    // 1. UIのActive状態更新
+                    document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active'));
+                    // 再描画したほうが早いが簡易的にリロード
+                    await loadCharacters();
+
+                    // 2. メインウィンドウのLive2Dモデルを変更
+                    // settings.html がメインと同じウィンドウ内(Overlay)にあるか、別ウィンドウかでアクセス方法が変わる
+                    // ここでは window.live2dManager (Global) がある前提でコールする
+                    if (window.live2dManager) {
+                        await window.live2dManager.switchModel(profile.model_id);
+                        alert(`${profile.name} に切り替えました！`);
+                    } else {
+                        // もし別ウィンドウならリロードを促すか、メイン側でポーリングが必要
+                        // 今回はOverlay想定なのでここには来ないはずだが念のため
+                        alert("設定を保存しました。反映されない場合はアプリを再起動してください。");
+                    }
+
+                } else {
+                    alert("Error: " + res.message);
+                }
+            } catch (e) {
+                console.error("Switch error:", e);
+                alert("切り替え中にエラーが発生しました。");
+            }
+        }
+
         async function loadVoices(provider) {
             const voiceSelect = document.getElementById('voice-select');
             voiceSelect.innerHTML = "<option>Loading...</option>";
@@ -740,6 +901,10 @@
             try {
                 // Fetch Settings from Python
                 currentSettings = await window.pywebview.api.get_settings();
+
+                // Initialize Character List
+                loadCharacters();
+
                 const personaList = await window.pywebview.api.get_persona_list();
 
                 // Populate Fields

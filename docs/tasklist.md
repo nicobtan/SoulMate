@@ -699,6 +699,12 @@
     - [x] **Purple Style**: MindVault由来のバルーンに専用のアメジスト色（紫）と発光エフェクトを適用し、他と差別化。
 
 ## フェーズ93: Deep Reflection (MindFeedback) [完了]
+- [x] **Data**: `profiles/characters.json` Definition
+- [x] **Types**: `src/types/character.ts` Definition
+- [x] **Manager**: `src/managers/live2d_manager.ts` (TS Conversion & switchModel)
+- [x] **Integration**: Integrate into `index.ts` and test `switchModel` from console
+- [x] **Backend**: Implement `CharacterService` and `CharacterApi`
+- [x] **Integration**: Integrate `CharacterService` into `main.py`
 - [x] **Database**: Update `DBManager` schema to include `insights` table (`src/services/db_manager.py`).
 - [x] **Analysis**: Create `MindFeedbackService` to extract "Deep Insights" and save to DB/Chroma.
 - [x] **Trigger (Backend)**: Add `save_current_discussion` to `ChatApiMixin`.

@@ -122,7 +122,20 @@ export class Live2DManager {
         });
 
         // 5. Setup Resize
-        window.addEventListener('resize', () => setTimeout(() => this.resize(), 100));
+        // ★変更: window.resize ではなく ResizeObserver を使う
+        // これにより、要素のサイズが実際に変わった時だけ反応する
+        if (this.characterArea) {
+            const resizeObserver = new ResizeObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.target === this.characterArea) {
+                        // 描画タイミングに合わせて実行
+                        requestAnimationFrame(() => this.resize());
+                    }
+                }
+            });
+            resizeObserver.observe(this.characterArea);
+            console.log("[Live2D] ResizeObserver attached.");
+        }
 
         // Setup Global Hook for UIManager
         (window as any).resizeModel = this.resize.bind(this);
@@ -136,6 +149,19 @@ export class Live2DManager {
 
         // 6. Setup Zoom Control
         window.addEventListener('wheel', (e) => this.handleZoom(e), { passive: false });
+    }
+
+    /**
+     * Default initialization for backward compatibility or simple usage.
+     * Uses default container 'character-area' and default model.
+     */
+    public async initialize() {
+        const defaultContainer = 'character-area';
+        // Use the model found in the directory
+        const defaultModel = 'models/fav_usaneko_alwb/fav_usaneko_alwb.model3.json';
+
+        console.log(`Live2DManager: Auto-initializing with default model: ${defaultModel}`);
+        return this.init(defaultContainer, defaultModel);
     }
 
     private async loadModel(path: string) {
