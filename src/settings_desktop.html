@@ -861,7 +861,11 @@
                     // settings.html がメインと同じウィンドウ内(Overlay)にあるか、別ウィンドウかでアクセス方法が変わる
                     // ここでは window.live2dManager (Global) がある前提でコールする
                     if (window.live2dManager) {
-                        await window.live2dManager.switchModel(profile.model_id);
+                        await window.live2dManager.switchModel(profile.model_id, {
+                            scale: profile.scale,
+                            x: profile.x,
+                            y: profile.y
+                        });
                         alert(`${profile.name} に切り替えました！`);
                     } else {
                         // もし別ウィンドウならリロードを促すか、メイン側でポーリングが必要

@@ -145,6 +145,21 @@ export class ApiClient {
         return false;
     }
 
+    // --- Character API ---
+    async get_character_profiles(): Promise<any[]> {
+        if (this.desktopApi && this.desktopApi.get_character_profiles) {
+            return await this.desktopApi.get_character_profiles();
+        } else {
+            try {
+                const res = await fetch('/api/character/profiles');
+                if (res.ok) return await res.json();
+            } catch (e) {
+                console.error("Failed to fetch character profiles:", e);
+            }
+            return [];
+        }
+    }
+
     // --- Persona System ---
     async getPersonas(): Promise<string[]> {
         if (this.desktopApi) {

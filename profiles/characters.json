@@ -8,7 +8,10 @@
         "voice": {
             "provider": "gemini-2.5-flash-preview-tts",
             "voice_name": "Aoede"
-        }
+        },
+        "scale": 1.0,
+        "x": 0,
+        "y": 0
     },
     {
         "id": "liiv4_sample",
@@ -19,6 +22,9 @@
         "voice": {
             "provider": "gemini-2.5-flash-preview-tts",
             "voice_name": "Puck"
-        }
+        },
+        "scale": 1.0,
+        "x": 0,
+        "y": 0
     }
 ]

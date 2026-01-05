@@ -180,6 +180,27 @@ export class Live2DManager {
         (window as any).live2d_model = this.model;
     }
 
+    // Custom Positioning (Offsets)
+    private customScale: number = 1.0;
+    private customOffsetX: number = 0;
+    private customOffsetY: number = 0;
+
+    public async switchModel(modelPath: string, config?: { scale?: number, x?: number, y?: number }) {
+        this.customScale = config?.scale ?? 1.0;
+        this.customOffsetX = config?.x ?? 0;
+        this.customOffsetY = config?.y ?? 0;
+
+        // Cleanup old model
+        if (this.model) {
+            this.app.stage.removeChild(this.model);
+            this.model.destroy();
+            this.model = null;
+        }
+
+        await this.loadModel(modelPath);
+        this.resize(); // Apply new settings
+    }
+
     public resize() {
         if (!this.model || !this.characterArea || !this.app) return;
 
@@ -194,24 +215,33 @@ export class Live2DManager {
         this.app.view.style.width = frameW + "px";
         this.app.view.style.height = frameH + "px";
 
-        // Calculate Scale
+        // Calculate Scale (Base: 2.2x Zoom)
         const internalHeight = this.model.internalModel.height;
-        const targetScale = (frameH * 2.2) / internalHeight; // 2.2x Zoom
+        const baseScale = (frameH * 2.2) / internalHeight;
 
-        this.model.scale.set(targetScale);
+        // Apply Custom Scale Multiplier
+        const finalScale = baseScale * this.customScale;
+
+        this.model.scale.set(finalScale);
 
         // Calculate Position
-        // X: Center
-        this.model.x = (frameW / 2) - (this.model.width / 2);
+        // X: Center + Offset
+        const centerX = (frameW / 2) - (this.model.width / 2);
+        this.model.x = centerX + this.customOffsetX;
 
-        // Y: Position based on mode
+        // Y: Position based on mode + Offset
+        let baseY = 0;
         if (isMobile) {
             // Mobile: Move up slightly to fit in top half
-            this.model.y = -frameH * 0.1;
+            baseY = -frameH * 0.1;
         } else {
             // Desktop: Center face
-            this.model.y = (frameH * 0.4) - (this.model.height * 0.15);
+            baseY = (frameH * 0.4) - (this.model.height * 0.15);
         }
+
+        this.model.y = baseY + this.customOffsetY;
+
+        console.log(`[Live2D] Resized: Scale=${finalScale.toFixed(2)}, X=${this.model.x.toFixed(1)}, Y=${this.model.y.toFixed(1)}`);
     }
 
     // ▼ AIの感情タグ(Key) と Live2Dの表情名(Value) の対応表

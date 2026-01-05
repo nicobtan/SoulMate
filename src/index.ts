@@ -117,7 +117,38 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Initialize Live2D
     try {
-        await live2dManager.initialize();
+        // Fetch current settings to identify character
+        // Note: live2dManager.initialize() is now legacy/fallback.
+        // We want to load the ACTIVE character.
+
+        // Wait for config init? ConfigManager.init() is async but not awaited here in all paths.
+        // Let's safe-guard by fetching settings directly via API for Live2D.
+
+        if ((window as any).pywebview) {
+            const settings = await api.get_settings();
+            const currentId = settings.current_character_id || 'default';
+
+            // We need full profile for scale/x/y
+            // Let's assume switch_character logic can be reused or we fetch profile
+            const profiles = await api.get_character_profiles();
+            const profile = profiles.find((p: any) => p.id === currentId) || profiles[0];
+
+            if (profile) {
+                console.log(`[Init] Loading Character: ${profile.name} (${profile.model_id})`);
+                await live2dManager.switchModel(profile.model_id, {
+                    scale: profile.scale,
+                    x: profile.x,
+                    y: profile.y
+                });
+            } else {
+                console.warn("[Init] Character profile not found, falling back to default.");
+                await live2dManager.initialize();
+            }
+        } else {
+            // Web Mode Check
+            await live2dManager.initialize();
+        }
+
         logManager.log("Live2D Initialized", "info", "sys");
     } catch (e) {
         console.error("Live2D Init Error", e);
