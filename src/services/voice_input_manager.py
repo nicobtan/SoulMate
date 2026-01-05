@@ -60,8 +60,9 @@ class VoiceInputManager:
             if not hotkey_str:
                 return
 
-            logger.info(f"Registering Hotkey: {hotkey_str}")
+            logger.info(f"🎤 [VoiceManager] Attempting to register hotkey: '{hotkey_str}'")
             keyboard.add_hotkey(hotkey_str, callback)
+            logger.info(f"✅ [VoiceManager] Hotkey '{hotkey_str}' registered via keyboard module.")
             self.current_hotkey = hotkey_str
         except Exception as e:
             logger.error(f"Failed to set hotkey '{hotkey_str}': {e}")

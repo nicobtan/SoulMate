@@ -1,4 +1,8 @@
+import logging
+import threading
 from ..services.voice_input_manager import voice_input_manager
+
+logger = logging.getLogger("voice_api")
 
 class VoiceApiMixin:
     """ 音声入力機能を提供するAPI Mixin """
@@ -42,9 +46,19 @@ class VoiceApiMixin:
         """設定からホットキーを適用する"""
         hotkey = settings.get('voice_input_hotkey', 'right ctrl')
         
+        # DEBUG LOG
+        logger.info(f"🎤 [VoiceApi] Configuring Hotkey: '{hotkey}'")
+        
         # Backendのトグルメソッドを直接登録
         # (toggle_voice_input_hotkey 内で _window の存在チェックを行っているため安全)
         voice_input_manager.set_hotkey(hotkey, self.toggle_voice_input_hotkey)
+        
+        # Verify if it was set
+        if voice_input_manager.current_hotkey == hotkey:
+             logger.info(f"✅ [VoiceApi] Hotkey '{hotkey}' registered successfully.")
+        else:
+             logger.warning(f"⚠️ [VoiceApi] Hotkey registration mismatch. Expected: '{hotkey}', Current: '{voice_input_manager.current_hotkey}'")
+
         return {"status": "success"}
 
     def toggle_voice_input_hotkey(self):
@@ -52,8 +66,9 @@ class VoiceApiMixin:
         ホットキーから呼ばれるトグル処理。
         UIスレッドの外(keyboardスレッド)から呼ばれるため、エラーハンドリングに注意。
         """
-        import logging
-        logger = logging.getLogger("voice_api")
+        logger.info(f"🎤 [VoiceApi] Hotkey Triggered! (Thread: {threading.current_thread().name})")
+        print(f"🎤 [VoiceApi] Hotkey Triggered! (STDOUT Check)")
+        # Original logger definition removed as it's now at module level
         
         if not hasattr(self, '_window') or not self._window:
             return
