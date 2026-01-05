@@ -16,7 +16,15 @@ class VoiceApiMixin:
             except:
                 device_index = None
                 
-        voice_input_manager.start_recording(device_index)
+        # 中間結果をフロントエンドに送るコールバック
+        def on_progress(text):
+            if hasattr(self, '_window') and self._window:
+                # エスケープ処理
+                safe_text = text.replace("'", "\\'").replace("\n", " ")
+                # JS側の updateVoicePreview を呼ぶ
+                self._window.evaluate_js(f"if(window.updateVoicePreview) window.updateVoicePreview('{safe_text}')")
+
+        voice_input_manager.start_recording(device_index, callback=on_progress)
         return {"status": "recording_started"}
 
     def stop_voice_input(self):
@@ -71,5 +79,12 @@ class VoiceApiMixin:
         else:
             # 開始処理
             logger.info("Hotkey: Start Recording")
-            voice_input_manager.start_recording() # デフォルトデバイス
+            
+            # 中間結果用コールバック (start_voice_inputと同様)
+            def on_progress(text):
+                if hasattr(self, '_window') and self._window:
+                     safe_text = text.replace("'", "\\'").replace("\n", " ")
+                     self._window.evaluate_js(f"if(window.updateVoicePreview) window.updateVoicePreview('{safe_text}')")
+            
+            voice_input_manager.start_recording(callback=on_progress) # デフォルトデバイス
             self._window.evaluate_js("window.updateMicUiState && window.updateMicUiState('recording')")

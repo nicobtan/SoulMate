@@ -7,6 +7,7 @@ import wave
 import pyaudio
 import logging
 import keyboard
+import copy
 from faster_whisper import WhisperModel
 
 # ロガー設定
@@ -92,12 +93,17 @@ class VoiceInputManager:
                 devices.append({"id": i, "name": name})
         return devices
 
-    def start_recording(self, device_index=None):
-        """録音を開始する (非同期)"""
+    def start_recording(self, device_index=None, callback=None):
+        """
+        録音を開始する (非同期)
+        callback: 中間結果を通知する関数 func(text)
+        """
         if self.is_recording:
             return
         self.frames = []
         self.is_recording = True
+        self.is_transcribing = False
+        self.realtime_callback = callback
         
         def _record():
             try:
@@ -122,13 +128,77 @@ class VoiceInputManager:
         self.record_thread = threading.Thread(target=_record)
         self.record_thread.start()
 
+        # リアルタイム認識スレッド (1秒おきにチェック)
+        if callback:
+            self.monitor_thread = threading.Thread(target=self._intermediate_transcribe_loop)
+            self.monitor_thread.start()
+
+    def _intermediate_transcribe_loop(self):
+        """録音中に定期的にテキスト化を行うループ"""
+        last_check_len = 0
+        
+        while self.is_recording:
+            time.sleep(1.0) # 1秒間隔で更新
+            
+            # 録音が終わっていたら終了
+            if not self.is_recording:
+                break
+                
+            # データが増えていなければスキップ
+            current_len = len(self.frames)
+            if current_len == last_check_len:
+                continue
+                
+            # すでに推論中ならスキップ (GPU負荷軽減)
+            if self.is_transcribing:
+                continue
+                
+            last_check_len = current_len
+            
+            # 現在までの全データをコピーして推論へ
+            frames_copy = list(self.frames) # スレッドセーフにコピー
+            
+            # 別スレッドで推論実行 (ブロッキングしないため)
+            threading.Thread(target=self._run_intermediate_inference, args=(frames_copy,)).start()
+
+    def _run_intermediate_inference(self, frames):
+        """中間推論の実行"""
+        self.is_transcribing = True
+        try:
+            # 一時ファイル作成
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
+                wf = wave.open(temp_wav.name, 'wb')
+                wf.setnchannels(self.channels)
+                wf.setsampwidth(self.p.get_sample_size(self.format))
+                wf.setframerate(self.rate)
+                wf.writeframes(b''.join(frames))
+                wf.close()
+                temp_path = temp_wav.name
+            
+            # 推論 (既存のtranscribeを利用)
+            # 中間結果なのでログは抑制
+            text = self.transcribe(temp_path, is_intermediate=True)
+            
+            # コールバック通知
+            if self.realtime_callback and text:
+                self.realtime_callback(text)
+                
+        except Exception as e:
+            logger.error(f"Intermediate Inference Error: {e}")
+        finally:
+            self.is_transcribing = False
+
     def stop_recording(self):
         """録音を停止し、テキスト変換を行う"""
         if not self.is_recording:
             return None
         self.is_recording = False
+        
         if self.record_thread:
             self.record_thread.join()
+        
+        if hasattr(self, 'monitor_thread') and self.monitor_thread:
+            self.monitor_thread.join()
         
         # 一時ファイルに保存
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_wav:
@@ -143,7 +213,7 @@ class VoiceInputManager:
         # 認識実行
         return self.transcribe(temp_path)
 
-    def transcribe(self, audio_path):
+    def transcribe(self, audio_path, is_intermediate=False):
         """音声ファイルをテキストに変換する"""
         if not self.model:
             # 初回または設定変更時にロード
@@ -151,21 +221,29 @@ class VoiceInputManager:
         
         if not self.model:
             return "Error: Model not loaded."
-        logger.info("Transcribing...")
+        
+        if not is_intermediate:
+            logger.info("Transcribing...")
+            
         start_ts = time.time()
         
         try:
             # 言語を日本語(ja)に固定し、initial_promptで文脈を与えることで精度向上
+            # vad_filter=True で無音区間の誤認識(幻聴)を防止
             segments, info = self.model.transcribe(
                 audio_path,
                 beam_size=5,
                 language="ja",
-                initial_prompt="こんにちは。これはチャットAIへの音声入力です。"
+                initial_prompt="こんにちは。これはチャットAIへの音声入力です。",
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=500)
             )
             text = " ".join([segment.text for segment in segments]).strip()
             
-            duration = time.time() - start_ts
-            logger.info(f"Transcribed in {duration:.2f}s: {text}")
+            if not is_intermediate or (is_intermediate and text):
+                duration = time.time() - start_ts
+                if not is_intermediate: 
+                    logger.info(f"Transcribed in {duration:.2f}s: {text}")
             
             # 一時ファイル削除
             try:

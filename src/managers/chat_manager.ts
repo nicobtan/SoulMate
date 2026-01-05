@@ -85,15 +85,34 @@ export class ChatManager {
             }
         };
 
+        // ★追加: リアルタイムプレビュー用関数
+        (window as any).updateVoicePreview = (text: string) => {
+            const input = document.getElementById('chat-input') as HTMLTextAreaElement;
+            if (input) {
+                // 入力中の内容を一時的に上書き
+                input.value = text;
+                input.scrollTop = input.scrollHeight;
+                // プレビュー中であることを示すためグレーにする
+                input.style.color = "#aaa";
+            }
+        };
+
         // ★追加: 音声認識結果を受け取って入力欄に入れる関数
         (window as any).insertVoiceText = (text: string) => {
             const input = document.getElementById('chat-input') as HTMLTextAreaElement;
             if (input) {
                 if (input.value.trim().length > 0) {
-                    input.value += " " + text;
+                    // プレビューで上書きされている場合があるので、一旦クリアするか、
+                    // あるいはプレビュー=最終結果ならばそのまま
+                    // ここではシンプルに上書き (すでにPreviewで入っているはずだが念のため)
+                    input.value = text;
                 } else {
                     input.value = text;
                 }
+
+                // 色を戻す
+                input.style.color = "white";
+
                 input.focus();
                 input.scrollTop = input.scrollHeight;
             }

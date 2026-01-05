@@ -818,3 +818,4 @@
     - [x] **Logic**: `VoiceInputManager` (TypeScript) の実装
     - [x] **Hotkey**: グローバルホットキー連携 (`keyboard` + Frontend Sync)
     - [x] **UI**: モダンなホットキー入力 (Recorder) の実装
+    - [x] **Feature**: リアルタイム音声認識プレビュー (Intermediate Transcribe)
