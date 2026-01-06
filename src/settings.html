@@ -802,6 +802,12 @@
                     return;
                 }
 
+                // Check if currentId exists in profiles
+                const profileExists = profiles.find(p => p.id === currentId);
+                if (!profileExists) {
+                    console.warn(`[Settings] Current character ID '${currentId}' not found in profiles.`);
+                    // DO NOT auto-switch to default. Just highlight nothing or show error.
+                }
                 profiles.forEach(p => {
                     const card = document.createElement('div');
                     card.className = `char-card ${p.id === currentId ? 'active' : ''}`;

@@ -90,9 +90,14 @@ export class Live2DManager {
         return Live2DManager.instance;
     }
 
-    public async init(containerId: string, modelPath: string) {
+    public async init(containerId: string, modelIdOrPath: string, config?: { scale?: number, x?: number, y?: number }) {
         this.characterArea = document.getElementById(containerId);
         if (!this.characterArea) throw new Error(`Container ${containerId} not found`);
+
+        // Apply Config
+        this.customScale = config?.scale ?? 1.0;
+        this.customOffsetX = config?.x ?? 0;
+        this.customOffsetY = config?.y ?? 0;
 
         // 1. Initialize PIXI
         if (typeof (window as any).PIXI === 'undefined') throw new Error('PIXI not loaded');
@@ -107,7 +112,14 @@ export class Live2DManager {
 
         this.characterArea.appendChild(this.app.view);
 
-        await this.loadModel(modelPath);
+        // Path Resolution
+        let finalPath = modelIdOrPath;
+        if (!modelIdOrPath.endsWith('.json')) {
+            finalPath = `models/${modelIdOrPath}/${modelIdOrPath}.model3.json`;
+            console.log(`[Init] Resolved Model ID '${modelIdOrPath}' to path: ${finalPath}`);
+        }
+
+        await this.loadModel(finalPath);
 
         // 3. Init LipSync
         const audioManager = AudioManager.getInstance();
@@ -143,6 +155,8 @@ export class Live2DManager {
 
         // ★ Explicitly expose manager as requested by user
         (window as any).live2d_manager = this;
+        // Also expose as camelCase for compatibility with Python API calls
+        (window as any).live2dManager = this;
 
         // Initial Resize
         this.resize();
@@ -155,6 +169,14 @@ export class Live2DManager {
      * Default initialization for backward compatibility or simple usage.
      * Uses default container 'character-area' and default model.
      */
+    // Helper for remote logging
+    private remoteLog(msg: string) {
+        console.log(msg);
+        if ((window as any).pywebview && (window as any).pywebview.api && (window as any).pywebview.api.log_to_debug) {
+            (window as any).pywebview.api.log_to_debug(msg, 'sys');
+        }
+    }
+
     public async initialize() {
         const defaultContainer = 'character-area';
         // Use the model found in the directory
@@ -185,7 +207,7 @@ export class Live2DManager {
     private customOffsetX: number = 0;
     private customOffsetY: number = 0;
 
-    public async switchModel(modelPath: string, config?: { scale?: number, x?: number, y?: number }) {
+    public async switchModel(modelIdOrPath: string, config?: { scale?: number, x?: number, y?: number }) {
         this.customScale = config?.scale ?? 1.0;
         this.customOffsetX = config?.x ?? 0;
         this.customOffsetY = config?.y ?? 0;
@@ -197,7 +219,23 @@ export class Live2DManager {
             this.model = null;
         }
 
-        await this.loadModel(modelPath);
+        // Logic: Try to construct path if it looks like an ID (no extension)
+        let finalPath = modelIdOrPath;
+        if (!modelIdOrPath.endsWith('.json')) {
+            // Assume it's a model ID and construct path
+            // Pattern: models/{id}/{id}.model3.json
+            finalPath = `models/${modelIdOrPath}/${modelIdOrPath}.model3.json`;
+            console.log(`[Live2D] Resolved Model ID '${modelIdOrPath}' to path: ${finalPath}`);
+        }
+
+        try {
+            await this.loadModel(finalPath);
+        } catch (e) {
+            console.error(`[Live2D] Failed to load path: ${finalPath}, trying fallback logic...`, e);
+            // Fallback: If ID mismatch, maybe try specific known mappings or revert to default
+            // For now, let it fail but log clearly.
+        }
+
         this.resize(); // Apply new settings
     }
 
@@ -217,6 +255,11 @@ export class Live2DManager {
 
         // Calculate Scale (Base: 2.2x Zoom)
         const internalHeight = this.model.internalModel.height;
+        const internalWidth = this.model.internalModel.width;
+
+        // Log model dimensions
+        console.log(`[Live2D] Model Size: ${internalWidth}x${internalHeight}`);
+
         const baseScale = (frameH * 2.2) / internalHeight;
 
         // Apply Custom Scale Multiplier
@@ -241,7 +284,13 @@ export class Live2DManager {
 
         this.model.y = baseY + this.customOffsetY;
 
-        console.log(`[Live2D] Resized: Scale=${finalScale.toFixed(2)}, X=${this.model.x.toFixed(1)}, Y=${this.model.y.toFixed(1)}`);
+        this.remoteLog(`[Live2D] Resized Details: 
+            Frame: ${frameW}x${frameH}
+            ModelInternal: ${internalWidth}x${internalHeight}
+            BaseScale: ${baseScale.toFixed(4)}
+            CustomScale: ${this.customScale}
+            FinalScale: ${finalScale.toFixed(4)}
+            Pos: (${this.model.x.toFixed(1)}, ${this.model.y.toFixed(1)})`);
     }
 
     // ▼ AIの感情タグ(Key) と Live2Dの表情名(Value) の対応表

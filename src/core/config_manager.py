@@ -43,7 +43,9 @@ class ConfigManager:
 
     def load(self):
         """Loads configuration from the file. Creates default if not exists."""
+        print(f"[ConfigManager] Loading from {self.filepath}")
         if not os.path.exists(self.filepath):
+            print("[ConfigManager] File not found, saving default.")
             self.save()
             return
 
@@ -55,6 +57,7 @@ class ConfigManager:
                     if key not in loaded_config:
                         loaded_config[key] = value
                 self.config = loaded_config
+                print(f"[ConfigManager] Loaded Config: current_character_id={self.config.get('current_character_id')}")
         except Exception as e:
             print(f"Error loading config: {e}")
             # Fallback to default but keep in memory
@@ -63,6 +66,7 @@ class ConfigManager:
     def save(self):
         """Saves the current configuration to the file."""
         try:
+            print(f"[ConfigManager] Saving Config: current_character_id={self.config.get('current_character_id')}")
             with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=4, ensure_ascii=False)
         except Exception as e:

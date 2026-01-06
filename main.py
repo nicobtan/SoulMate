@@ -112,6 +112,13 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # Apply Initial Config
         settings = self._config_manager.get_all()
         self._configure_ai(settings)
+        # Restore last used character (Live2D Model + Persona + Voice)
+        if hasattr(self, 'character_service'):
+            last_char_id = settings.get('current_character_id')
+            if last_char_id and last_char_id != 'default':
+                print(f"[System] Restoring last character: {last_char_id}")
+                self.character_service.switch_character(last_char_id)
+
         # Apply Voice Hotkey
         if hasattr(self, 'configure_voice_hotkey'):
              self.configure_voice_hotkey(settings)

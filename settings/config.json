@@ -4,7 +4,7 @@
     "model": "gemini-2.5-flash-lite",
     "background_opacity": 59,
     "font_size": 12,
-    "current_persona_id": "lena",
+    "current_persona_id": "yuki",
     "personas": {
         "default": {
             "name": "SoulMate",
@@ -12,7 +12,7 @@
         }
     },
     "current_persona_file": "default.yaml",
-    "voice_type": "Aoede",
+    "voice_type": "Erinome",
     "bg_opacity": 81,
     "model_name": "gemini-3.0-pro-preview",
     "window_x": 738,
@@ -35,7 +35,7 @@
     "stt_model_size": "small",
     "voice_input_hotkey": "alt+q",
     "voice_input_mode": "toggle",
-    "current_character_id": "default",
-    "current_model_id": "fav_usaneko_alwb",
-    "voice_name": "Aoede"
+    "current_character_id": "liiv4_sample",
+    "current_model_id": "liiv4_sample_v1",
+    "voice_name": "Puck"
 }

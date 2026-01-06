@@ -18,10 +18,10 @@
         "name": "Liiv4 Model",
         "description": "Liiv4さん提供のモデル",
         "model_id": "liiv4_sample_v1",
-        "persona_id": "cool_assistant",
+        "persona_id": "yuki",
         "voice": {
             "provider": "gemini-2.5-flash-preview-tts",
-            "voice_name": "Puck"
+            "voice_name": "Gacrux"
         },
         "scale": 1.0,
         "x": 0,

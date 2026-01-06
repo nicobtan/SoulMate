@@ -413,7 +413,13 @@
         </div>
 
         <div id="character-settings" class="tab-pane">
-            <h2>Character Profiles</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <h2>Character Profiles</h2>
+                <button onclick="refreshCharacters()" class="btn-icon" title="Reload List"
+                    style="background:none; border:none; color:#888; cursor:pointer; font-size:18px;">
+                    ↻
+                </button>
+            </div>
             <p class="setting-desc" style="font-size: 12px; color: #aaa; margin-bottom: 15px;">パートナーの外見、性格、声を一括で変更します。
             </p>
 
@@ -803,6 +809,22 @@
         }
 
         // --- Character Logic ---
+        // --- Character Logic ---
+        async function refreshCharacters() {
+            const list = document.getElementById('character-list');
+            if (list) list.innerHTML = '<div class="loading-spinner" style="padding:20px; text-align:center;">Reloading...</div>';
+
+            try {
+                // 再読み込みAPIを叩く
+                await window.pywebview.api.reload_character_profiles();
+                // リスト描画処理を再実行
+                await loadCharacters();
+            } catch (e) {
+                console.error("Reload failed", e);
+                alert("リロードに失敗しました: " + e);
+            }
+        }
+
         async function loadCharacters() {
             const list = document.getElementById('character-list');
             if (!list) return;
@@ -819,6 +841,12 @@
                 if (!profiles || profiles.length === 0) {
                     list.innerHTML = '<div style="padding:20px;">No profiles found.</div>';
                     return;
+                }
+
+                // Check if currentId exists in profiles
+                const profileExists = profiles.find(p => p.id === currentId);
+                if (!profileExists) {
+                    console.warn(`[Settings] Current character ID '${currentId}' not found in profiles.`);
                 }
 
                 profiles.forEach(p => {
@@ -852,26 +880,25 @@
                 if (res.status === 'success') {
                     const profile = res.profile;
 
-                    // 1. UIのActive状態更新
+                    // 1. UIのActive状態更新 (一応更新するが、すぐ閉じる)
                     document.querySelectorAll('.char-card').forEach(c => c.classList.remove('active'));
-                    // 再描画したほうが早いが簡易的にリロード
-                    await loadCharacters();
 
                     // 2. メインウィンドウのLive2Dモデルを変更
-                    // settings.html がメインと同じウィンドウ内(Overlay)にあるか、別ウィンドウかでアクセス方法が変わる
-                    // ここでは window.live2dManager (Global) がある前提でコールする
                     if (window.live2dManager) {
                         await window.live2dManager.switchModel(profile.model_id, {
                             scale: profile.scale,
                             x: profile.x,
                             y: profile.y
                         });
-                        alert(`${profile.name} に切り替えました！`);
-                    } else {
-                        // もし別ウィンドウならリロードを促すか、メイン側でポーリングが必要
-                        // 今回はOverlay想定なのでここには来ないはずだが念のため
-                        alert("設定を保存しました。反映されない場合はアプリを再起動してください。");
+                        // alertなしで閉じる挙動に変更
+                        // alert(`${profile.name} に切り替えました！`);
                     }
+
+                    // 3. 設定ウィンドウを閉じる (User Request)
+                    // Backend側で閉じるのを試みつつ、Frontend側もcloseを呼ぶ
+                    window.pywebview.api.close_settings()
+                        .then(() => window.close())
+                        .catch(() => window.close());
 
                 } else {
                     alert("Error: " + res.message);
@@ -881,6 +908,8 @@
                 alert("切り替え中にエラーが発生しました。");
             }
         }
+
+
 
         async function loadVoices(provider) {
             const voiceSelect = document.getElementById('voice-select');

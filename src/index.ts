@@ -116,42 +116,75 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 3. Initialize Live2D
-    try {
-        // Fetch current settings to identify character
-        // Note: live2dManager.initialize() is now legacy/fallback.
-        // We want to load the ACTIVE character.
+    const initLive2D = async () => {
+        try {
+            if ((window as any).pywebview) {
+                const settings = await api.get_settings();
+                const currentId = settings.current_character_id || 'default';
+                console.log(`[Init] Fetching profile for: ${currentId}`);
 
-        // Wait for config init? ConfigManager.init() is async but not awaited here in all paths.
-        // Let's safe-guard by fetching settings directly via API for Live2D.
+                const profiles = await api.get_character_profiles();
+                const profile = profiles.find((p: any) => p.id === currentId) || profiles[0];
 
-        if ((window as any).pywebview) {
-            const settings = await api.get_settings();
-            const currentId = settings.current_character_id || 'default';
-
-            // We need full profile for scale/x/y
-            // Let's assume switch_character logic can be reused or we fetch profile
-            const profiles = await api.get_character_profiles();
-            const profile = profiles.find((p: any) => p.id === currentId) || profiles[0];
-
-            if (profile) {
-                console.log(`[Init] Loading Character: ${profile.name} (${profile.model_id})`);
-                await live2dManager.switchModel(profile.model_id, {
-                    scale: profile.scale,
-                    x: profile.x,
-                    y: profile.y
-                });
+                if (profile) {
+                    console.log(`[Init] Loading Character: ${profile.name} (${profile.model_id})`);
+                    await live2dManager.init('character-area', profile.model_id, {
+                        scale: profile.scale,
+                        x: profile.x,
+                        y: profile.y
+                    });
+                } else {
+                    console.warn("[Init] Character profile not found, falling back to default.");
+                    await live2dManager.initialize();
+                }
             } else {
-                console.warn("[Init] Character profile not found, falling back to default.");
+                // Web Mode
+                console.log("[Init] Web Mode: Initializing default Live2D.");
                 await live2dManager.initialize();
             }
-        } else {
-            // Web Mode Check
-            await live2dManager.initialize();
+            logManager.log("Live2D Initialized", "info", "sys");
+        } catch (e) {
+            console.error("Live2D Init Error", e);
         }
+    };
 
-        logManager.log("Live2D Initialized", "info", "sys");
-    } catch (e) {
-        console.error("Live2D Init Error", e);
+    // Execute Init
+    if ((window as any).pywebview) {
+        await initLive2D();
+    } else {
+        // Wait for pywebviewready, but if it doesn't come (Web Mode), falling back is tricky 
+        // without a timeout. However, usually we can assume Desktop App will fire it.
+        // For pure Web Mode, pywebviewready never fires.
+
+        // Strategy: Set a timeout. If pywebviewready doesn't fire in 500ms, assume Web Mode.
+        // OR: Listen to pywebviewready, and if it fires, run initLive2D (which handles desktop logic).
+        // If we are strictly in "Desktop App" environment, we should wait.
+
+        let initDone = false;
+        window.addEventListener('pywebviewready', async () => {
+            if (!initDone) {
+                initDone = true;
+                console.log("[Init] pywebviewready fired, initializing Live2D...");
+                await initLive2D();
+            }
+        });
+
+        // Fallback for Pure Web Mode (Development Only)
+        // User requested strict waiting for desktop init. 
+        // Web fallback now requires explicit '?web=true' parameter.
+        const isWebDev = window.location.search.includes('web=true');
+
+        if (isWebDev) {
+            setTimeout(async () => {
+                if (!initDone && !(window as any).pywebview) {
+                    initDone = true;
+                    console.log("[Init] Web Dev Mode Detected (Timeout). Initializing default Live2D.");
+                    await initLive2D();
+                }
+            }, 1000);
+        } else {
+            console.log("[Init] Waiting for pywebviewready... (Desktop Mode)");
+        }
     }
 
     // 4. Initialize Soul Bubble System (Manual & Auto)
