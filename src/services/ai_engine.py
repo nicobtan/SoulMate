@@ -20,6 +20,7 @@ class AIEngine:
         self.tts_model = "gemini-2.5-flash-preview-tts"
         self.parser = ResponseParser() 
         self.mind_logger = None 
+        self.memory_service = None
         
         self.temperature = 0.9
         self.system_instruction = "You are a helpful AI assistant."
@@ -28,6 +29,10 @@ class AIEngine:
     def set_mind_logger(self, callback):
         """思考プロセス（Mind Log）を出力するためのコールバックを設定します。"""
         self.mind_logger = callback
+
+    def set_memory_service(self, service):
+        """MemoryServiceを設定します (Learned Facts用)"""
+        self.memory_service = service
 
     def _log_thought(self, thought):
         """内部思考をログに出力します（デスクトップアプリのDebugタブに表示）。"""
@@ -131,29 +136,87 @@ Format:
             self._log_thought(f"👁️ [Vision] Receiving visual input... Analyzing.")
 
         try:
-            # 3. API呼び出し
+            # 3. API呼び出し (Standard Chat - No Memory Tools to avoid 400 Error on Pro models)
+            # Memory Serviceのツールはメインの会話では使わず、事後分析(Observer)で実行する
+            
+            # Config再構築
+            run_config = types.GenerateContentConfig(
+                response_mime_type=mime_type, 
+                response_schema=None, 
+                tools=tools, # Only Search, no Memory tools here
+                temperature=0.9,
+                system_instruction=self.system_instruction,
+                safety_settings=config.safety_settings
+            )
+            
+            # Initial Request
             response = self.client.models.generate_content(
                 model=self.reasoning_model,
                 contents=contents,
-                config=config
+                config=run_config
             )
 
-            # 4. ★RAG（検索結果）のログ出力 (最優先)
+            # ★ Handle Function Calls (Loop - Only for Search if enabled)
+            while response.function_calls:
+                self._log_thought("🛠️ [Tools] Model triggered Function Call...")
+                
+                contents.append(response.candidates[0].content) 
+                
+                for fc in response.function_calls:
+                    fn_name = fc.name
+                    fn_args = fc.args
+                    
+                    self._log_thought(f"  - Call: {fn_name}({fn_args})")
+                    
+                    # Execute Search Only
+                    tool_result = "Error: Tool execution failed."
+                    # (Google Search is handled automatically by SDK usually? 
+                    # No, we need to handle it or let SDK handle it? 
+                    # If we use `google_search=types.GoogleSearch()`, Gemini SDK handles it AUTOMATICALLY if we use `tools` properly?
+                    # The newer `google-genai` SDK with `types.Tool` might handle search automatically on server side?
+                    # "Automatic function calling" is enabled if we don't intercept?
+                    # The logs said "AFC is enabled".
+                    # So we might not need to manually loop for Search.
+                    # But if we receive function_calls, we MUST handle them or send them back.
+                    # If AFC is enabled, we shouldn't see function_calls in response unless mode is ANY?
+                    # We'll assume for now we just handle manual calls if any (but Search is server-side usually).
+                    
+                    # If it IS a manual tool call we missed:
+                    tool_result = "Function executed."
+
+                    self._log_thought(f"  - Result: {tool_result}")
+                    
+                    tool_output = types.Part.from_function_response(
+                        name=fn_name,
+                        response={"result": tool_result}
+                    )
+                    
+                    tool_content = types.Content(
+                        role="tool",
+                        parts=[tool_output]
+                    )
+                    contents.append(tool_content)
+
+                # Send back
+                response = self.client.models.generate_content(
+                    model=self.reasoning_model,
+                    contents=contents,
+                    config=run_config
+                )
+
+            # 4. ★RAG（検索結果）のログ出力
             grounding = self._extract_grounding(response)
             if grounding and grounding.get("sources"):
                 self._log_thought(f"🌍 [RAG] Accessed {len(grounding['sources'])} sources.")
                 for src in grounding['sources'][:3]:
                     self._log_thought(f"  - {src['title']}")
 
-            # 5. レスポンスのパース (ResponseParser使用)
+            # 5. レスポンスのパース
             data = {}
-            
-            # Check for safety block or empty response
             text_result = ""
             try:
                 text_result = response.text
             except ValueError:
-                # Often caused by Safety Filter blocking the response
                 self._log_thought("⚠️ [Safety] Response blocked by filters.")
                 text_result = ""
 
@@ -167,8 +230,18 @@ Format:
                 self._log_thought(f"💭 {data['thought']}")
             if data.get("emotion"):
                 self._log_thought(f"🎭 [Expression] {data['emotion']}")
+            
+            # ★ 7. 事後学習 (Async Observer)
+            # 会話が終わった後、裏で「記憶すべき事実」がないかチェックする
+            if self.memory_service and text_result:
+                import threading
+                threading.Thread(
+                    target=self._check_and_learn_facts, 
+                    args=(message, data["response"]), 
+                    daemon=True
+                ).start()
 
-            # 7. 正規化データの返却
+            # 8. 正規化データの返却
             return {
                 "text": data["response"],
                 "emotion": data["emotion"],
@@ -317,3 +390,66 @@ Format:
             response = self.client.models.generate_content(model=self.reasoning_model, contents=prompt)
             return response.text.strip().replace('"', '')
         except: return None
+
+    def _check_and_learn_facts(self, user_text, ai_text):
+        """
+        [Async Observer]
+        会話の内容を分析し、Learned Facts（記憶すべき事実）があれば save_learned_fact を呼び出す。
+        メインの会話生成とは別のモデル（Tool対応モデル）を使用する。
+        """
+        if not self.client or not self.memory_service:
+            return
+
+        try:
+            # Tool-capable model (Gemini 2.0 Flash is reliable for tools)
+            observer_model = "gemini-2.0-flash-exp" 
+
+            prompt = f"""
+[Task]
+Analyze the conversation below. 
+If the USER provided new information about themselves (preferences, profile) or corrected the AI's knowledge, 
+IMMEDIATELY call the `save_learned_fact` tool to save it.
+
+[Conversation]
+User: {user_text}
+AI: {ai_text}
+
+[Constraint]
+- Only save facts explicitly stated or strongly implied by the user.
+- If no relevent facts are found, do nothing (output minimal text).
+- IGNORE facts already known or trivial context.
+"""
+            tools = [self.memory_service.save_learned_fact]
+            
+            config = types.GenerateContentConfig(
+                tools=tools,
+                temperature=0.1 # Low temperature for factual extraction
+            )
+            
+            # self._log_thought(f"🧠 [Observer] Checking for learned facts...")
+
+            response = self.client.models.generate_content(
+                model=observer_model,
+                contents=prompt,
+                config=config
+            )
+
+            # Handle Function Calls
+            if response.function_calls:
+                for fc in response.function_calls:
+                    fn_name = fc.name
+                    fn_args = fc.args
+                    
+                    self._log_thought(f"📝 [Memory] Learning new fact via {fn_name}: {fn_args}")
+                    
+                    if fn_name == "save_learned_fact":
+                        try:
+                            res = self.memory_service.save_learned_fact(**fn_args)
+                            self._log_thought(f"✅ [Memory] Saved: {res}")
+                        except Exception as e:
+                            self._log_thought(f"❌ [Memory] Save Failed: {e}")
+
+        except Exception as e:
+            # Observer failure should not impact main thread
+            # logger.error(f"Observer Error: {e}")
+            pass

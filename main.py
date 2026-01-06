@@ -12,6 +12,7 @@ if base_dir not in sys.path:
 from src.core.config_manager import ConfigManager
 from src.services.ai_engine import AIEngine
 from src.services.persona_manager import PersonaManager
+from src.services.memory_service import MemoryService # Import
 from src.services.memory_manager import MemoryManager
 from src.services.tts_engine import TTSEngine
 from src.services.active_engine import ActiveEngine
@@ -31,7 +32,6 @@ from src.services.character_service import CharacterService
 from src.services.history_manager import HistoryManager
 
 from src.services.user_manager import UserManager
-
 from src.services.interest_manager import InterestManager
 from src.services.topic_selector import TopicSelector
 
@@ -44,11 +44,16 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         self._config_manager = ConfigManager()
         self._ai_engine = AIEngine()
         self._persona_manager = PersonaManager()
-        self._persona_manager = PersonaManager()
         self._memory_manager = MemoryManager()
         self.history_manager = HistoryManager()
+        
+        # ★ Memory Service (Learned Facts)
+        self.memory_service = MemoryService()
+        self._ai_engine.set_memory_service(self.memory_service)
 
         # Database Manager (SQLite)
+# ... (existing code) ...
+
         from src.services.db_manager import DatabaseManager
         self.db_manager = DatabaseManager()
         self.db_manager.init_db()
@@ -209,6 +214,11 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         persona_name = persona_data.get('name', 'SoulMate')
         persona_role = persona_data.get('system_prompt', 'You are a helpful AI.')
 
+        # ★ Learned Facts Injection
+        learned_facts_str = "(No learned facts yet)"
+        if self.memory_service:
+            learned_facts_str = self.memory_service.get_learned_facts_text()
+
         # 3. Construct Deep Context Prompt
         deep_context_prompt = f"""
 [CRITICAL INSTRUCTION: IDENTITY LOCK]
@@ -226,10 +236,6 @@ MBTI: {user_mbti}
 [Your Personality & Tone] 
 {persona_role}
 
-[Action Requirement]
-FILTER the topic through the User's Interests. (e.g., If news is about AI, mention it's relevant to his Dev work. If it's gossip, IGNORE it as he dislikes it.)
-REACT using your Persona. (Use plant metaphors if Lena. Be motherly/strict about health.)
-DO NOT summarize the news. Give your OPINION based on your persona.
 
 [Self-Expression & Opinion] (Priority)
 - When asked for YOUR opinion, preference, or desire:
