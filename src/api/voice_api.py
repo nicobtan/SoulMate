@@ -66,42 +66,58 @@ class VoiceApiMixin:
     def toggle_voice_input_hotkey(self):
         """
         ホットキーから呼ばれるトグル処理。
-        UIスレッドの外(keyboardスレッド)から呼ばれるため、エラーハンドリングに注意。
+        UIスレッドの外(keyboardスレッド)から呼ばれるため、エラーハンドリングとブロッキング回避が必須。
         """
-        logger.info(f"🎤 [VoiceApi] Hotkey Triggered! (Thread: {threading.current_thread().name})")
-        print(f"🎤 [VoiceApi] Hotkey Triggered! (STDOUT Check)")
-        # Original logger definition removed as it's now at module level
-        
-        if not hasattr(self, '_window') or not self._window:
+        # ★ Prevent Re-entry (Debounce/Lock)
+        if getattr(self, '_is_toggling', False):
+            logger.warning("🎤 [VoiceApi] Toggle ignored (Already processing).")
             return
+        
+        self._is_toggling = True
 
-        if voice_input_manager.is_recording:
-            # 停止処理
-            logger.info("Hotkey: Stop Recording")
-            # 1. UIを「処理中」に変更
-            self._window.evaluate_js("window.updateMicUiState && window.updateMicUiState('processing')")
+        def _run_toggle():
+            try:
+                logger.info(f"🎤 [VoiceApi] Hotkey Triggered! (Thread: {threading.current_thread().name})")
+                
+                if not hasattr(self, '_window') or not self._window:
+                    return
+    
+                if voice_input_manager.is_recording:
+                    # 停止処理
+                    logger.info("Hotkey: Stop Recording")
+                    # 1. UIを「処理中」に変更
+                    self._window.evaluate_js("window.updateMicUiState && window.updateMicUiState('processing')")
+                    
+                    # 2. 録音停止＆認識 (ブロッキング処理)
+                    text = voice_input_manager.stop_recording()
+                    
+                    # 3. 結果をUIに送信 (JS側の関数を呼ぶ)
+                    if text:
+                        # エスケープ処理
+                        safe_text = text.replace("'", "\\'").replace("\n", " ")
+                        self._window.evaluate_js(f"window.insertVoiceText && window.insertVoiceText('{safe_text}')")
+                    
+                    # 4. IDLEに戻す
+                    self._window.evaluate_js("window.updateMicUiState && window.updateMicUiState('idle')")
+                    
+                else:
+                    # 開始処理
+                    logger.info("Hotkey: Start Recording")
+                    
+                    # 中間結果用コールバック (start_voice_inputと同様)
+                    def on_progress(text):
+                        if hasattr(self, '_window') and self._window:
+                             safe_text = text.replace("'", "\\'").replace("\n", " ")
+                             self._window.evaluate_js(f"if(window.updateVoicePreview) window.updateVoicePreview('{safe_text}')")
+                    
+                    voice_input_manager.start_recording(callback=on_progress) # デフォルトデバイス
+                    self._window.evaluate_js("window.updateMicUiState && window.updateMicUiState('recording')")
             
-            # 2. 録音停止＆認識 (ブロッキング処理)
-            text = voice_input_manager.stop_recording()
-            
-            # 3. 結果をUIに送信 (JS側の関数を呼ぶ)
-            if text:
-                # エスケープ処理
-                safe_text = text.replace("'", "\\'").replace("\n", " ")
-                self._window.evaluate_js(f"window.insertVoiceText && window.insertVoiceText('{safe_text}')")
-            
-            # 4. IDLEに戻す
-            self._window.evaluate_js("window.updateMicUiState && window.updateMicUiState('idle')")
-            
-        else:
-            # 開始処理
-            logger.info("Hotkey: Start Recording")
-            
-            # 中間結果用コールバック (start_voice_inputと同様)
-            def on_progress(text):
-                if hasattr(self, '_window') and self._window:
-                     safe_text = text.replace("'", "\\'").replace("\n", " ")
-                     self._window.evaluate_js(f"if(window.updateVoicePreview) window.updateVoicePreview('{safe_text}')")
-            
-            voice_input_manager.start_recording(callback=on_progress) # デフォルトデバイス
-            self._window.evaluate_js("window.updateMicUiState && window.updateMicUiState('recording')")
+            except Exception as e:
+                logger.error(f"❌ [VoiceApi] Hotkey Error: {e}")
+            finally:
+                # Lock解除
+                self._is_toggling = False
+
+        # 非同期実行 (Keyboardスレッドを解放するため)
+        threading.Thread(target=_run_toggle, daemon=True).start()
