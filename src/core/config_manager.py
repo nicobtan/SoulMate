@@ -38,7 +38,8 @@ class ConfigManager:
             "proactive_vision_interval_min": 5,
             "proactive_silent_mode": False,
             "proactive_targets": ["work", "media", "health"],
-            "dify_api_key": ""
+            "dify_api_key": "",
+            "voice_input_hotkey": "alt+q"
         }
 
     def load(self):

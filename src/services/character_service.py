@@ -55,19 +55,26 @@ class CharacterService:
         
         logger.info(f"Switching character to: {profile['name']} ({profile_id})")
         
-        # 1. Configの更新 (永続化)
-        self.api._config_manager.set("current_character_id", profile["id"])
-        self.api._config_manager.set("current_model_id", profile["model_id"])
-        self.api._config_manager.set("current_persona_id", profile["persona_id"])
+        # 1. Configの更新 (永続化) - 一括更新
+        updates = {
+            "current_character_id": profile["id"],
+            "current_model_id": profile["model_id"],
+            "current_persona_id": profile["persona_id"],
+            # Legacy Keyの同期: _configure_aiでの優先順位考慮
+            "current_persona_file": f"{profile['persona_id']}.yaml"
+        }
         
         # Voice設定も更新 (TTSプロバイダー等が異なる場合に対応)
         if "voice" in profile:
             voice_conf = profile["voice"]
             # プロバイダー設定があれば更新 (例: gemini -> voicevox)
             if "provider" in voice_conf:
-                self.api._config_manager.set("tts_provider", voice_conf["provider"])
+                updates["tts_provider"] = voice_conf["provider"]
             if "voice_name" in voice_conf:
-                self.api._config_manager.set("voice_type", voice_conf["voice_name"])
+                updates["voice_type"] = voice_conf["voice_name"]
+
+        # 一括保存
+        self.api._config_manager.update(updates)
         
         # 2. AI Engine / Persona の再構成
         # 最新のConfigを取得して反映

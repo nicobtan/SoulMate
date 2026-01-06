@@ -44,7 +44,9 @@ class VoiceApiMixin:
 
     def configure_voice_hotkey(self, settings):
         """設定からホットキーを適用する"""
-        hotkey = settings.get('voice_input_hotkey', 'right ctrl')
+        hotkey = settings.get('voice_input_hotkey')
+        if not hotkey:
+             hotkey = 'alt+q'
         
         # DEBUG LOG
         logger.info(f"🎤 [VoiceApi] Configuring Hotkey: '{hotkey}'")

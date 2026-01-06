@@ -4,15 +4,15 @@
     "model": "gemini-2.5-flash-lite",
     "background_opacity": 59,
     "font_size": 12,
-    "current_persona_id": "yuki",
+    "current_persona_id": "lena",
     "personas": {
         "default": {
             "name": "SoulMate",
             "system_instruction": "You are a helpful and cute AI assistant."
         }
     },
-    "current_persona_file": "default.yaml",
-    "voice_type": "Erinome",
+    "current_persona_file": "lena.yaml",
+    "voice_type": "Aoede",
     "bg_opacity": 81,
     "model_name": "gemini-3.0-pro-preview",
     "window_x": 738,
@@ -35,7 +35,7 @@
     "stt_model_size": "small",
     "voice_input_hotkey": "alt+q",
     "voice_input_mode": "toggle",
-    "current_character_id": "liiv4_sample",
-    "current_model_id": "liiv4_sample_v1",
+    "current_character_id": "default",
+    "current_model_id": "fav_usaneko_alwb",
     "voice_name": "Puck"
 }

@@ -21,7 +21,7 @@
         "persona_id": "yuki",
         "voice": {
             "provider": "gemini-2.5-flash-preview-tts",
-            "voice_name": "Gacrux"
+            "voice_name": "Erinome"
         },
         "scale": 1.0,
         "x": 0,
