@@ -844,3 +844,8 @@
 - [x] **Memory Management**: モデル切り替え時にVRAM/RAMを適切に解放・再確保するロジックを実装。
 - [x] **Accuracy Tuning**: 日本語認識精度向上のため `initial_prompt` と `VAD` フィルタを最適化。
 - [x] **Documentation**: `docs/models_info.md` の整備。
+
+## フェーズ109: Robust Base (Polling Hotkey) [完了]
+- [x] **Polling Hotkey**: 音声入力のホットキー監視をフック方式(`keyboard`)からポーリング方式(`GetAsyncKeyState`)へ刷新。
+- [x] **WinAPI Integration**: `ctypes` を使用してキー状態を直接監視し、OSによるフック解除（無効化）問題を根本解決。
+- [x] **Stability**: 長時間放置後も確実にホットキーが機能することを保証。

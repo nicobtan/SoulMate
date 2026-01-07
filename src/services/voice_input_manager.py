@@ -47,58 +47,71 @@ class VoiceInputManager:
         self.current_hotkey = None
         self.current_callback = None
         
-        # Start Watchdog
-        self._start_watchdog()
+        # Polling Thread Start
+        self._start_polling()
 
-    def _start_watchdog(self):
-        """Webview環境等でフックが外れるのを防ぐため、定期的に再登録する"""
-        def _loop():
+    def _start_polling(self):
+        """WinAPI polling for hotkey detection"""
+        import ctypes
+        
+        def _poll_loop():
+            # GetAsyncKeyState constants
+            VK_MAP = {
+                'alt': 0x12, 'ctrl': 0x11, 'shift': 0x10, 'win': 0x5B,
+                'left alt': 0xA4, 'right alt': 0xA5,
+                'left ctrl': 0xA2, 'right ctrl': 0xA3,
+                'left shift': 0xA0, 'right shift': 0xA1,
+            }
+            
             while True:
-                time.sleep(60) # 1分ごとにチェック
-                if self.current_hotkey and self.current_callback:
-                    # logger.debug(f"🔄 [Watchdog] Refreshing Hotkey: {self.current_hotkey}")
-                    # 再登録 (set_hotkeyを呼ぶとremove -> addされる)
-                    try:
-                        # set_hotkeyはログを出すので、ここでは直接呼ぶか、set_hotkeyのログを抑制するか...
-                        # 安全のため set_hotkey を呼ぶが、ログがうるさいかもしれない。
-                        # 今回は安定性優先。
+                time.sleep(0.1) # 100ms Polling
+                
+                if not self.current_hotkey or not self.current_callback:
+                    continue
+                
+                try:
+                    # Parse hotkey string (e.g. "alt+q")
+                    keys = [k.strip().lower() for k in self.current_hotkey.split('+')]
+                    all_pressed = True
+                    
+                    for k in keys:
+                        vk = 0
+                        if k in VK_MAP:
+                            vk = VK_MAP[k]
+                        elif len(k) == 1 and k.isalnum():
+                            vk = ord(k.upper())
                         
-                        # 既存解除
-                        try:
-                            keyboard.remove_hotkey(self.current_hotkey)
-                        except: pass
+                        if vk == 0: continue
                         
-                        # 再登録
-                        keyboard.add_hotkey(self.current_hotkey, self.current_callback)
-                        # logger.debug("Refreshed.")
+                        # Check key state (Most Significant Bit check)
+                        if not (ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000):
+                            all_pressed = False
+                            break
+                    
+                    if all_pressed:
+                        # Trigger Callback
+                        # logger.info(f"🎤 [Polling] Hotkey Triggered: {self.current_hotkey}")
+                        self.current_callback()
                         
-                    except Exception as e:
-                        logger.error(f"[Watchdog] Error refreshing hotkey: {e}")
+                        # Wait until release (prevent multiple triggers)
+                        time.sleep(0.5) 
+                        
+                except Exception as e:
+                    logger.error(f"[Polling] Error: {e}")
 
-        threading.Thread(target=_loop, daemon=True).start()
+        threading.Thread(target=_poll_loop, daemon=True).start()
 
     def set_hotkey(self, hotkey_str, callback):
-        """グローバルホットキーを設定する"""
-        try:
-            # 既存の登録を解除
-            if self.current_hotkey:
-                try:
-                    keyboard.remove_hotkey(self.current_hotkey)
-                except:
-                    pass
-                self.current_hotkey = None
-                self.current_callback = None
-            
-            if not hotkey_str:
-                return
+        """グローバルホットキーを設定する (Polling用)"""
+        if not hotkey_str:
+            self.current_hotkey = None
+            self.current_callback = None
+            return
 
-            logger.info(f"🎤 [VoiceManager] Attempting to register hotkey: '{hotkey_str}'")
-            keyboard.add_hotkey(hotkey_str, callback)
-            logger.info(f"✅ [VoiceManager] Hotkey '{hotkey_str}' registered via keyboard module.")
-            self.current_hotkey = hotkey_str
-            self.current_callback = callback
-        except Exception as e:
-            logger.error(f"Failed to set hotkey '{hotkey_str}': {e}")
+        logger.info(f"🎤 [VoiceManager] Setting Polling Hotkey: '{hotkey_str}'")
+        self.current_hotkey = hotkey_str
+        self.current_callback = callback
+        logger.info(f"✅ [VoiceManager] Hotkey set. (Polling active)")
 
     def load_model(self, size="base", device="cuda", compute_type="float16"):
         """Faster-Whisperモデルをロードする"""
