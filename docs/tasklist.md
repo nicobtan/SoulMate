@@ -838,3 +838,9 @@
     - [x] **Context Menu UI**: 右クリックメニューに「Dify検索」を追加。
     - [x] **Settings API**: フロントエンドからのトリガーを受け取り、`ActiveEngine` に指令を出すブリッジを実装。
     - [x] **Log Visualization**: Difyの動作（接続、検索、完了）をアイコン付きでコンソールに表示。
+
+## フェーズ108: Dynamic Voice Input & Models Config (v0.4.5) [完了]
+- [x] **Dynamic Whisper Model Selection**: 設定画面から音声認識モデル(`tiny`, `base`, `small`, `medium`, `large-v3`)を選択・変更可能に。
+- [x] **Memory Management**: モデル切り替え時にVRAM/RAMを適切に解放・再確保するロジックを実装。
+- [x] **Accuracy Tuning**: 日本語認識精度向上のため `initial_prompt` と `VAD` フィルタを最適化。
+- [x] **Documentation**: `docs/models_info.md` の整備。

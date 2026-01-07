@@ -12,7 +12,7 @@ SoulMateアプリケーション内で使用されているAIモデルと、そ�
 | Role | Model ID | Description | Source |
 | :--- | :--- | :--- | :--- |
 | **TTS (Expressive)**<br>(音声合成) | `gemini-2.5-flash-preview-tts` | 感情表現豊かな音声合成を行う。音声のみの生成に使用。 | `src/services/voice_service.py` |
-| **STT (Voice Input)**<br>(音声認識) | `faster-whisper (base)` | **ローカル実行**。ユーザーの音声を高速にテキスト化する。CUDA(GPU)利用時は `float16`、CPU時は `int8` で動作。 | `src/services/voice_input_manager.py` |
+| **STT (Voice Input)**<br>(音声認識) | `faster-whisper`<br>(Configurable) | **ローカル実行**。`tiny`, `base` (default), `small`, `medium`, `large-v3` から選択可能。CUDA(GPU)利用時は `float16`、CPU時は `int8` で動作。 | `src/services/voice_input_manager.py` |
 | **Local Vision**<br>(画面認識) | `google/paligemma-3b-mix-224` | **ローカル実行 (PaliGemma)**。ユーザーの画面（スクリーンショット）をキャプション（テキスト）化するために使用。軽量で高速。 | `src/services/vision_service.py` |
 | **Video Reasoning**<br>(YouTube/Native Vision) | `gemini-3-flash-preview` | 動画ファイルや画像の詳細なコンテキスト理解には、Geminiのネイティブマルチモーダル機能を使用。 | `src/services/ai_engine.py` |
 

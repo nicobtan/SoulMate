@@ -247,6 +247,30 @@ class VoiceInputManager:
         # 認識実行
         return self.transcribe(temp_path)
 
+    def reload_model(self, size, device="cuda", compute_type="float16"):
+        """モデルを再ロードする（メモリ解放付き）"""
+        if self.model_size == size and self.model is not None:
+             logger.info(f"Whisper Model {size} already loaded.")
+             return
+
+        logger.info(f"🔄 Reloading Whisper Model: {self.model_size} -> {size}...")
+        
+        # Memory Cleanup
+        if self.model:
+            del self.model
+            self.model = None
+        
+        import gc
+        gc.collect()
+        if device == "cuda":
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        
+        # Load new
+        self.load_model(size, device, compute_type)
+        logger.info(f"✅ Whisper Model reloaded: {size}")
+
     def transcribe(self, audio_path, is_intermediate=False):
         """音声ファイルをテキストに変換する"""
         if not self.model:
@@ -268,7 +292,7 @@ class VoiceInputManager:
                 audio_path,
                 beam_size=5,
                 language="ja",
-                initial_prompt="こんにちは。これはチャットAIへの音声入力です。",
+                initial_prompt="以下の会話は、ユーザーとAIアシスタントによる日本語の雑談です。",
                 vad_filter=True,
                 vad_parameters=dict(min_silence_duration_ms=500)
             )

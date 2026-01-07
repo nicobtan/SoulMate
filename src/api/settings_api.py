@@ -1,6 +1,8 @@
 from .base import BaseApiMixin
 import webview
 import os
+import threading
+from src.services.voice_input_manager import voice_input_manager
 
 class SettingsApiMixin(BaseApiMixin):
     def get_settings(self):
@@ -36,6 +38,13 @@ class SettingsApiMixin(BaseApiMixin):
             # Re-configure Voice Hotkey
             if hasattr(self, 'configure_voice_hotkey'):
                 self.configure_voice_hotkey(settings)
+
+            # Re-configure Whisper Model (Async)
+            stt_size = settings.get('stt_model_size', 'base')
+            # Check against current loaded size (We can check manager directly)
+            if voice_input_manager.model_size != stt_size:
+                 self.log_to_debug(f"🔄 [VoiceInput] Switching Whisper Model to '{stt_size}'...", 'info')
+                 threading.Thread(target=voice_input_manager.reload_model, args=(stt_size,), daemon=True).start()
 
             self.log_to_debug(f"✅ [System] Settings Saved: (Hotkeys updated)", 'info')
 

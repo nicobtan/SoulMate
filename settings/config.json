@@ -32,7 +32,7 @@
     "background_path": "C:/Users/NatureBreeze/Pictures/_GD/Gemini_Generated_Image_2ic6lk2ic6lk2ic6.png",
     "dify_api_key": "",
     "audio_input_device_index": 1,
-    "stt_model_size": "small",
+    "stt_model_size": "large-v3",
     "voice_input_hotkey": "alt+q",
     "voice_input_mode": "toggle",
     "current_character_id": "default",
