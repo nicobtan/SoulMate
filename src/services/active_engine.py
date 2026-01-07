@@ -114,108 +114,27 @@ class ActiveEngine:
                 # Strategy Change: Use SoulBubble for Proposal
                 if self.bubble_service:
                     import time
-                    # We create a manual bubble packet directly or use a helper?
-                    # Since BubbleService manages active bubbles, we'd better construct a packet and inject it.
-                    # Or use a new method on BubbleService?
-                    # Let's verify BubbleService structure. It has `_active_bubbles`.
-                    # We can manually insert it.
-                    
                     action_id = f"DIFY_{int(time.time())}"
                     
-                    # Create a friendly bubble text
-                    # Shorten message for bubble if too long?
-                    bubble_text = f"💡 {msg[:20]}..." if len(msg) > 20 else f"💡 {msg}"
-                    # Actually, the Dify message is usually a summary. Let's use it as 'text' but maybe formatted.
-                    # If it's too long, the bubble UI might be weird.
-                    # Dify message: "Note記事を見つけたわ: タイトル..."
-                    # Let's assume it's suitable.
-                    
+                    # 1. Bubble Injection (Visual Discovery)
                     packet = {
                         "category": "topics",
-                        "text": f"Dify新着: {msg}",
+                        "text": f"Dify新着: {msg[:20]}...",
                         "action_id": action_id,
                         "metadata": {
                             "url": url,
                             "full_content": msg
                         },
-                        "type": "discovery" # Purple styling for 'discovery' or maybe 'manual'?
+                        "type": "discovery" 
                     }
-                    
-                    # Inject
                     self.bubble_service._active_bubbles[action_id] = packet
-                    
-                    # Log
                     self._send_log(f"Generated Dify Bubble: {action_id}", "info", "sys")
                     
-                    # Push to UI immediately via on_message_callback (Wait, this callback is for CHAT/TTS?)
-                    # No, we need to show the bubble.
-                    # Main.py monitors bubble service? 
-                    # Main.py has a loop `bubble_loop` that calls `refill_bubbles`.
-                    # But that loop only PULLS new refills.
-                    # It DOES NOT push existing bubbles unless they are returned by `refill_bubbles`.
-                    # Wait, `bubble_loop` calls `refill_bubbles` which returns *new* bubbles.
-                    # If we inject directly into `_active_bubbles`, the UI won't know until... never?
-                    # We need to explicitly push this bubble to UI.
-                    
-                    # Let's inspect main.py bubble_loop again.
-                    # It calls `packets = self.bubble_service.refill_bubbles()`.
-                    # So we need to PUSH it.
-                    
-                    if self.on_message_callback:
-                        # Construct JS call for Bubble
-                        import json
-                        # We need to execute JS. ActiveEngine `on_message_callback` typically sends Chat/TTS JSON.
-                        # It might not be wired to `evaluate_js`.
-                        # Main.py: self.active_engine = ActiveEngine(..., self.push_message_callback)
-                        # push_message_callback handles JSON "type": "expression" etc.
-                        # But to show bubble, we need `showSoulBubble`.
-                        # Does `push_message_callback` handle arbitrary JS? No.
-                        
-                        # We need a way to call JS.
-                        # ActiveEngine doesn't have direct access to `_window`.
-                        # BUT, we can use `self.log_callback` which calls `log_to_debug`.
-                        # Or we can rely on `bubble_service` to allow checking?
-                        
-                        # Alternative: modifying `refill_bubbles` to return our injected bubble.
-                        # Or, simply `on_message_callback` with a special type?
-                        # Main.py `push_message_callback` handles:
-                        # 1. JSON parse -> if "type" == "expression" -> setExpression.
-                        # 2. else -> TTS/Chat.
-                        
-                        # It lacks `showSoulBubble` dispatch.
-                        # We should stick to the loop in `main.py` picking it up?
-                        # NO, the loop only picks up `refill_bubbles` return values.
-                        
-                        # FIX: We should execute `refill_bubbles` NOW? 
-                        # No, `refill_bubbles` generates NEW bubbles.
-                        
-                        # Hack: We can use the text-to-speech to ANNOUNCE the bubble, 
-                        # but we want the BUBBLE UI.
-                        
-                        # Let's assume we can add a new type to `push_message_callback` in Main.py?
-                        # No, I should act within existing constraints if possible.
-                        # But I can modify Main.py `push_message_callback` easily (I have the file).
-                        
-                        # Better approach:
-                        # Provide `ActiveEngine` with a way to trigger bubbles. 
-                        # Pass `api` to ActiveEngine? NO, circular.
-                        
-                        # The cleanest way:
-                        # 1. In `bubble_service`, add `register_and_get_packet`.
-                        # 2. In `main.py`'s `bubble_loop`, it only checks refill.
-                        # 3. Modify `main.py` bubble_loop to ALSO check for "pending push" bubbles?
-                        # Or easier: Modify `main.py` -> `push_message_callback` to handle `type: bubble`.
-                        
-                        # Let's DO THAT. It's robust.
-                        # 1. ActiveEngine sends JSON with type="bubble".
-                        # 2. Main.py receives it, calls `showSoulBubble`.
-                        pass
-
-                    # For now, let's prepare the payload assuming Main.py update
+                    # Push Bubble to UI (if supported by Main callback handling)
                     bubble_payload = {
                         "type": "bubble",
                         "category": "topics",
-                        "text": f"Dify: {msg}",
+                        "text": f"Dify: {msg[:15]}...",
                         "action_id": action_id,
                         "metadata": {"url": url}
                     }
@@ -223,8 +142,31 @@ class ActiveEngine:
                     if self.on_message_callback:
                         self.on_message_callback(json.dumps(bubble_payload, ensure_ascii=False))
 
-                    # Also register in Service so handle_action works
-                    self.bubble_service._active_bubbles[action_id] = packet
+                    # 2. ★ Speech Generation with Prefixes (Rich Interaction)
+                    # Dify由来の発話であることを演出するための導入句
+                    prefixes = [
+                        "ねえねえ、Difyちゃんが教えてくれたんだけど...",
+                        "ネットの海で拾ってきた情報なんだけど...",
+                        "リサーチ完了！ こんな記事見つけたわ。",
+                        "ちょっとこれ見て！ 面白そうなの見つけたよ。",
+                        "外部脳からの受信データよ。これ、興味ある？"
+                    ]
+                    prefix = random.choice(prefixes)
+                    spoken_text = f"{prefix} {msg}"
+
+                    # Construct Speech Payload
+                    # Using 'chat' or 'proactive' type to trigger TTS and Text rendering
+                    speech_payload = {
+                        "text": spoken_text,
+                        "emotion": "happy",
+                        "suggestions": ["もっと詳しく教えて", "ありがとう", "他の記事は？"],
+                        "type": "proactive" # 'proactive' usually handled similar to chat but logs differently
+                    }
+                    
+                    self._send_log(f"🗣️ [Dify] Speaking: {spoken_text}", "info", "mind")
+                    
+                    if self.on_message_callback:
+                        self.on_message_callback(json.dumps(speech_payload, ensure_ascii=False))
 
                 else:
                     logger.warning("BubbleService not linked to ActiveEngine. Falling back to Log.")

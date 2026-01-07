@@ -45,6 +45,37 @@ class VoiceInputManager:
         self.compute_type = "float16" # CPUなら "int8"
         
         self.current_hotkey = None
+        self.current_callback = None
+        
+        # Start Watchdog
+        self._start_watchdog()
+
+    def _start_watchdog(self):
+        """Webview環境等でフックが外れるのを防ぐため、定期的に再登録する"""
+        def _loop():
+            while True:
+                time.sleep(60) # 1分ごとにチェック
+                if self.current_hotkey and self.current_callback:
+                    # logger.debug(f"🔄 [Watchdog] Refreshing Hotkey: {self.current_hotkey}")
+                    # 再登録 (set_hotkeyを呼ぶとremove -> addされる)
+                    try:
+                        # set_hotkeyはログを出すので、ここでは直接呼ぶか、set_hotkeyのログを抑制するか...
+                        # 安全のため set_hotkey を呼ぶが、ログがうるさいかもしれない。
+                        # 今回は安定性優先。
+                        
+                        # 既存解除
+                        try:
+                            keyboard.remove_hotkey(self.current_hotkey)
+                        except: pass
+                        
+                        # 再登録
+                        keyboard.add_hotkey(self.current_hotkey, self.current_callback)
+                        # logger.debug("Refreshed.")
+                        
+                    except Exception as e:
+                        logger.error(f"[Watchdog] Error refreshing hotkey: {e}")
+
+        threading.Thread(target=_loop, daemon=True).start()
 
     def set_hotkey(self, hotkey_str, callback):
         """グローバルホットキーを設定する"""
@@ -56,6 +87,7 @@ class VoiceInputManager:
                 except:
                     pass
                 self.current_hotkey = None
+                self.current_callback = None
             
             if not hotkey_str:
                 return
@@ -64,6 +96,7 @@ class VoiceInputManager:
             keyboard.add_hotkey(hotkey_str, callback)
             logger.info(f"✅ [VoiceManager] Hotkey '{hotkey_str}' registered via keyboard module.")
             self.current_hotkey = hotkey_str
+            self.current_callback = callback
         except Exception as e:
             logger.error(f"Failed to set hotkey '{hotkey_str}': {e}")
 

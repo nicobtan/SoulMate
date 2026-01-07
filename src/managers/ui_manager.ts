@@ -520,8 +520,12 @@ export class UIManager {
                     <span>Proactive Mode ${proactiveMark}</span>
                 </div>
                 <div class="ctx-item" id="ctx-feedback-action">
-                    <span class="ctx-icon">🧠</span>
+                    <span class="ctx-icon">📝</span>
                     <span>議論を保存 (Feedback)</span>
+                </div>
+                <div class="ctx-item" id="ctx-dify-action">
+                    <span class="ctx-icon">🌐</span>
+                    <span>Dify検索 (Test)</span>
                 </div>
                 <div style="height:1px; background:#444; margin:2px 0;"></div>
                 <div class="ctx-item" id="ctx-exit-action">
@@ -542,8 +546,14 @@ export class UIManager {
                 });
                 document.getElementById('ctx-feedback-action')?.addEventListener('click', async () => {
                     this.contextMenu!.style.display = 'none';
-                    // Trigger backend analysis
                     await (window as any).pywebview.api.save_current_discussion();
+                });
+                // New Dify Handler
+                document.getElementById('ctx-dify-action')?.addEventListener('click', async () => {
+                    this.contextMenu!.style.display = 'none';
+                    console.log("[UI] Manually triggering Dify...");
+                    // Assuming API method 'trigger_dify_workflow' exists
+                    await (window as any).pywebview.api.trigger_dify_workflow('AI');
                 });
                 document.getElementById('ctx-exit-action')?.addEventListener('click', () => {
                     this.contextMenu!.style.display = 'none';

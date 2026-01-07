@@ -279,3 +279,13 @@ Response Format: JSON
             self.interest_manager.save_topics(topics_list)
             return {"status": "success"}
         return {"status": "error", "message": "InterestManager not initialized"}
+
+    def trigger_dify_workflow(self, tag="AI"):
+        """Frontend Context Menu -> ActiveEngine Dify Trigger"""
+        if hasattr(self, 'active_engine') and self.active_engine:
+            self.log_to_debug(f"🌐 [System] Manual Dify Trigger (Tag: {tag})", 'info')
+            self.active_engine.force_dify_workflow(tag)
+            return {"status": "success"}
+        else:
+            self.log_to_debug("❌ [System] ActiveEngine not linked.", 'error')
+            return {"status": "error", "message": "ActiveEngine missing"}

@@ -26,7 +26,7 @@ class DifyClient:
             self._log("⚠️ Dify API Key is not set.", level="warning")
 
     def _log(self, message: str, level: str = "info"):
-        """内部ログ出力ヘルパー"""
+        """内部ログ出力ヘルパー (Rich Visualization)"""
         # Standard logging
         if level == "error":
             logger.error(message)
@@ -35,10 +35,24 @@ class DifyClient:
         else:
             logger.info(message)
         
-        # UI Callback (System Log)
+        # UI Callback (System Log) with Styled Prefix
         if self.log_callback:
-            # Prefix with [Dify] for visibility
-            self.log_callback(f"[Dify] {message}")
+            # Determine prefix icon based on content
+            icon = ""
+            if "Connecting" in message or "接" in message:
+                icon = "🧠"
+            elif "Successfully" in message or "成功" in message:
+                icon = "✅"
+            elif "Knowledge" in message or "記事" in message or "Received" in message:
+                icon = "💡"
+            elif "Error" in message or "Fail" in message:
+                icon = "❌"
+            else:
+                icon = "ℹ️"
+
+            # Formatted for Console/LogTab
+            formatted_msg = f"[Dify] {icon} {message}"
+            self.log_callback(formatted_msg)
 
     def fetch_note_article(self, tag: str, user_id: str = "soulmate_user") -> Optional[Dict[str, str]]:
         """

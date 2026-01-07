@@ -825,3 +825,16 @@
     - [x] **Hotkey**: グローバルホットキー連携 (`keyboard` + Frontend Sync)
     - [x] **UI**: モダンなホットキー入力 (Recorder) の実装
     - [x] **Feature**: リアルタイム音声認識プレビュー (Intermediate Transcribe)
+
+## フェーズ107: Learned Facts & Active Extensions (v0.4.4) [完了]
+- [x] **Learned Facts (記憶システム)**
+    - [x] **MemoryService**: `learned_facts.yaml` への保存・読み込みロジック実装。
+    - [x] **Async Observer**: 会話ログを非同期に監視し、ユーザーの嗜好（Fact）を抽出する `_check_and_learn_facts` を実装。
+    - [x] **Integration**: メイン会話フロー (`gemini-3`) と分離し、ツールエラー(400)を回避しつつ記憶を実現。
+- [x] **Hotfix & Stability**
+    - [x] **Duplicate Code Fix**: `main.py` の重複メソッドによる `IndentationError` 修正。
+    - [x] **Voice Hotkey Watchdog**: アイドル時に音声入力ホットキーが無効化される問題に対し、定期再登録を行う監視スレッドを実装。
+- [x] **Active Dify Trigger**
+    - [x] **Context Menu UI**: 右クリックメニューに「Dify検索」を追加。
+    - [x] **Settings API**: フロントエンドからのトリガーを受け取り、`ActiveEngine` に指令を出すブリッジを実装。
+    - [x] **Log Visualization**: Difyの動作（接続、検索、完了）をアイコン付きでコンソールに表示。
