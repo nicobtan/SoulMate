@@ -26,7 +26,9 @@
     "proactive_targets": [
         "work",
         "media",
-        "social"
+        "social",
+        "health",
+        "game"
     ],
     "chat_length_mode": "concise",
     "background_path": "C:/Users/NatureBreeze/Pictures/_GD/Gemini_Generated_Image_2ic6lk2ic6lk2ic6.png",

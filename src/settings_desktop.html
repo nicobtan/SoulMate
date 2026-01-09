@@ -682,6 +682,11 @@
                         <input type="checkbox" id="target-health" value="health">
                         Health / Night
                     </label>
+                    <label
+                        style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#333; padding:8px; border-radius:4px;">
+                        <input type="checkbox" id="target-game" value="game">
+                        Game / RPG
+                    </label>
                 </div>
             </div>
         </div>
@@ -1000,8 +1005,9 @@
                 document.getElementById('proactive-silent').checked = currentSettings.proactive_silent_mode || false;
 
                 const targets = currentSettings.proactive_targets || ["work", "media", "health"];
-                ['work', 'media', 'social', 'health'].forEach(t => {
-                    document.getElementById('target-' + t).checked = targets.includes(t);
+                ['work', 'media', 'social', 'health', 'game'].forEach(t => {
+                    const el = document.getElementById('target-' + t);
+                    if (el) el.checked = targets.includes(t);
                 });
 
                 // Check Calendar Status (Mock for now, needs real API check)
@@ -1065,7 +1071,10 @@
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
                 proactive_vision_interval_min: parseInt(document.getElementById('vision-interval').value),
                 proactive_silent_mode: document.getElementById('proactive-silent').checked,
-                proactive_targets: ['work', 'media', 'social', 'health'].filter(t => document.getElementById('target-' + t).checked),
+                proactive_targets: ['work', 'media', 'social', 'health', 'game'].filter(t => {
+                    const el = document.getElementById('target-' + t);
+                    return el && el.checked;
+                }),
                 max_balloons: parseInt(document.getElementById('max-balloons').value),
                 mind_vault_docs_id: document.getElementById('mind-vault-id').value.trim(),
                 audio_input_device_index: document.getElementById('mic-select').value === "" ? null : parseInt(document.getElementById('mic-select').value),

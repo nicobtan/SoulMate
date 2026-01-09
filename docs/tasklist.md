@@ -1,6 +1,6 @@
 # デスクトップマスコット開発 タスクリスト
 
-## フェーズ1: 基本的なウィンドウの構築 [完了]
+## フェーズ1: 基本的なウィンドウの構築 [完了] (2025-12-14)
 - [x] Pythonの仮想環境を構築する
 - [x] `pywebview` ライブラリをインストールする (`pip install pywebview`)
 - [x] `main.py` を作成し、基本的なWebViewウィンドウを表示するコードを記述する
@@ -9,18 +9,18 @@
 - [x] ウィンドウを常に最前面に表示する設定を追加する
 - [x] HTML側（`index.html`）のCSS/JavaScriptで、ウィンドウ全体をドラッグして移動できる機能を実装する
 
-## フェーズ2: キャラクター表示 (静止画Ver) [完了]
+## フェーズ2: キャラクター表示 (静止画Ver) [完了] (2025-12-14)
 - [x] 仮のキャラクター画像 (`images/naya_test.png`) を用意する
 - [x] `src/index.html` を修正し、`naya_test.png` を正しく表示する
 - [x] TypeScriptビルド環境を整備する (`tsconfig.json` の修正)
 
-## フェーズ3: カスタムコンテキストメニューの実装 [完了]
+## フェーズ3: カスタムコンテキストメニューの実装 [完了] (2025-12-14)
 - [x] `src/index.html` に、メニューの元となるHTML要素を記述する
 - [x] CSSでメニューの見た目を整える
 - [x] TypeScript (`src/index.ts`) で右クリックイベントを実装する
 - [x] ビルドを実行し、Python連携して「終了」機能が動くことを確認する
 
-## フェーズ4: Live2Dモデルの表示 [完了]
+## フェーズ4: Live2Dモデルの表示 [完了] (2025-12-14)
 - [x] Live2D Cubism SDK / PixiJS の導入
 - [x] モデルデータの配置 (`dist/models`)
 - [x] `index.ts` でのモデルロードと表示処理の実装
@@ -28,7 +28,7 @@
 
 ---
 
-## フェーズ5: UI拡張 (チャットインターフェース) [完了]
+## フェーズ5: UI拡張 (チャットインターフェース) [完了] (2025-12-14)
 - [x] **レイアウト構築** (HTML/CSS)
     - [x] 画面分割: [キャラ(500x500)] + [チャット]
     - [x] **デザイン調整**:
@@ -52,7 +52,7 @@
 - [ ] **双方向通信**
     - [ ] Python (PyWebView) - JavaScript間の双方向通信 (文字データ受渡)
 
-## フェーズ6: "Brain" の実装 (Gemini API) [完了]
+## フェーズ6: "Brain" の実装 (Gemini API) [完了] (2025-12-14)
 - [x] Gemini APIキーのセキュアな管理 (ConfigManager)
 - [x] チャットボットロジックの実装
     - [x] ユーザー入力の受け取り
@@ -60,7 +60,7 @@
     - [x] APIからの応答取得と表示
     - [x] モデル自動修復機能 (非推奨モデルからの移行)
 
-## フェーズ7: 知能強化 (RAG & ペルソナロジック) [完了]
+## フェーズ7: 知能強化 (RAG & ペルソナロジック) [完了] (2025-12-15)
 - [x] **AIエンジン改修 (`src/ai_engine.py`)**
     - [x] `SoulMateProfile` (TS風) プロンプト構築ロジックの実装
     - [x] 音声用出力制約 ("絵文字/記号禁止", "短文") の適用
@@ -74,7 +74,7 @@
     - [x] `gemini-2.5-flash-preview-tts`: 動作確認済み。
     - [ ] `gemini-2.5-pro-preview-tts` / `lite`: 現時点では404エラー (API未公開またはAllowlist制限の可能性)。
 
-## フェーズ123: 能動的会話のUX改善 [完了]
+## フェーズ123: 能動的会話のUX改善 [完了] (2025-12-15)
 - [x] **サジェスト整合性 (Consistency)**
     - [x] **課題**: Active Engineからの能動的な発言（アイドル時等）には、サジェストが固定の3つしか付与されていなかった。
     - [x] **修正**: `ActiveEngine` の `_trigger_idle_action` にも、通常会話と同じサジェスト生成ロジック（SuggestionEngineによる補完 + Love Slot）を実装。
@@ -84,7 +84,7 @@
     - [x] `chromadb` の統合と検索ロジック
     - [x] 検証（スクリプト実行とロジック確認済み）
 
-## フェーズ7.5: UI改善と可観測性 [完了]
+## フェーズ7.5: UI改善と可観測性 [完了] (2025-12-15)
 - [x] **メイン画面UIのレイアウト変更**
     - [x] **チャットボタン移動**: 画面右下に移動 (緑色)
     - [x] **デバッグログ表示機能**:
@@ -93,7 +93,7 @@
     - [x] **時計表示**: 左下にデザインされた時計を追加 (配置調整済)
     - [x] **ステータスバー**: キャラクター腰付近にAIの状態を表示 (配置調整済)
 
-## フェーズ8: 音声と動き (TTS & Motion) [完了]
+## フェーズ8: 音声と動き (TTS & Motion) [完了] (2025-12-15)
 - [x] **Google Cloud TTS API 導入**
     - [x] ライブラリ導入 (`google-cloud-texttospeech`)
     - [x] 認証情報の設定 (GOOGLE_APPLICATION_CREDENTIALS)
@@ -106,7 +106,7 @@
 - [x] **感情表現モーション**
     - [x] AI応答からの感情タグ検出とLive2Dモーション連携
 
-## フェーズ9: 能動的アクション & ニュース分析 (Active Intellect) [完了]
+## フェーズ9: 能動的アクション & ニュース分析 (Active Intellect) [完了] (2025-12-15)
 - [x] **News Collector (情報収集)**
     - [x] `feedparser` 導入とRSSリスト定義
     - [x] 定期実行スクリプト (バックグラウンド処理) の実装
@@ -118,7 +118,7 @@
     - [x] トリガー発動時、`short_hook` を使ってAIから話しかける処理
     - [x] 詳細解説フロー: ユーザーが興味を示した場合、`summary` を読み上げる分岐処理
 
-## フェーズ9.5: UI/UXの洗練 (Polishing) [完了]
+## フェーズ9.5: UI/UXの洗練 (Polishing) [完了] (2025-12-15)
 - [x] **チャット入力欄の改善**
     - [x] `textarea` 化による複数行入力対応
     - [x] `Shift+Enter` で改行、`Enter` で送信のロジック実装
@@ -132,7 +132,7 @@
     - [x] Lerp (線形補間) によるスムージング処理
     - [x] 感度調整 (RMS Like ロジック)
 
-## フェーズ10: 外部連携 (Googleカレンダー) [完了]
+## フェーズ10: 外部連携 (Googleカレンダー) [完了] (2025-12-15)
 - [x] **ライブラリの導入** (`google-api-python-client` 等)
 - [x] **バックエンド実装** (`src/calendar_manager.py`)
     - [x] OAuth 2.0 認証フロー
@@ -145,7 +145,7 @@
     - [x] ブラウザ起動テスト
     - [x] スケジュール応答テスト
 
-## フェーズ11: ソースコードのリファクタリング [完了]
+## フェーズ11: ソースコードのリファクタリング [完了] (2025-12-15)
 - [x] **モジュール構造化**
     - [x] `src/core`, `src/services`, `src/api` の作成
     - [x] サービスの移動とインポート修正
@@ -153,7 +153,7 @@
     - [x] API Mixinの作成 (`WindowApi`, `SettingsApi`, `ChatApi`)
     - [x] `main.py` の書き換えと Mixin の継承
 
-## フェーズ12: 設定画面の刷新 (システマチックUI) [完了]
+## フェーズ12: 設定画面の刷新 (システマチックUI) [完了] (2025-12-15)
 - [x] **独立ウィンドウ化**
     - [x] モーダルを廃止し `webview.create_window` を使用 (`src/settings.html`)
     - [x] タブ式インターフェース (基本設定, AI, 音声, 連携)
@@ -162,7 +162,7 @@
     - [x] リアルタイムな見た目の更新 (不透明度/フォント)
     - [x] UIへのカレンダー認証統合
 
-## フェーズ13: UI/UX改善 (Suggestion Chips & Active Talk) [完了]
+## フェーズ13: UI/UX改善 (Suggestion Chips & Active Talk) [完了] (2025-12-15)
 - [x] **能動的アクション (Active Talk)**
     - [x] 手動トリガーボタン (✨) 実装
     - [x] 自動発話タイマー (設定スライダー) 実装
@@ -172,7 +172,7 @@
     - [x] AI応答のJSONパースと候補表示
 - [x] **検証済み**
 
-## フェーズ17: リモートアクセス (スマホ対応/Webサーバー化) [完了]
+## フェーズ17: リモートアクセス (スマホ対応/Webサーバー化) [完了] (2025-12-15)
 - [x] **サーバー実装 (`server.py`)** (FastAPI)
     - [x] `pip install fastapi uvicorn python-multipart`
     - [x] REST API構築 (`/api/chat`, `/api/calendar`)
@@ -188,7 +188,7 @@
     - [x] 実機(スマホ)ブラウザからのアクセス (`http://192.168.0.2:8000`)
     - [x] 音声再生の動作確認
 
-## フェーズ18: モバイルUI最適化 (Pixel 7a) [完了]
+## フェーズ18: モバイルUI最適化 (Pixel 7a) [完了] (2025-12-15)
 - [x] **レスポンシブデザイン**
     - [x] Viewport Metaタグの追加
     - [x] モバイル用CSSメディアクエリ (< 768px)
@@ -221,7 +221,7 @@
     - [ ] Gemini Vision (Multimodal) への画像送信
     - [ ] 想い出(長期記憶)の強化とコンテキスト反映
 
-## フェーズ20: ペルソナシステムのリファクタリング (YAML分離) [完了]
+## フェーズ20: ペルソナシステムのリファクタリング (YAML分離) [完了] (2025-12-16)
 *ペルソナ定義（データ）とAIロジック（コード）の完全分離*
 
 - [x] **ファイル構造とデータ**
@@ -237,7 +237,7 @@
     - [x] Settings UI: ペルソナ選択ドロップダウンの実装
     - [x] APIつなぎ込み (`get_persona_list`, `change_persona`)
 
-## フェーズ21: v0.2.0 安定性修正 (Mobile & Desktop) [完了]
+## フェーズ21: v0.2.0 安定性修正 (Mobile & Desktop) [完了] (2025-12-16)
 - [x] **モバイルUI修正**
     - [x] 分割画面レイアウト (2階建て): キャラ(上) + チャット(下)
     - [x] キャラクターのレジューム/リサイズロジック (振動修正)
@@ -247,7 +247,7 @@
     - [x] `get_persona_list` APIメソッド不一致の修正
     - [x] キャラクター拡大/リサイズ安定性の修正 (`internalModel.height` 使用)
 
-## フェーズ22: ソウルバブル（Soul Bubble）システム実装 [完了]
+## フェーズ22: ソウルバブル（Soul Bubble）システム実装 [完了] (2025-12-18)
 - [x] **フロントエンド実装**
     - [x] `src/index.html` への `#soul-bubble` DOM要素追加
     - [x] CSSアニメーション実装 (浮遊, ホバー)
@@ -311,7 +311,7 @@
     - [x] **位置**: 全体的な表示位置の上方修正
     - [x] **スタイル**: アイコンサイズ縮小、非展開時のセンタリング調整
 
-## フェーズ28: 安定性向上とバグ修正 [完了]
+## フェーズ28: 安定性向上とバグ修正 [完了] (2025-12-18)
 - [x] **UIインタラクション修正**
     - [x] システムログパネルのテキスト選択・コピー許可
     - [x] Settings UIのHTML構造エラー修正 (タブレイアウト崩れ)
@@ -320,7 +320,7 @@
 - [x] **AIコンテキストロジック**
     - [x] 時間帯（Morning/Daytime/Night）の明示的なコンテキスト注入
 
-## フェーズ29: Grounding実装 (Google検索連携) [完了]
+## フェーズ29: Grounding実装 (Google検索連携) [完了] (2025-12-18)
 - [x] **ライブラリ更新**
     - [x] `pip install google-genai` (新SDK)
 - [x] **データ & バックエンド**
@@ -343,7 +343,7 @@
 - [x] **アクションのGrounding**
     - [x] バブルクリック時のGoogle検索指示機能
 
-## フェーズ31: プロジェクト構造と記憶基盤 [完了]
+## フェーズ31: プロジェクト構造と記憶基盤 [完了] (2025-12-18)
 - [x] **プロジェクト構造の最適化**
     - [x] `settings/` ディレクトリ作成と設定ファイルの移動
     - [x] パス参照の更新 (`ConfigManager` 等)
@@ -365,7 +365,7 @@
 - [x] **ビジュアル**:
     - [x] ドラッグ時の視覚フィードバック（スケール、Z-Index）
 
-## フェーズ32: ソウルバブル ドラッグ＆ドロップ (詳細化) [完了]
+## フェーズ32: ソウルバブル ドラッグ＆ドロップ (詳細化) [完了] (2025-12-18)
 - [x] **フロントエンド実装**
     - [x] `#trash-zone` 実装
     - [x] `SoulBubble` クラスへのD&Dロジック追加
@@ -377,7 +377,7 @@
 - [x] **検証**
     - [x] ドラッグ、ドロップ削除、削除後の自動補充確認
 
-## フェーズ33: チャット履歴UI [完了]
+## フェーズ33: チャット履歴UI [完了] (2025-12-20)
 - [x] **バックエンド実装**
     - [x] `get_history(limit)` APIの実装
     - [x] `/api/history` エンドポイント
@@ -400,7 +400,7 @@
 - [x] **検証**
     - [x] 再生制御（停止、速度変更）確認
 
-## フェーズ35: セッション復元 (会話再開) [完了]
+## フェーズ35: セッション復元 (会話再開) [完了] (2025-12-20)
 - [x] **バックエンド実装**
     - [x] `src/services/history_manager.py`: `chat_history.jsonl` 読み込みロジック (直近30件)
     - [x] `/api/history/restore` エンドポイント
@@ -420,7 +420,7 @@
     - [x] キャラクターエリアの固定サイズ化 (500px, 縮小防止)
     - [x] ゴミ箱ゾーンの位置調整
 
-## フェーズ37: 視覚機能統合 & プロンプト修正 (Desktop) [完了]
+## フェーズ37: 視覚機能統合 & プロンプト修正 (Desktop) [完了] (2025-12-21)
 - [x] **視覚機能の実装 (Vision)**
     - [x] Backend (`server.py`): `chat_with_vision(mode)` 実装 (`PIL.ImageGrab`)
     - [x] Frontend: カメラボタンのロジック実装 (左=画面, 右=クリップボード)
@@ -428,7 +428,7 @@
 - [x] **AI人格プロンプトの修正**
     - [x] System Prompt: "簡潔に" 制約の緩和（詳細な応答を許可）
 
-## フェーズ38: 視覚機能デバッグ & UI調整 (Desktop) [完了]
+## フェーズ38: 視覚機能デバッグ & UI調整 (Desktop) [完了] (2025-12-21)
 - [x] **Visionモード修正 (競合解消)**
     - [x] `ai_engine.py`: `generate_response` ロジックリファクタリング
     - [x] **ステートレスリクエスト**: 画像入力時は `generate_content` (Toolsなし) を使用
@@ -560,7 +560,7 @@
 - [x] **依存関係の修復**
     - [x] `src/services/resource_manager.py` の再作成 (ロールバックで消失していたファイルの復元)
 
-## フェーズ67: Native JSON版リリース (v0.3) [完了]
+## フェーズ67: Native JSON版リリース (v0.3) [完了] (2025-12-21)
 - [x] **バージョン管理**
     - [x] Git Commit & Push ("v0.3 Native JSON 導入版")
 
@@ -572,11 +572,11 @@
     - [x] クリップボードが空の場合、「Win+Shift+S」の使用を促すヒントメッセージを表示
     - [x] プレビューAPI (`take_screenshot_for_preview`) の `mode` 対応
 
-## フェーズ69: Vision機能リリース [完了]
+## フェーズ69: Vision機能リリース [完了] (2025-12-21)
 - [x] **バージョン管理**
     - [x] Git Commit & Push ("Vision機能実装完了")
 
-## フェーズ70: MindVault Sync (Docs連携) [完了]
+## フェーズ70: MindVault Sync (Docs連携) [完了] (2025-12-22)
 - [x] **Google Docs 認証基盤**
     - [x] `services/google_auth_manager.py`: Docs API Scope の追加
 - [x] **同期ロジック実装 (`docs_memory_sync.py`)**
@@ -592,7 +592,7 @@
     - [x] 認証フロー確認
     - [x] 同期・アーカイブ動作確認
 
-## フェーズ71: Conversation Chaos & Serendipity (v0.3.1) [完了]
+## フェーズ71: Conversation Chaos & Serendipity (v0.3.1) [完了] (2025-12-23)
 - [x] **Topic Selectorの実装**
     - [x] `search_topics.yaml` と「カオス（未知のトピック）」を混ぜて提案するロジック
     - [x] Topic Selection Strategy (Comfort 70% / Chaos 30%)
@@ -600,7 +600,7 @@
     - [x] 初期バルーン (Startup/Idle) へのランダムトピック注入
     - [x] 会話サジェスト (Suggestions) への「💡 未知のトピック」強制注入
 
-## フェーズ72: Reliability Fixes (UrlValidator & Anti-Nagging) [完了]
+## フェーズ72: Reliability Fixes (UrlValidator & Anti-Nagging) [完了] (2025-12-23)
 - [x] **URL Hallucination対策**
     - [x] `UrlValidator`: Pythonによる死活監視（Dead Link Pruning）実装
     - [x] System Prompt: "No Guessing", "Grounding Only" の厳格化
@@ -608,13 +608,13 @@
     - [x] System Prompt: 深夜の健康気遣いを「最初の1回」に制限
     - [x] System Prompt: 知的トピック優先（Context Priority）ルールの追加
 
-## フェーズ73: Observability & Logging (RAG Visibility) [完了]
+## フェーズ73: Observability & Logging (RAG Visibility) [完了] (2025-12-24)
 - [x] **RAG/Grounding ログの可視化**
     - [x] **Backend**: `ai_engine.py` (Grounding Info) と `memory_manager.py` (RAG Hit) にログ出力ロジック追加
     - [x] **Frontend**: `log_manager.ts` を修正し、`sys`, `rag`, `mind` タブへの振り分けロジックを確立
     - [x] **Bug Fix**: Python-JS間の引数順序不一致 (`log_to_debug`) を修正
 
-## フェーズ74: Emotional Balance (Guaranteed Love Slot) [完了]
+## フェーズ74: Emotional Balance (Guaranteed Love Slot) [完了] (2025-12-25)
 - [x] **愛の強制枠 (Love Slot)**
     - [x] `AffectionManager`: 甘え・癒やし系アクションの管理クラス作成
     - [x] `ChatApiMixin`: 会話サジェスト処理にて、感情的要素が不足している場合に強制注入するロジック実装
@@ -623,7 +623,7 @@
     - [x] `search_topics.yaml`: カテゴリ分け（技術、歴史、科学、癒やし）と日本語化を実施
     - [x] `InterestManager`: 階層構造化されたYAMLの読み込み（フラット化）に対応
 
-## フェーズ75: Log Visualization 2.0 & Persona Refinement [完了]
+## フェーズ75: Log Visualization 2.0 & Persona Refinement [完了] (2025-12-25)
 - [x] **ログ可視化の強化 (Unified Logs)**
     - [x] **Mind Logs**: `[Mind]` タグによる思考プロセスの可視化とALLタブへの統合
     - [x] **Vision Logs**: `[Vision]` タグによる視覚認識情報のログ出力
@@ -639,19 +639,19 @@
 - [x] **Vision Log Specifics**: 視覚認識時に「何（オブジェクト/テキスト）」を見たか具体的にログ出力
 - [x] **RAG Log Context**: 記憶想起時に「いつの会話か」のタイムスタンプ/コンテキストを表示 (MemoryManager確認要)
 
-## フェーズ83: Proactive L1 Research (Local Vision & Environment) [完了]
+## フェーズ83: Proactive L1 Research (Local Vision & Environment) [完了] (2025-12-26)
 - [x] **環境構築 (Environment)**
     - [x] **Python 3.12**: GPU版 PyTorch (PaliGemma) 対応のため、3.13からダウングレード。
     - [x] **PyTorch Nightly**: RTX 5060 Ti (sm_120) 対応のため導入。
 - [x] **ローカル視覚機能 (Local Vision)**
     - [x] `test_vision.py` 作成: PaliGemmaモデルのロードとCPU推論確認 (GPUはドライバ待ち)。
 
-## フェーズ84: RTX 50 Series Support (PyTorch 2.7) [完了]
+## フェーズ84: RTX 50 Series Support (PyTorch 2.7) [完了] (2025-12-26)
 - [x] **Infrastructure**: Install PyTorch 2.7 Stable (via pip)
 - [x] **Verification**: Verify CUDA availability for sm_120 (Seals Broken)
 - [x] **Optimization**: Enable GPU inference in `vision_service.py`
 
-## フェーズ85: Proactive Mode Settings UI [完了]
+## フェーズ85: Proactive Mode Settings UI [完了] (2025-12-27)
 - [x] **Config**: Add `proactive_vision_interval_min` to `config_manager.py`
 - [x] **UI**: Add "Proactive" tab to `settings.html`
     - [x] Add Interval Slider (1-60 min)
@@ -659,7 +659,7 @@
 - [x] **Backend**: Update `ActiveEngine` to respect config
     - [x] Dynamic update of `vision_interval` via `configure()`
 
-## フェーズ86: Advanced Proactive Settings (Silent & Filters) [完了]
+## フェーズ86: Advanced Proactive Settings (Silent & Filters) [完了] (2025-12-27)
 - [x] **Config**: Add `proactive_silent_mode` and `proactive_targets` defaults
 - [x] **UI**: Add controls to `settings.html`
     - [x] Silent Mode Checkbox
@@ -737,7 +737,7 @@
 - [x] **Doc**: `src/api/chat_api.py` (Chat Logic).
 
 
-## フェーズ99: UI/UX改善 (モバイル分離 & 文章量設定) [完了]
+## フェーズ99: UI/UX改善 (モバイル分離 & 文章量設定) [完了] (2025-12-31)
 - [x] **モバイルUI厳格化**
     - [x] CSSスコープ分離: `mobile.css` を `body.mobile-mode` に限定し、デスクトップへの干渉を排除。
     - [x] モーダル制御: デスクトップでモバイル用モーダルが表示されないよう `display: none !important` を徹底。
@@ -749,7 +749,7 @@
     - [x] **Frontend (Desktop)**: `settings.html` に設定プルダウン追加。
     - [x] **Frontend (Mobile)**: `index.html` 設定モーダルに追加。
 
-## フェーズ100: Web音声再生対応 (Mobile Integration) [完了]
+## フェーズ100: Web音声再生対応 (Mobile Integration) [完了] (2025-12-31)
 - [x] **AudioManager拡張 (`src/services/audio_manager.ts`)**
     - [x] **キューイング実装**: 音声の連続再生用Queueシステムの導入。
     - [x] **Base64対応**: `data:audio/*` 形式の再生サポート（URL再生と両立）。
@@ -760,7 +760,7 @@
 - [x] **Backend方針**
     - [x] 既存のREST API (URL返却) を維持し、Frontend側で堅牢に再生する方針を採用（`voice_service.py` は変更不要）。
 
-## フェーズ101: Gemini 3.0 & Stability Support (New Year Update) [完了]
+## フェーズ101: Gemini 3.0 & Stability Support (New Year Update) [完了] (2026-01-02)
 - [x] **Gemini 3.0 Pro/Flash Preview 対応**
     - [x] **Desktop Fix**: `main.py` でのモデル名自動マイグレーション (`gemini-3.0` -> `gemini-3`) 実装。設定ファイルが古くても起動時に修正。
     - [x] **Server Fix**: `server.py` での設定ロード時の同上マイグレーション実装。
@@ -771,7 +771,7 @@
 - [x] **Stability**
     - [x] **Socket.IO Reliability**: Web/Server間での音声転送 (`Active Message`) におけるSocket接続の堅牢性向上。
 
-## フェーズ102: Desktop Portrait Layout (450x700) [完了]
+## フェーズ102: Desktop Portrait Layout (450x700) [完了] (2026-01-02)
 - [x] **縦長レイアウト化 (Portrait Mode)**
     - [x] **CSS**: `#character-area` を 450x700 に変更し、サイドパネルも 400x700 に合わせて調整。
     - [x] **Python**: `main.py` の初期ウィンドウサイズを 450x700 に更新。
@@ -779,7 +779,7 @@
     - [x] **Mobile Safety**: `mobile.css` の独立性を確認済み（影響なし）。
 
 
-## フェーズ103: Startup Persistence & Background Support (v0.4.1) [完了]
+## フェーズ103: Startup Persistence & Background Support (v0.4.1) [完了] (2026-01-03)
 - [x] **背景カスタマイズ機能**
     - [x] **HTML/CSS**: `#background-layer` (z-index 0) の実装。
     - [x] **Settings UI**: `settings_desktop.html` への画像パス入力・参照ボタン追加。
@@ -789,7 +789,7 @@
     - [x] **Enhancement**: `on_window_loaded` に1秒遅延の再配置ロジックを追加し、OS/レンダラーの初期化ズレを吸収。
     - [x] **Stability**: デスクトップモードでの `SocketClient` 自動切断（404エラー回避）。
 
-## フェーズ104: Mobile UI Polish & Suggestion Stability (v0.4.2) [完了]
+## フェーズ104: Mobile UI Polish & Suggestion Stability (v0.4.2) [完了] (2026-01-03)
 - [x] **サジェスト安定化 (Suggestion Logic Fix)**
     - [x] **Server Logic**: `server.py` の `chat` メソッドに、AI生成数が不足している場合の自動補填ロジック(Padding)を実装。常に10個のサジェストを保証。
     - [x] **Redundancy**: 固定サジェスト（詳細/話題変更）とランダムトピック（フィラー）による空白埋め処理の追加。
@@ -800,7 +800,7 @@
 - [x] **レイアウト修正**
 - [x] **Regression Fix**: キャラクター表示の100%スケール維持と背景透過の再確認。
 
-## フェーズ105: Dify連携 & デスクトップ安定化 (v0.4.3) [完了]
+## フェーズ105: Dify連携 & デスクトップ安定化 (v0.4.3) [完了] (2026-01-04)
 - [x] **Dify連携基盤 (Dify Integration)**
     - [x] **Client**: `src/services/dify_client.py` クラスの作成 (Dify Workflow API連携)。
     - [x] **Error Handling**: API接続エラー時のレスポンス詳細出力と、接続失敗時のグレースフルハンドリング。
@@ -813,7 +813,7 @@
     - [x] **Cause**: PyWebview注入前の `SocketClient` 初期化による競合(Race Condition)。
     - [x] **Fix**: `main.py` の `on_window_loaded` イベント発火まで接続を遅延させることで解決。
 
-## フェーズ106: Voice Input Implementation (Desktop) [作業中]
+## フェーズ106: Voice Input Implementation (Desktop) [作業中] (2026-01-05)
 - [x] **Backend Implementation**
     - [x] **Dependencies**: `faster-whisper`, `pyaudio` の導入
     - [x] **Service**: `src/services/voice_input_manager.py` 作成 (Whisper Loading, PyAudio Recording)
@@ -826,7 +826,7 @@
     - [x] **UI**: モダンなホットキー入力 (Recorder) の実装
     - [x] **Feature**: リアルタイム音声認識プレビュー (Intermediate Transcribe)
 
-## フェーズ107: Learned Facts & Active Extensions (v0.4.4) [完了]
+## フェーズ107: Learned Facts & Active Extensions (v0.4.4) [完了] (2026-01-07)
 - [x] **Learned Facts (記憶システム)**
     - [x] **MemoryService**: `learned_facts.yaml` への保存・読み込みロジック実装。
     - [x] **Async Observer**: 会話ログを非同期に監視し、ユーザーの嗜好（Fact）を抽出する `_check_and_learn_facts` を実装。
@@ -839,18 +839,30 @@
     - [x] **Settings API**: フロントエンドからのトリガーを受け取り、`ActiveEngine` に指令を出すブリッジを実装。
     - [x] **Log Visualization**: Difyの動作（接続、検索、完了）をアイコン付きでコンソールに表示。
 
-## フェーズ108: Dynamic Voice Input & Models Config (v0.4.5) [完了]
+## フェーズ108: Dynamic Voice Input & Models Config (v0.4.5) [完了] (2026-01-07)
 - [x] **Dynamic Whisper Model Selection**: 設定画面から音声認識モデル(`tiny`, `base`, `small`, `medium`, `large-v3`)を選択・変更可能に。
 - [x] **Memory Management**: モデル切り替え時にVRAM/RAMを適切に解放・再確保するロジックを実装。
 - [x] **Accuracy Tuning**: 日本語認識精度向上のため `initial_prompt` と `VAD` フィルタを最適化。
 - [x] **Documentation**: `docs/models_info.md` の整備。
 
-## フェーズ109: Robust Base (Polling Hotkey) [完了]
+## フェーズ109: Robust Base (Polling Hotkey) [完了] (2026-01-08)
 - [x] **Polling Hotkey**: 音声入力のホットキー監視をフック方式(`keyboard`)からポーリング方式(`GetAsyncKeyState`)へ刷新。
 - [x] **WinAPI Integration**: `ctypes` を使用してキー状態を直接監視し、OSによるフック解除（無効化）問題を根本解決。
 - [x] **Stability**: 長時間放置後も確実にホットキーが機能することを保証。
 
-## フェーズ110: ドキュメント整備とビルド修正 (v0.4.6) [完了]
+## フェーズ110: ドキュメント整備とビルド修正 (v0.4.6) [完了] (2026-01-09)
 - [x] **コマンド一覧**: `docs/commands.md` の作成（起動、ビルド、更新コマンドの集約）。
-- [x] **ビルド修正**: `tsconfig.json` に `include: ["src/**/*"]` を追加し、`sbv2` フォルダの誤検知によるビルドエラーを修正。
+## フェーズ111: Vision System Refactor & Proactive Game Mode (v0.5.0) [完了] (2026-01-10)
+- [x] **Vision Service Refactor**
+    - [x] **SDK Update**: `VisionService` を `google-generativeai` (old) から `google-genai` (new SDK) に完全移行。
+    - [x] **Model Update**: 視覚モデルを `gemini-2.5-flash-lite` に刷新し、処理速度とコストを最適化。
+    - [x] **Robustness**: `.env` 読み込みロジックを `pathlib` を使用した絶対パス解決に変更し、「Key Not Found」エラーを根絶。
+- [x] **Proactive Vision 'Game' Mode**
+    - [x] **Category Expansion**: `ActiveEngine` の監視対象に `Game` カテゴリを追加。
+    - [x] **Prompt Engineering**: ゲーム画面認識用の専用プロンプト（状況・戦況の実況）を実装。
+    - [x] **UI Update**: `settings_desktop.html` に「Game / RPG」チェックボックスを追加し、ターゲット設定を可能に。
+- [x] **Debug Visibility**
+    - [x] **Image Logging**: キャプチャ画像を `dist/debug/latest_vision.jpg` および `history` フォルダに保存する機能を強化。
+    - [x] **Secure Logging**: API Keyのロード状態を安全にログ出力するロジックを追加。
+
 

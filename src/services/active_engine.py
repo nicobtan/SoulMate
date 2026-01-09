@@ -36,7 +36,13 @@ class ActiveEngine:
         self.last_vision_time = time.time()
         self.scan_lock = threading.Lock() # Prevent concurrent scans
         self.proactive_silent_mode = False
-        self.scan_targets = ["work", "media", "social", "health"]
+        # Default Proactive Settings
+        # work: Code, IDE
+        # media: YouTube, Music
+        # social: SNS, Chat
+        # health: Late night checks
+        # game: Gaming (New)
+        self.scan_targets = ['work', 'media', 'social', 'health', 'game']
 
     def set_bubble_service(self, service):
         """ dependency injection setter """
@@ -91,6 +97,15 @@ class ActiveEngine:
                 )
                 logger.info("ActiveEngine: DifyClient initialized.")
             
+            # --- Vision Service Init (Inject Key from Config) ---
+            api_key = settings.get('api_key')
+            if api_key:
+                vision_service.configure(api_key)
+                logger.info("ActiveEngine: VisionService Configured with API Key.")
+            else:
+                logger.warning("ActiveEngine: No API Key found for VisionService.")
+            # ----------------------------------------------------
+
         except Exception as e:
             logger.error(f"Failed to configure ActiveEngine: {e}")
 
@@ -306,6 +321,8 @@ OUTPUT MUST BE IN JAPANESE.
 
 work: Coding, IDE, Debugging.
 
+game: Playing games, RPG, FPS, Steam, Unity, Unreal.
+
 media: YouTube, Music, Video.
 
 social: Chat, Discord, SNS.
@@ -377,9 +394,20 @@ NOTE: If vision report mentions "Adobe Media Encoder" or "CS6", it is likely a h
             
             # ... (using the code block below)
 
+            # 4. Determine Category
             action_cmd = result.get('action_command', '').lower()
             category = 'other'
-            if 'category:work' in action_cmd or 'work' in action_cmd: category = 'work'
+            
+            # Priority 0: Force Game from Vision Keywords (User Request)
+            vision_lower = vision_text.lower()
+            game_keywords = ['game', 'play', 'rpg', 'fps', 'steam', 'arknights', 'unity', 'unreal', 'minecraft', 'apex']
+            if any(k in vision_lower for k in game_keywords):
+                category = 'game'
+                logger.info("👁️ [Proactive] Force Category: 'game' (Keyword detected)")
+            
+            # Priority 1: AI Decision
+            elif 'category:game' in action_cmd or 'game' in action_cmd: category = 'game'
+            elif 'category:work' in action_cmd or 'work' in action_cmd: category = 'work'
             elif 'category:media' in action_cmd or 'media' in action_cmd: category = 'media'
             elif 'category:social' in action_cmd or 'social' in action_cmd: category = 'social'
             elif 'category:health' in action_cmd or 'health' in action_cmd: category = 'health'

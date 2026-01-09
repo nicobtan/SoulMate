@@ -1,10 +1,31 @@
-import torch
-from PIL import Image
-from transformers import AutoProcessor, PaliGemmaForConditionalGeneration
-import threading
+import os
+import time
 import logging
+from PIL import Image
+import threading
+import io
+import traceback
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Google GenAI SDK
+from google import genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
+
+# --- Robust Environment Loading (Absolute Path) ---
+try:
+    # src/services/vision_service.py -> src/services -> src -> root -> .env
+    env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+    else:
+        # Fallback to default
+        load_dotenv()
+except Exception:
+    pass
+# --------------------------------------------------
 
 class VisionService:
     _instance = None
@@ -23,109 +44,139 @@ class VisionService:
             return
         
         # Configuration
-        self.model_id = "google/paligemma-3b-mix-224" 
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.dtype = torch.float16 if self.device == "cuda" else torch.float32
+        self.model_name = "gemini-2.5-flash-lite" 
+        self.client = None
         
-        # Fallback tracking
-        self.fallback_cpu_triggered = False
-
-        self.model = None
-        self.processor = None
-        self.is_loading = False
+        # 1. Try to get key from environment (Explicit Loading)
+        self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        
         self._initialized = True
-        self.log_callback = None # Callback for frontend logging
+        self.log_callback = None
+        
+        # Debug Logging (Critical) as requested
+        found_status = 'Found' if self.api_key else 'Missing'
+        path_str = str(env_path) if 'env_path' in globals() else "Unknown"
+        logger.info(f"🔑 [Vision] API Key Status: {found_status} (Path: {path_str})")
+
+        # Attempt auto-initialization if key exists
+        if self.api_key:
+            self.configure(self.api_key)
+        else:
+            logger.error("❌ [Vision] API Key not found in environment. Please check .env file.")
 
     def set_log_callback(self, callback):
         self.log_callback = callback
 
-    def _send_log(self, message, type='info'):
+    def _log(self, message, type='vision'):
         if self.log_callback:
             self.log_callback(message, type=type)
+        logger.info(message)
 
-    def load_model(self):
-        """Loads the model (Heavy operation, done on first access)"""
-        if self.model is not None:
+    def configure(self, api_key):
+        """Called by ConfigManager or Main to set API Key manually."""
+        if not api_key:
             return
-
-        self.is_loading = True
-        logger.info(f"👁️ [Vision] Loading PaliGemma model on {self.device} ({self.dtype})...")
-        
+            
+        self.api_key = api_key
         try:
-            self.processor = AutoProcessor.from_pretrained(self.model_id)
-            self.model = PaliGemmaForConditionalGeneration.from_pretrained(
-                self.model_id,
-                torch_dtype=self.dtype,
-                device_map=self.device,
-                revision="bfloat16", 
-            ).eval()
-            
-            
-            logger.info("👁️ [Vision] Model Loaded Successfully!")
-            device_msg = f"🔮 [System] Current Device: {self.model.device}"
-            logger.info(device_msg)
-            self._send_log(device_msg, type='info') 
+            self.client = genai.Client(api_key=self.api_key)
+            self._log(f"👁️ [Vision] Client Initialized ({self.model_name})")
         except Exception as e:
-            logger.error(f"👁️ [Vision] Load Failed on {self.device}: {e}")
+            logger.error(f"Vision Client Init Error: {e}")
+            self._log(f"❌ [Vision] Client Init Failed: {e}", 'error')
+
+    def analyze_image(self, image: Image.Image, prompt: str = ""):
+        """
+        Analyzes the image using Gemini 2.5 Flash Lite.
+        """
+        # Guard Clause: Client Logic
+        if not self.client:
+            # Try lazy init one last time
+            if self.api_key:
+                 self.configure(self.api_key)
             
-            if self.device == "cuda":
-                logger.warning("⚠️ [Vision] Falling back to CPU...")
-                self.device = "cpu"
-                self.dtype = torch.float32
-                self.fallback_cpu_triggered = True
-                
-                # Retry Load on CPU
-                try:
-                    self.model = PaliGemmaForConditionalGeneration.from_pretrained(
-                        self.model_id,
-                        torch_dtype=self.dtype,
-                        device_map=self.device,
-                        revision="bfloat16", 
-                    ).eval()
-                    logger.info("👁️ [Vision] Fallback to CPU Successful!")
-                except Exception as e2:
-                    logger.error(f"👁️ [Vision] CPU Fallback Failed: {e2}")
-                    raise e2
-            else:
-                raise e
-        finally:
-            self.is_loading = False
+            if not self.client:
+                 msg = "Vision API Client not ready (No API Key or Init Failed)."
+                 logger.error(msg)
+                 return msg
 
-    def analyze_image(self, image: Image.Image, prompt: str = "caption en"):
-        """Analyzes image and returns caption (English)"""
-        if self.model is None:
-            self.load_model()
-
-        logger.info(f"👁️ [Vision] Analyzing image... (Prompt: {prompt})")
-        
         try:
-            # Preprocessing
-            # Note: PaliGemma expects specific input formatting handled by processor
-            model_inputs = self.processor(text=prompt, images=image, return_tensors="pt").to(self.device)
-            input_len = model_inputs["input_ids"].shape[-1]
+            # --- Debug: Save Image to Disk ---
+            try:
+                import datetime
+                debug_dir = os.path.join(os.getcwd(), 'dist', 'debug')
+                history_dir = os.path.join(debug_dir, 'history')
+                os.makedirs(history_dir, exist_ok=True)
+                
+                # Save Latest
+                latest_path = os.path.join(debug_dir, 'latest_vision.jpg')
+                if image.mode != 'RGB':
+                    image = image.convert('RGB')
+                image.save(latest_path, quality=85)
+                
+                # Save History
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                history_path = os.path.join(history_dir, f"{timestamp}.jpg")
+                image.save(history_path, quality=85)
+                
+                self._log(f"📸 [Vision] Image captured: {timestamp}")
+            except Exception as e:
+                logger.error(f"Failed to save debug image: {e}")
+            # ---------------------------------
 
-            # Inference (Slow on CPU)
-            with torch.inference_mode():
-                generation = self.model.generate(
-                    **model_inputs, 
-                    max_new_tokens=100, 
-                    do_sample=False
+            window_title = prompt if prompt else "Unknown Window"
+            self._log(f"👁️ [Vision] Analyzing '{window_title}'...")
+
+            # Convert PIL Image to Bytes
+            img_byte_arr = io.BytesIO()
+            image.save(img_byte_arr, format='JPEG')
+            img_bytes = img_byte_arr.getvalue()
+
+            # Construct Prompt
+            system_instruction = """
+You are the visual cortex of 'SoulMate', an AI desktop partner.
+Your task is to analyze the user's screen and describe it for the conversational AI.
+Output MUST be in Japanese.
+"""
+            user_prompt = f"""
+ユーザーはPCで '{window_title}' というウィンドウを見ています。
+この画面の状況（ゲームならその内容や戦況、作業なら進捗など）を視覚的に解説し、
+パートナーとして話しかけるための短いコメント（感想やツッコミ）を出力してください。
+返答は日本語で、"Yes/No"ではなく具体的な内容を含めてください。
+GAMEPLAY NOTE: If this is a game, explain what is happening in the game scene.
+"""
+
+            start_time = time.time()
+            
+            # API Call
+            image_part = types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg")
+            
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[image_part, user_prompt],
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.7,
+                    max_output_tokens=300
                 )
-                generation = generation[0][input_len:]
-                decoded = self.processor.decode(generation, skip_special_tokens=True)
-                
-            # Retry with fallback prompt if unanswerable
-            if "unanswerable" in decoded.lower() and prompt == "caption en":
-                logger.warning("👁️ [Vision] Result 'unanswerable'. Retrying with 'describe'...")
-                return self.analyze_image(image, prompt="describe the details")
-                
-            logger.info(f"👁️ [Vision] Result: {decoded}")
-            return decoded
+            )
+            elapsed = time.time() - start_time
+
+            result_text = response.text.strip() if response.text else "No response"
+            
+            # Logging
+            log_text = result_text.replace('\n', ' ')
+            if len(log_text) > 100: log_text = log_text[:100] + "..."
+            
+            self._log(f"👁️ [Vision] Result ({elapsed:.2f}s): {log_text}")
+            return result_text
 
         except Exception as e:
-            logger.error(f"👁️ [Vision] Inference Error: {e}")
-            # Fallback or robust error handling could be added here
-            return "Error parsing image"
+            logger.error(f"Analysis Error: {e}")
+            self._log(f"❌ [Vision] Error: {e}", 'error')
+            traceback.print_exc()
+            return f"Error: {str(e)}"
 
 # Singleton Instance
 vision_service = VisionService()
+
