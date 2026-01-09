@@ -294,10 +294,14 @@ window.addEventListener('pywebviewready', async () => {
     }
 });
 
-// --- Vision Target Drag Logic ---
+// --- Vision Target Logic (Drag & Check) ---
 const targetDragBtn = document.getElementById('vision-target-drag-btn');
 if (targetDragBtn) {
+    // Left Click (Hold): Start Drag Session
     targetDragBtn.addEventListener('mousedown', async (e) => {
+        // Only trigger on Left Click (button 0)
+        if (e.button !== 0) return;
+
         e.preventDefault();
         LogManager.getInstance().log("Vision Target Drag Started...", 'info', 'vision');
 
@@ -306,6 +310,22 @@ if (targetDragBtn) {
 
         // Notify Backend to start monitoring
         await api.start_target_drag();
+    });
+
+    // Right Click: Debug Vision Image
+    targetDragBtn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const modal = document.getElementById('vision-debug-modal');
+        const img = document.getElementById('vision-debug-image') as HTMLImageElement;
+
+        if (modal && img) {
+            // Bust cache with timestamp to force reload
+            const timestamp = new Date().getTime();
+            img.src = `debug/latest_vision.jpg?t=${timestamp}`;
+            modal.style.display = 'flex';
+        }
     });
 
     // Reset cursor on mouse up (globally)

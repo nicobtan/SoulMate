@@ -92,10 +92,14 @@
 
         </div>
 
-        <!-- Frame A: Character Area (Fixed 500x500) -->
-        <div id="character-area" class="pywebview-drag-region">
-            <canvas id="live2d"></canvas>
+        <!-- Frame A: Character Window (Transparent) -->
+        <div id="character-area">
+            <!-- Top 20% Drag Handle -->
+            <div class="window-drag-handle pywebview-drag-region" title="Drag Window Here"></div>
 
+            <div id="live2d-container">
+                <canvas id="live2d"></canvas>
+            </div>
             <!-- Trash Zone (Moved here to stay on character layer) -->
             <div id="trash-zone">
                 <span class="icon">🗑️</span>
@@ -147,6 +151,9 @@
 
             <!-- 7. Expression Random Button (New) -->
             <button id="expression-test-btn" title="Change Expression">🎭</button>
+
+            <!-- 8. Vision Target Drag Button (Moved here) -->
+            <button id="vision-target-drag-btn" title="Drag to Lock Target (D&D)" style="cursor: grab;">🎯</button>
         </div>
 
         <!-- Frame B: Chat Panel (Side by Side) -->
@@ -190,8 +197,6 @@
                 <div class="input-actions">
                     <button id="suggestion-toggle-btn" title="AI Suggestions">💡</button>
                     <button id="vision-btn" title="Vision">📷</button>
-                    <button id="vision-target-drag-btn" title="Drag to Lock Target (D&D)"
-                        style="cursor: grab;">🎯</button>
                 </div>
                 <div id="suggestion-popup"></div>
 

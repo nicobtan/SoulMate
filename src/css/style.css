@@ -53,10 +53,27 @@ body {
     position: relative;
     background: rgba(0, 0, 0, 0);
     overflow: visible;
+    z-index: 100;
+    /* Disable drag on whole area, but ENABLE pointer events (clicks) */
+    -webkit-app-region: no-drag;
+    cursor: default;
+    pointer-events: auto;
+    /* Layer 2: Character */
+}
+
+/* TOP 20% Drag Handle */
+.window-drag-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 20%;
+    -webkit-app-region: drag;
     cursor: move;
     pointer-events: auto;
-    z-index: 100;
-    /* Layer 2: Character */
+    z-index: 200;
+    /* FIX: Transparent elements are ignored by hit-test. Use non-zero alpha. */
+    background: rgba(0, 0, 0, 0.01);
 }
 
 #background-layer {
@@ -654,71 +671,12 @@ body {
 #debug-btn,
 #history-btn,
 #spawn-balloon-btn,
-#force-talk-btn {
+#force-talk-btn,
+#expression-test-btn,
+#vision-target-drag-btn {
     position: absolute;
-    width: 50px;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    border: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    z-index: 5000;
-    transition: all 0.3s;
-    font-size: 24px;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-}
-
-#chat-toggle-btn {
-    bottom: 80px;
-    right: 10px;
-    background: rgba(40, 167, 69, 0.8);
-}
-
-#debug-btn {
-    bottom: 20px;
-    right: 10px;
-    background: rgba(255, 255, 0, 0.2);
-    color: #ff0;
-}
-
-#history-btn {
-    bottom: 20px;
-    right: 70px;
-    background: rgba(0, 255, 255, 0.2);
-    color: #0ff;
-}
-
-#spawn-balloon-btn {
-    bottom: 20px;
-    right: 130px;
-    background: rgba(255, 165, 0, 0.8);
-    /* Orange */
-    color: #fff;
-}
-
-#force-talk-btn {
-    bottom: 140px;
-    right: 10px;
-    background: rgba(255, 105, 180, 0.8);
-}
-
-#chat-toggle-btn:hover,
-#debug-btn:hover,
-#history-btn:hover,
-#spawn-balloon-btn:hover,
-#force-talk-btn:hover,
-#expression-test-btn:hover {
-    transform: scale(1.1);
-}
-
-#expression-test-btn {
-    position: absolute;
-    bottom: 80px;
-    left: 20px;
     width: 40px;
+    /* Resize from 50px */
     height: 40px;
     border-radius: 50%;
     border: none;
@@ -729,10 +687,75 @@ body {
     z-index: 5000;
     transition: all 0.3s;
     font-size: 20px;
+    /* Resize font from 24px */
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-    background: rgba(147, 112, 219, 0.6);
-    /* Purple Tint */
+}
+
+/* Right Stack (From Bottom Up) */
+#vision-target-drag-btn {
+    bottom: 15px;
+    right: 15px;
+    background: rgba(255, 68, 68, 0.8);
+    /* Red Target */
     color: white;
+}
+
+#chat-toggle-btn {
+    bottom: 65px;
+    right: 15px;
+    background: rgba(40, 167, 69, 0.8);
+    color: white;
+}
+
+#force-talk-btn {
+    bottom: 115px;
+    right: 15px;
+    background: rgba(255, 105, 180, 0.8);
+    color: white;
+}
+
+#spawn-balloon-btn {
+    bottom: 165px;
+    right: 15px;
+    background: rgba(255, 165, 0, 0.8);
+    color: white;
+}
+
+/* Bottom Row (Left to Right from Right Stack) */
+#history-btn {
+    bottom: 15px;
+    right: 65px;
+    /* Next to Target */
+    background: rgba(0, 255, 255, 0.2);
+    color: #0ff;
+}
+
+#debug-btn {
+    bottom: 15px;
+    right: 115px;
+    /* Next to History */
+    background: rgba(255, 255, 0, 0.2);
+    color: #ff0;
+}
+
+/* Left Stack */
+#expression-test-btn {
+    position: absolute;
+    bottom: 60px;
+    /* Above Clock */
+    left: 15px;
+    background: rgba(147, 112, 219, 0.6);
+    color: white;
+}
+
+#chat-toggle-btn:hover,
+#debug-btn:hover,
+#history-btn:hover,
+#spawn-balloon-btn:hover,
+#force-talk-btn:hover,
+#expression-test-btn:hover,
+#vision-target-drag-btn:hover {
+    transform: scale(1.1);
 }
 
 #context-menu {
