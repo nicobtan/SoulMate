@@ -332,6 +332,23 @@ export class ApiClient {
         }
         return { status: "ignored" };
     }
+
+    // --- Vision Target API ---
+    async start_target_drag(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.start_target_drag) {
+            return await this.desktopApi.start_target_drag();
+        } else {
+            console.warn("Vision Target Drag not supported in Web Mode");
+            return { status: "ignored" };
+        }
+    }
+
+    async clear_vision_target(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.clear_vision_target) {
+            return await this.desktopApi.clear_vision_target();
+        }
+        return { status: "ignored" };
+    }
 }
 
 export const api = new ApiClient();

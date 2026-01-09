@@ -9,7 +9,24 @@ import { api } from './api_client.js';
 import { HistoryManager } from './managers/history_manager.js';
 import { SocketClient } from './managers/socket_client.js';
 
-// --- Global Initialization ---
+// Make it globally accessible for Backend API
+(window as any).updateVisionTarget = (appName: string, isLocked: boolean) => {
+    const el = document.getElementById('vision-target-label');
+    if (!el) return;
+
+    if (isLocked) {
+        el.style.display = 'block';
+        el.innerText = `👁️ ${appName}`;
+        el.style.color = '#00ffaa';
+    } else {
+        el.innerText = 'Scanning...';
+        el.style.color = '#888';
+        // Optional: Hide after delay or keep
+        setTimeout(() => { if (el.innerText === 'Scanning...') el.style.display = 'none'; }, 5000);
+    }
+};
+
+// --- Initialization ---
 window.addEventListener('DOMContentLoaded', async () => {
     console.log("SoulMate System Booting...");
 
@@ -276,3 +293,23 @@ window.addEventListener('pywebviewready', async () => {
         console.warn("Initial startup API calls failed", e);
     }
 });
+
+// --- Vision Target Drag Logic ---
+const targetDragBtn = document.getElementById('vision-target-drag-btn');
+if (targetDragBtn) {
+    targetDragBtn.addEventListener('mousedown', async (e) => {
+        e.preventDefault();
+        LogManager.getInstance().log("Vision Target Drag Started...", 'info', 'vision');
+
+        // Change cursor to crosshair globally (simulated via body style)
+        document.body.style.cursor = "crosshair";
+
+        // Notify Backend to start monitoring
+        await api.start_target_drag();
+    });
+
+    // Reset cursor on mouse up (globally)
+    document.addEventListener('mouseup', () => {
+        document.body.style.cursor = "default";
+    });
+}

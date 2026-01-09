@@ -1,4 +1,4 @@
-export type LogCategory = 'sys' | 'rag' | 'dbg';
+export type LogCategory = 'sys' | 'rag' | 'dbg' | 'vision';
 
 export class LogManager {
     private static instance: LogManager;

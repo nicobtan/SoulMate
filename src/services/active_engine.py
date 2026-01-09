@@ -2,6 +2,7 @@ import threading
 import time
 import logging
 import random
+import os
 from .news_collector import NewsCollector
 from .vision_service import vision_service
 from .dify_client import DifyClient
@@ -250,16 +251,37 @@ class ActiveEngine:
 
             # 1. Capture
             try:
-                image = ImageGrab.grab(all_screens=True)
-            except:
+                from src.services.window_target_manager import window_target_manager
+                image = window_target_manager.get_target_image()
+            except Exception as e:
+                logger.error(f"Capture Error: {e}")
                 image = ImageGrab.grab()
                 
             if not image: return
 
             if image.mode in ("RGBA", "P"): image = image.convert("RGB")
+            
+            # DEBUG: Save image to verify what is being seen
+            try:
+                debug_path = os.path.join(os.getcwd(), "debug_vision.png")
+                image.save(debug_path)
+                
+                # Extrema check
+                extrema = image.convert("L").getextrema()
+                
+                logger.info(f"👁️ [Vision] Debug image saved to: {debug_path}")
+                logger.info(f"👁️ [Vision] Image Stats: Size={image.size}, Extrema={extrema} (0,0 is black)")
+                
+                if extrema == (0, 0):
+                    logger.warning("👁️ [Vision] WARNING: Processed image is pure black!")
+                    
+            except Exception as e:
+                logger.error(f"Failed to save debug image: {e}")
 
-            # 2. Local Vision Analysis (PaliGemma)
-            vision_text = vision_service.analyze_image(image, prompt="caption en")
+            # 2. Local Vision Analysis (Gemini Flash Lite)
+            context_title = window_target_manager.target_title if window_target_manager.target_hwnd else "Full Screen Desktop"
+            vision_text = vision_service.analyze_image(image, prompt=f"User's active window: '{context_title}'.")
+            
             logger.info(f"👁️ [Vision] Saw: {vision_text}")
             
             # Send Log to Frontend (Vision Tab)
@@ -416,7 +438,6 @@ NOTE: If vision report mentions "Adobe Media Encoder" or "CS6", it is likely a h
                                 # Profile? Unknown here unless we have access to user_manager via some path.
                                 # ActiveEngine is init with ai_engine only? 
                                 # In main.py: active_engine = ActiveEngine(ai_engine, ...)
-                                # It doesn't seem to have direct access to user_manager easily.
                                 profile_txt = "Unknown"
                                 user_name = "あなた"
                                 
@@ -434,29 +455,30 @@ NOTE: If vision report mentions "Adobe Media Encoder" or "CS6", it is likely a h
                         # Combine
                         final_10 = fixed + dynamic[:8]
                         
-                        # Love Slot (Optional for Active? Yes, consistency)
+                        # Love Slot
                         from src.services.affection_manager import AffectionManager
                         if not any(AffectionManager.is_affectionate(s) for s in final_10):
                              love = f"❤ {AffectionManager().get_random_affection()}"
                              if len(final_10) >= 10: final_10[-1] = love
                              else: final_10.append(love)
-                        # -----------------------------------------------
 
                         payload = {
                             "text": speak_text,
                             "emotion": emotion,
-                            "suggestions": final_10, # Updated
+                            "suggestions": final_10,
                             "type": "proactive"
                         }
                         self.on_message_callback(json.dumps(payload, ensure_ascii=False))
 
         except Exception as e:
-            logger.error(f"Proactive Scan Failed: {e}")
+            logger.error(f"Proactive Vision Failed: {e}")
             import traceback
             logger.error(traceback.format_exc())
+            self._log(f"⚠️ [Active] Vision Scan Failed: {e}", type='error')
         finally:
             self.scan_lock.release()
-            print("DEBUG: ActiveEngine._perform_vision_scan END (Lock Released)") # DEBUG
+            print("DEBUG: ActiveEngine._perform_vision_scan END (Lock Released)")
+
 
     def _send_log(self, message, level="info", tab="sys"):
         """Sends log to frontend."""

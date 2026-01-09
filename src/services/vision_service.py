@@ -114,6 +114,11 @@ class VisionService:
                 generation = generation[0][input_len:]
                 decoded = self.processor.decode(generation, skip_special_tokens=True)
                 
+            # Retry with fallback prompt if unanswerable
+            if "unanswerable" in decoded.lower() and prompt == "caption en":
+                logger.warning("👁️ [Vision] Result 'unanswerable'. Retrying with 'describe'...")
+                return self.analyze_image(image, prompt="describe the details")
+                
             logger.info(f"👁️ [Vision] Result: {decoded}")
             return decoded
 

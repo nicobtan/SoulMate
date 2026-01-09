@@ -523,8 +523,8 @@ body {
 
 #clock-display {
     position: absolute;
-    bottom: 25px;
-    left: 15px;
+    bottom: 10px;
+    left: 10px;
     background: rgba(0, 0, 0, 0.6);
     padding: 5px 15px;
     border-radius: 10px;
@@ -1472,4 +1472,37 @@ textarea,
     font-size: 11px;
     color: #aaa;
     line-height: 1.4;
+}
+
+/* Vision Target Label (Clock Sub-label) */
+#vision-target-label {
+    font-size: 10px;
+    /* Matching #clock-date */
+    color: #00ffaa;
+    text-shadow: 0 0 3px #00ffaa;
+    margin-top: 2px;
+    font-family: 'Segoe UI', sans-serif;
+    letter-spacing: 0.5px;
+    animation: pulse-vision 2s infinite;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    opacity: 0.9;
+}
+
+@keyframes pulse-vision {
+    0% {
+        opacity: 0.7;
+    }
+
+    50% {
+        opacity: 1.0;
+        text-shadow: 0 0 6px #00ffaa;
+    }
+
+    100% {
+        opacity: 0.7;
+    }
 }

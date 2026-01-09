@@ -27,6 +27,7 @@ from src.api.user_api import UserApiMixin
 from src.api.history_api import HistoryApiMixin
 from src.api.voice_api import VoiceApiMixin
 from src.api.character_api import CharacterApiMixin
+from src.api.vision_api import VisionApiMixin
 from src.services.bubble_service import BubbleService
 from src.services.character_service import CharacterService
 from src.services.history_manager import HistoryManager
@@ -35,7 +36,7 @@ from src.services.user_manager import UserManager
 from src.services.interest_manager import InterestManager
 from src.services.topic_selector import TopicSelector
 
-class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin, CharacterApiMixin):
+class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin, CharacterApiMixin, VisionApiMixin):
     def __init__(self):
         super().__init__() # Initialize BaseApiMixin attributes
         self.services = self # Mixin Pattern: API instance itself is the service container
@@ -113,6 +114,18 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # Connect VisionService Logging
         from src.services.vision_service import vision_service
         vision_service.set_log_callback(self.log_to_debug)
+
+        # Connect WindowTargetManager Logging & UI Updates
+        from src.services.window_target_manager import window_target_manager
+        window_target_manager.set_log_callback(lambda msg, type='vision': self.log_to_debug(msg, type))
+        
+        def update_vision_target_ui(app_name, is_locked):
+            if self._window:
+                js = f"updateVisionTarget('{app_name}', {'true' if is_locked else 'false'})"
+                self._window.evaluate_js(js)
+                
+        window_target_manager.set_target_callback(update_vision_target_ui)
+
         
         # Apply Initial Config
         settings = self._config_manager.get_all()
