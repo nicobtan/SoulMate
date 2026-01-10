@@ -85,6 +85,31 @@ class VisionService:
             logger.error(f"Vision Client Init Error: {e}")
             self._log(f"❌ [Vision] Client Init Failed: {e}", 'error')
 
+    def save_debug_image(self, image: Image.Image, prefix="latest_vision"):
+        """Saves the image to dist/debug/ for inspection."""
+        try:
+            import datetime
+            debug_dir = os.path.join(os.getcwd(), 'dist', 'debug')
+            history_dir = os.path.join(debug_dir, 'history')
+            os.makedirs(history_dir, exist_ok=True)
+            
+            # Save Latest
+            latest_path = os.path.join(debug_dir, f'{prefix}.jpg')
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            image.save(latest_path, quality=85)
+            
+            # Save History
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            history_path = os.path.join(history_dir, f"{timestamp}_{prefix}.jpg")
+            image.save(history_path, quality=85)
+            
+            self._log(f"📸 [Vision] Image captured: {timestamp} (Type: {prefix})")
+            return latest_path
+        except Exception as e:
+            logger.error(f"Failed to save debug image: {e}")
+            return None
+
     def analyze_image(self, image: Image.Image, prompt: str = ""):
         """
         Analyzes the image using Gemini 2.5 Flash Lite.
@@ -102,26 +127,7 @@ class VisionService:
 
         try:
             # --- Debug: Save Image to Disk ---
-            try:
-                import datetime
-                debug_dir = os.path.join(os.getcwd(), 'dist', 'debug')
-                history_dir = os.path.join(debug_dir, 'history')
-                os.makedirs(history_dir, exist_ok=True)
-                
-                # Save Latest
-                latest_path = os.path.join(debug_dir, 'latest_vision.jpg')
-                if image.mode != 'RGB':
-                    image = image.convert('RGB')
-                image.save(latest_path, quality=85)
-                
-                # Save History
-                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-                history_path = os.path.join(history_dir, f"{timestamp}.jpg")
-                image.save(history_path, quality=85)
-                
-                self._log(f"📸 [Vision] Image captured: {timestamp}")
-            except Exception as e:
-                logger.error(f"Failed to save debug image: {e}")
+            self.save_debug_image(image, prefix="latest_vision")
             # ---------------------------------
 
             window_title = prompt if prompt else "Unknown Window"

@@ -69,6 +69,16 @@ class ResponseParser:
         
         # SAFETY: If response looks like internal thought (starts with "Category:" or "User is..."), clear it.
         resp = data["response"]
+        
+        # Robust check: Ensure resp is string
+        if not isinstance(resp, str):
+            if isinstance(resp, dict):
+                # Try to extract text if it's a dict (e.g. nested {"text": "..."})
+                resp = resp.get("text", resp.get("response", str(resp)))
+            else:
+                resp = str(resp)
+            data["response"] = resp
+
         if resp and (resp.startswith("Category:") or "User is idle" in resp):
             logger.warning(f"[ResponseParser] Leaked thought detected in response. Clearing. Content: {resp[:20]}...")
             data["thought"] += f" (Leaked: {resp})"

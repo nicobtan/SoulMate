@@ -1198,12 +1198,13 @@ Output ONLY the suggested text.
         return db.get_insights(limit)
 
     # ★追加: プレビュー用にスクショだけ撮って返すAPI
-    def take_screenshot_for_preview(self, mode="screen"):
-        self.log_to_debug(f"Taking screenshot for preview (Mode: {mode})...", 'info')
+    def take_screenshot_for_preview(self, mode="screen", open_viewer=False):
+        self.log_to_debug(f"Taking screenshot for preview (Mode: {mode}, Viewer: {open_viewer})...", 'info')
         try:
             from PIL import ImageGrab, Image
             from io import BytesIO
             import base64
+            import os
 
             # Capture Logic
             image = None
@@ -1231,7 +1232,20 @@ Output ONLY the suggested text.
             if image:
                 if image.mode in ("RGBA", "P"):
                     image = image.convert("RGB")
-                    
+                
+                # ★追加: デバッグ用に保存 (VisionServiceを利用)
+                saved_path = None
+                try:
+                     saved_path = vision_service.save_debug_image(image, prefix="latest_preview")
+                     
+                     # ★ Viewer Opening Logic
+                     if open_viewer and saved_path and os.path.exists(saved_path):
+                         self.log_to_debug(f"Opening Image Viewer: {saved_path}", 'info')
+                         os.startfile(saved_path)
+                         
+                except Exception as e:
+                     self.log_to_debug(f"Preview Save/View Error: {e}", 'warn')
+
                 buffered = BytesIO()
                 image.save(buffered, format="JPEG", quality=70) # Lightweight
                 img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")

@@ -302,201 +302,73 @@ class ActiveEngine:
             # Send Log to Frontend (Vision Tab)
             self._send_log(f"Saw: {vision_text}", "info", "vision")
 
-            # 3. Mind Reasoning (Gemini via AI Engine)
+            # 3. Decision Making (via ProactiveChatManager)
+            # Lazy Import & Init
+            from src.services.proactive_chat_manager import ProactiveChatManager
+            manager = ProactiveChatManager()
             
-            # 3. Mind Reasoning (Gemini via AI Engine)
+            # Configure if needed (using same key as VisionService or from settings if accessible?)
+            # ActiveEngine doesn't hold 'api_key' but 'vision_service' has it.
+            if not manager.client and vision_service.api_key:
+                manager.configure(vision_service.api_key)
             
-            check_prompt = f"""
-[Visual Context]
-The user's screen description (provided by vision AI): "{vision_text}"
-[Task]
-
-Analyze the situation based on the screen description.
-
-Decide if you should speak to the user (SoulMate Persona).
-
-OUTPUT MUST BE IN JAPANESE.
-
-[Categories]
-
-work: Coding, IDE, Debugging.
-
-game: Playing games, RPG, FPS, Steam, Unity, Unreal.
-
-media: YouTube, Music, Video.
-
-social: Chat, Discord, SNS.
-
-health: Late night, Eye strain.
-
-[Language Constraint]
-
-The visual description is in English, BUT your response MUST be in JAPANESE.
-
-Do NOT reply in English.
-
-Translate the context into Japanese conversation naturally.
-
-[Output Format (JSON)] {{ "thought": "Category: [category]. Reasoning in Japanese...", "action_command": "category:[category]", "response": "ここに必ず日本語で話す内容を入れる (空欄なら話さない)", "emotion": "happy", "suggestions": ["話題1", "話題2"] }} """
+            # Decide Action
+            decision = manager.decide_next_action(vision_text)
             
-            result = self.ai_engine.generate_response(
-                message="Based on the screen, should you say something?", 
-                context=check_prompt
-            )
+            action = decision.get("action", "silent").lower()
+            speak_text = decision.get("text", "").strip()
+            topic_tag = decision.get("topic_tag", "unknown")
+            emotion = "neutral" # Default, maybe extract from decision if added? ProactiveChatManager returns JSON.
+            # Update prompt in manager to return emotion if needed, or infer.
             
-            speak_text = result.get('text', '').strip()
-            emotion = result.get('emotion', 'neutral')
-            thought = result.get('expression_reason', '') # Or 'thought' if parsing handles it? 
-            # Note: _parse_ai_response maps 'thought' to 'thought' but generate_response returns 'expression_reason' as separate key?
-            # Let's check generate_response return. It returns 'expression_reason' from data['expression_reason'].
-            # But prompt asks to put category in 'thought'.
-            # AIEngine logic: ai_thought = data.get("thought", ""). _log_thought(ai_thought).
-            # So the category will be logged automatically. 
-            
-            # Extract Category from log or result?
-            # Ideally AIEngine should return 'thought' too.
-            # Currently it returns 'expression_reason'.
-            # Let's assume we can infer or parsing logic is sufficient.
-            # Actually, I'll rely on the text content or just simple heuristic for now if AIEngine refactor is too big.
-            # Wait, `generate_response` returns `expression_reason`. Use that if `thought` isn't available?
-            # AIEngine: `return { "text": ..., "expression_reason": ... }`
-            # But `_extract_grounding` etc.
-            
-            # Let's parse 'thought' from the previous log? No.
-            # I will trust the "Silence" if text is empty.
-            # To implement strict category filtering, I need the category.
-            # I will update `check_prompt` to ask for category in `action_command` field?
-            # `action_command` is returned!
-            
-            # UPDATED PROMPT STRATEGY:
-            # Ask to put category in `action_command`.
-            
-            check_prompt_refined = f"""
-[Visual Context]
-User's Screen Description: {vision_text}
+            # Logging
+            logger.info(f"🧠 [Proactive] Decision: {action.upper()} | Topic: {topic_tag} | Text: {speak_text[:30]}...")
 
-[Action]
-Return a strictly valid JSON object.
-Do NOT output raw text.
-NOTE: If vision report mentions "Adobe Media Encoder" or "CS6", it is likely a hallucination of VS Code (Dark Theme). Treat it as 'Coding' work.
-1. Categorize: [work, media, social, health, other]
-2. Decide response.
-
-{{
-    "thought": "Category: [category]. Reasoning in Japanese (日本語).",
-    "action_command": "category:[category]",
-    "response": "Japanese text to speak (or empty)",
-    "emotion": "neutral",
-    "suggestions": []
-}}
-"""
-            # Re-run generate with refined prompt logic (inline replacement above)
-            
-            # ... (using the code block below)
-
-            # 4. Determine Category
-            action_cmd = result.get('action_command', '').lower()
-            category = 'other'
-            
-            # Priority 0: Force Game from Vision Keywords (User Request)
-            vision_lower = vision_text.lower()
-            game_keywords = ['game', 'play', 'rpg', 'fps', 'steam', 'arknights', 'unity', 'unreal', 'minecraft', 'apex']
-            if any(k in vision_lower for k in game_keywords):
-                category = 'game'
-                logger.info("👁️ [Proactive] Force Category: 'game' (Keyword detected)")
-            
-            # Priority 1: AI Decision
-            elif 'category:game' in action_cmd or 'game' in action_cmd: category = 'game'
-            elif 'category:work' in action_cmd or 'work' in action_cmd: category = 'work'
-            elif 'category:media' in action_cmd or 'media' in action_cmd: category = 'media'
-            elif 'category:social' in action_cmd or 'social' in action_cmd: category = 'social'
-            elif 'category:health' in action_cmd or 'health' in action_cmd: category = 'health'
-
-            # Filter Check
-            if category not in self.scan_targets and category != 'other':
-                logger.info(f"👁️ [Proactive] Skipped: Category '{category}' not in targets {self.scan_targets}.")
-                return
-
-            # Safety Net: Prevent "Thought Leaks" & Clean Text
-            import re
-            speak_text = result.get('text', '').strip() # Refetch to be sure we are modifying local var
-            
-            # 1. Regex Remove Headers like "Category: work", "thought: ..." if present in body
-            speak_text = re.sub(r'^(Category|Thought|Response|Reasoning)\s*[:=].*?(\n|$)', '', speak_text, flags=re.IGNORECASE | re.MULTILINE).strip()
-            
-            # 2. Check for Japanese Content (Hiragana/Katakana/Kanji)
-            # If text exists but has NO Japanese characters, it's likely an English thought leak.
-            if speak_text and speak_text.lower() != "silence":
-                 has_japanese = re.search(r'[一-龠]+|[ぁ-ゔ]+|[ァ-ヴー]+', speak_text)
-                 if not has_japanese:
-                     logger.warning(f"⚠️ [Proactive] Blocked Non-Japanese Leak: {speak_text[:50]}...")
-                     speak_text = ""
-
-            if speak_text and speak_text.lower() != "silence":
-                logger.info(f"🗣️ [Proactive] Speaking: {speak_text} (Cat: {category})")
-                
-                # Check Silent Mode
+            if action == "speak" and speak_text:
+                # Check Silent Mode (Global Setting)
                 if self.proactive_silent_mode:
                     logger.info("🤫 [Proactive] Silent Mode: Skipping TTS, Log only.")
                     self._send_log(f"(Silent) {speak_text}", "info", "mind")
-                    # Send Expression Only
-                    if self.on_message_callback:
-                         import json
-                         self.on_message_callback(json.dumps({"type": "expression", "name": emotion}))
                 else:
-                    # Normal Mode: Speak
+                    # Construct Payload for Frontend
+                    # Reuse Suggestion Padding Logic (could be refactored to helper but keeping inline for now)
+                    
+                    # --- Suggestion Padding Logic (Adapter) ---
+                    # Because decision doesn't return suggestions, we generate generic ones or use simplified list.
+                    # Or ask SuggestionEngine.
+                    final_10 = ["もっと詳しく教えて", "ありがとう", "他の話題について"]
+                    
+                    try:
+                        from src.services.suggestion_engine import SuggestionEngine
+                        eng = SuggestionEngine(self.ai_engine)
+                        hist = f"Vision Context: {vision_text}\nAI Spoke: {speak_text}"
+                        more = eng.generate(hist, "Unknown", "あなた")
+                        final_10.extend([m for m in more if m not in final_10])
+                    except:
+                        pass
+                        
+                    # Love Slot
+                    from src.services.affection_manager import AffectionManager
+                    if not any(AffectionManager.is_affectionate(s) for s in final_10):
+                         love = f"❤ {AffectionManager().get_random_affection()}"
+                         final_10.append(love)
+                         
+                    final_10 = final_10[:10]
+
+                    payload = {
+                        "text": speak_text,
+                        "emotion": emotion, # You might want to ask Manager for emotion too
+                        "suggestions": final_10,
+                        "type": "proactive"
+                    }
                     if self.on_message_callback:
                         import json
-                        
-                        # --- Suggestion Padding Logic (ActiveEngine) ---
-                        base_sug = result.get('suggestions', [])
-                        fixed = ["もっと詳しく教えて", "他の話題について"]
-                        dynamic = [s for s in base_sug if s not in fixed]
-
-                        # Ensure 8 items
-                        if len(dynamic) < 8:
-                            try:
-                                # We can access SuggestionEngine? Not directly linked, but can import.
-                                from src.services.suggestion_engine import SuggestionEngine
-                                # ActiveEngine has self.ai_engine
-                                eng = SuggestionEngine(self.ai_engine)
-                                
-                                # Context: Use last vision text
-                                hist = f"Vision Context: {vision_text}\nAI Spoke: {speak_text}"
-                                # Profile? Unknown here unless we have access to user_manager via some path.
-                                # ActiveEngine is init with ai_engine only? 
-                                # In main.py: active_engine = ActiveEngine(ai_engine, ...)
-                                profile_txt = "Unknown"
-                                user_name = "あなた"
-                                
-                                more = eng.generate(hist, profile_txt, user_name)
-                                for ms in more:
-                                    if ms not in dynamic and len(dynamic) < 8:
-                                        dynamic.append(ms)
-                            except Exception as e:
-                                logger.warning(f"Active Suggestion Padding error: {e}")
-                        
-                        # Fallback
-                        while len(dynamic) < 8:
-                            dynamic.append("...その他")
-
-                        # Combine
-                        final_10 = fixed + dynamic[:8]
-                        
-                        # Love Slot
-                        from src.services.affection_manager import AffectionManager
-                        if not any(AffectionManager.is_affectionate(s) for s in final_10):
-                             love = f"❤ {AffectionManager().get_random_affection()}"
-                             if len(final_10) >= 10: final_10[-1] = love
-                             else: final_10.append(love)
-
-                        payload = {
-                            "text": speak_text,
-                            "emotion": emotion,
-                            "suggestions": final_10,
-                            "type": "proactive"
-                        }
                         self.on_message_callback(json.dumps(payload, ensure_ascii=False))
+
+            elif action == "motion":
+                # Handle Motion only
+                # self.on_message_callback(json.dumps({"type": "motion", "id": decision.get("motion_id")}))
+                pass
 
         except Exception as e:
             logger.error(f"Proactive Vision Failed: {e}")

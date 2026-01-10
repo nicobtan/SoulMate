@@ -269,6 +269,10 @@ Format:
 
     def generate_tts_with_gemini(self, text):
         """TTS生成 (テキストのみ渡す)"""
+        if not text or "Error" in text or "エラー" in text:
+            logger.warning(f"TTS Blocked (Error Content): {text[:20]}...")
+            return None
+
         try:
             config = types.GenerateContentConfig(response_modalities=["AUDIO"])
             return self.client.models.generate_content(

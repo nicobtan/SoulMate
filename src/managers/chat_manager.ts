@@ -252,7 +252,8 @@ export class ChatManager {
             });
             visionBtn.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
-                this.chatWithVision("clipboard");
+                // Pass true to open external viewer
+                this.chatWithVision("clipboard", true);
             });
         }
 
@@ -428,7 +429,7 @@ export class ChatManager {
         }
     }
 
-    public async chatWithVision(mode: string) {
+    public async chatWithVision(mode: string, openViewer: boolean = false) {
         if (this.isVisionProcessing) return;
         this.isVisionProcessing = true;
 
@@ -436,7 +437,7 @@ export class ChatManager {
 
         try {
             // 即時送信せず、プレビュー用に取得するだけにする
-            const res = await (window as any).pywebview.api.take_screenshot_for_preview(mode);
+            const res = await (window as any).pywebview.api.take_screenshot_for_preview(mode, openViewer);
             if (res.status === 'success' && res.image_data) {
                 this.attachImage(res.image_data);
                 UIManager.getInstance().openChatPanel(true);

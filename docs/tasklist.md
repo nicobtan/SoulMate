@@ -865,4 +865,14 @@
     - [x] **Image Logging**: キャプチャ画像を `dist/debug/latest_vision.jpg` および `history` フォルダに保存する機能を強化。
     - [x] **Secure Logging**: API Keyのロード状態を安全にログ出力するロジックを追加。
 
+## フェーズ112: Proactive Logic 2.0 (Context & History) [完了]
+- [x] **ProactiveChatManager Implementation**
+    - [x] `src/services/proactive_chat_manager.py` 作成 (Class Design)
+    - [x] **Topic History**: 直近のトピック重複防止ロジック (Queue)
+    - [x] **Time-Aware**: 状態継続時間(coding 30m vs 2h)による態度変容
+    - [x] **Action Decision**: 発話/沈黙/モーションの多様な出力決定
+- [x] **ActiveEngine Integration**
+    - [x] `ActiveEngine` の `_perform_vision_scan` をリファクタリングして Manager を利用
+    - [x] 既存の単純なLLM呼び出しを、Manager経由の高度な判断に置き換え
+
 
