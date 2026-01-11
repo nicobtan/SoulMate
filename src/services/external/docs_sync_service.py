@@ -3,8 +3,8 @@ import json
 import threading
 import datetime
 from src.core.config_manager import ConfigManager
-from src.services.google_auth_manager import GoogleAuthManager
-from src.services.memory_manager import MemoryManager
+from src.services.external.google_auth_manager import GoogleAuthManager
+from src.services.memory.memory_manager import MemoryManager
 from google.genai import Client
 from google.genai import types
 

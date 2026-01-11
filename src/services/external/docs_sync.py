@@ -1,7 +1,7 @@
 import os
 import logging
 import datetime
-from src.services.google_auth_manager import GoogleAuthManager
+from src.services.external.google_auth_manager import GoogleAuthManager
 
 logger = logging.getLogger(__name__)
 

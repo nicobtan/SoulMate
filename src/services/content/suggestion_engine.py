@@ -10,7 +10,7 @@ class SuggestionEngine:
     
     def __init__(self, ai_engine):
         self.ai_engine = ai_engine
-        self.logger = logging.getLogger(__name__)
+        self._logger = logging.getLogger(__name__)
 
     def generate(self, history_text, user_profile, user_name="あなた") -> list:
         """
@@ -18,7 +18,7 @@ class SuggestionEngine:
         Returns a list of strings (Japanese).
         """
         if not self.ai_engine:
-            self.logger.warning("AIEngine not available for suggestions.")
+            self._logger.warning("AIEngine not available for suggestions.")
             return []
 
         # System Prompt for Suggestions
@@ -79,7 +79,7 @@ Use "{user_name}" instead of placeholders like "〇〇さん".
                     suggestions = list(data.values())[0] if data else []
             
         except Exception as e:
-            self.logger.error(f"Suggestion Generation Failed: {e}")
+            self._logger.error(f"Suggestion Generation Failed: {e}")
             
         # Fallback if AI fails or returns empty
         # Returns 8 diverse static suggestions to ensure UI stability (Total 10 with fixed)

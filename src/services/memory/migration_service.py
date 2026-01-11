@@ -1,6 +1,6 @@
 import json
 import os
-from src.services.db_manager import DatabaseManager
+from src.services.memory.db_manager import DatabaseManager
 
 HISTORY_FILE = "history.json"
 
@@ -10,7 +10,8 @@ class MigrationService:
 
 import json
 import os
-from src.services.db_manager import DatabaseManager
+# Removed duplicate import
+
 
 HISTORY_FILE = "history.json"
 HISTORY_JSONL = "logs/chat_history.jsonl"
@@ -130,7 +131,7 @@ class MigrationService:
 
     def sync_jsonl_to_db(self):
         """memory/chat_history.jsonl の内容を、現在のアクティブなセッションに同期（マージ）する"""
-        from src.services.history_manager import HistoryManager
+        from src.services.memory.history_manager import HistoryManager
         hm = HistoryManager()
         
         # 1. JSONLから最新のメッセージ履歴を取得

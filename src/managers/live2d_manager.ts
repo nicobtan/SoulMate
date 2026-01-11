@@ -1,7 +1,7 @@
 // src/managers/live2d_manager.ts
 import { LogManager } from './log_manager.js';
 import { Live2DModel } from 'pixi-live2d-display';
-import { AudioManager } from '../services/audio_manager.js';
+import { AudioManager } from '../services/voice/audio_manager.js';
 
 // --- Internal Helper: Lip Sync Logic ---
 class LipSyncManager {

@@ -1,6 +1,6 @@
 import logging
 import threading
-from ..services.voice_input_manager import voice_input_manager
+from src.services.voice.voice_input_manager import voice_input_manager
 
 logger = logging.getLogger("voice_api")
 

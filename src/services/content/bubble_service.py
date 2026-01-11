@@ -635,7 +635,7 @@ suggestions:
              # Run in thread
              import threading
              def run_talk():
-                 from src.services.ai_engine import logger as ai_logger # Use logger
+                 from src.services.core.ai_engine import logger as ai_logger # Use logger
                  try:
                      logger.info(f"Bubble Trigger: Generating response for: {text_content}")
                      response_payload = api._ai_engine.generate_response(prompt)
@@ -679,7 +679,7 @@ suggestions:
                      if len(dynamic) < 8:
                          # Attempt to use SuggestionEngine Integration
                          try:
-                             from src.services.suggestion_engine import SuggestionEngine
+                             from src.services.content.suggestion_engine import SuggestionEngine
                              engine = SuggestionEngine(api._ai_engine) # Helper instance
                              
                              # Simple Context for Bubble
@@ -708,7 +708,7 @@ suggestions:
                      final_10 = fixed + dynamic[:8]
                      
                      # Love Slot Logic
-                     from src.services.affection_manager import AffectionManager
+                     from src.services.content.affection_manager import AffectionManager
                      if not any(AffectionManager.is_affectionate(s) for s in final_10):
                          love = f"❤ {AffectionManager().get_random_affection()}"
                          if len(final_10) >= 10: final_10[-1] = love

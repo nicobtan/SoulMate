@@ -83,7 +83,7 @@ export class UIManager {
                 this.contextMenu.style.display = 'none';
             }
             // Unlock Audio Context (Mobile Web)
-            import('../services/audio_manager.js').then(({ AudioManager }) => {
+            import('../services/voice/audio_manager.js').then(({ AudioManager }) => {
                 AudioManager.getInstance().unlock();
             });
         }, { capture: true });
@@ -201,14 +201,14 @@ export class UIManager {
     private initButtons() {
         // Helper to unlock audio on interaction
         const unlockAudio = () => {
-            import('../services/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
+            import('../services/voice/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
         };
 
         // Chat Toggle
         if (this.chatToggleBtn) {
             this.chatToggleBtn.addEventListener('click', () => {
                 this.openChatPanel(!uiState.isChatOpen);
-                import('../services/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
+                import('../services/voice/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
             });
         }
 
@@ -233,7 +233,7 @@ export class UIManager {
             this.suggestionToggleBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.toggleSuggestions();
-                import('../services/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
+                import('../services/voice/audio_manager.js').then(m => m.AudioManager.getInstance().unlock());
             });
         }
 

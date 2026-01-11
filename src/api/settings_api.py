@@ -2,7 +2,7 @@ from .base import BaseApiMixin
 import webview
 import os
 import threading
-from src.services.voice_input_manager import voice_input_manager
+from src.services.voice.voice_input_manager import voice_input_manager
 
 class SettingsApiMixin(BaseApiMixin):
     def get_settings(self):

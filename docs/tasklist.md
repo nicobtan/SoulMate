@@ -875,4 +875,21 @@
     - [x] `ActiveEngine` の `_perform_vision_scan` をリファクタリングして Manager を利用
     - [x] 既存の単純なLLM呼び出しを、Manager経由の高度な判断に置き換え
 
+## フェーズ113: Source Code Refactoring (Modularization) [完了]
+- [x] **Directory Reorganization**
+    - [x] Create packages: `core`, `voice`, `vision`, `memory`, `content`, `external`
+    - [x] Move files to appropriate packages
+- [x] **Import Fixes**
+    - [x] Update `main.py` imports
+    - [x] Update `src/api/*.py` imports
+    - [x] Update inter-service imports
+- [x] **Documentation Update**
+    - [x] Update `docs/system_design.md` with new structure
 
+
+## フェーズ114: Stability Fixes after Refactor (v0.5.1) [完了]
+- [x] **Startup Stability Fixes**
+    - [x] **Frontend Log Race Condition**: `index.ts` にログキュー（スタブ）を実装し、`LogManager` 初期化前の `logToDebug` 呼び出しによるクラッシュを修正。
+    - [x] **Import Corrections**: リファクタリングによる `ModuleNotFoundError` (`main.py`, `active_engine.py` 等) を完全修正。
+- [x] **PyWebview Compatibility**
+    - [x] **Logger Hiding**: `SuggestionEngine` の `self.logger` を `self._logger` にリネームし、`pywebview` のプロパティスキャンエラーを回避。

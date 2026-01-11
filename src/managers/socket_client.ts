@@ -103,7 +103,7 @@ export class SocketClient {
         this.socket.on('play_audio', (data: any) => {
             // data: { audio: "base64..." }
             if (data.audio) {
-                import('../services/audio_manager.js').then(({ AudioManager }) => {
+                import('../services/voice/audio_manager.js').then(({ AudioManager }) => {
                     // Prefix for WAV as per server sending WAV
                     const src = "data:audio/wav;base64," + data.audio;
                     AudioManager.getInstance().enqueue(src);
@@ -116,7 +116,7 @@ export class SocketClient {
             // data: { url: "..." }
             // Direct audio play for fillers
             // Use AudioManager
-            import('../services/audio_manager.js').then(({ AudioManager }) => {
+            import('../services/voice/audio_manager.js').then(({ AudioManager }) => {
                 AudioManager.getInstance().play(data.url);
             });
         });

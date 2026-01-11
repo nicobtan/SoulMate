@@ -2,8 +2,8 @@ import logging
 import json
 import time
 from datetime import datetime
-from src.services.db_manager import DatabaseManager
-from src.services.memory_manager import MemoryManager
+from src.services.memory.db_manager import DatabaseManager
+from src.services.memory.memory_manager import MemoryManager
 
 logger = logging.getLogger(__name__)
 

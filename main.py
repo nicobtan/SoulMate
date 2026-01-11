@@ -10,13 +10,13 @@ if base_dir not in sys.path:
 
 # Imports from new structure
 from src.core.config_manager import ConfigManager
-from src.services.ai_engine import AIEngine
-from src.services.persona_manager import PersonaManager
-from src.services.memory_service import MemoryService # Import
-from src.services.memory_manager import MemoryManager
-from src.services.tts_engine import TTSEngine
-from src.services.active_engine import ActiveEngine
-from src.services.calendar_manager import CalendarManager
+from src.services.core.ai_engine import AIEngine
+from src.services.core.persona_manager import PersonaManager
+from src.services.memory.memory_service import MemoryService # Import
+from src.services.memory.memory_manager import MemoryManager
+from src.services.voice.tts_engine import TTSEngine
+from src.services.core.active_engine import ActiveEngine
+from src.services.external.calendar_manager import CalendarManager
 
 # Imports from API Mixins
 from src.api.window_api import WindowApiMixin
@@ -28,13 +28,13 @@ from src.api.history_api import HistoryApiMixin
 from src.api.voice_api import VoiceApiMixin
 from src.api.character_api import CharacterApiMixin
 from src.api.vision_api import VisionApiMixin
-from src.services.bubble_service import BubbleService
-from src.services.character_service import CharacterService
-from src.services.history_manager import HistoryManager
+from src.services.content.bubble_service import BubbleService
+from src.services.core.character_service import CharacterService
+from src.services.memory.history_manager import HistoryManager
 
-from src.services.user_manager import UserManager
-from src.services.interest_manager import InterestManager
-from src.services.topic_selector import TopicSelector
+from src.services.core.user_manager import UserManager
+from src.services.content.interest_manager import InterestManager
+from src.services.content.topic_selector import TopicSelector
 
 class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin, CharacterApiMixin, VisionApiMixin):
     def __init__(self):
@@ -55,7 +55,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # Database Manager (SQLite)
 # ... (existing code) ...
 
-        from src.services.db_manager import DatabaseManager
+        from src.services.memory.db_manager import DatabaseManager
         self.db_manager = DatabaseManager()
         self.db_manager.init_db()
         
@@ -83,7 +83,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         self._memory_manager.set_rag_logger(lambda msg: self.log_to_debug(msg, 'rag'))
 
         # --- Diary Generator (Phase 89) ---
-        from src.services.diary_generator import DiaryGenerator
+        from src.services.content.diary_generator import DiaryGenerator
         self.diary_generator = DiaryGenerator(self)
         # Thread started in set_window()
 
@@ -99,7 +99,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
 
         # VOICEVOX Service
         try:
-            from src.services.voice_service import VoiceService
+            from src.services.voice.voice_service import VoiceService
             self.voice_service = VoiceService()
             print("[System] VoiceService initialized.")
         except Exception as e:
@@ -112,11 +112,11 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         self.active_engine.configure(self._config_manager.get_all())
         
         # Connect VisionService Logging
-        from src.services.vision_service import vision_service
+        from src.services.vision.vision_service import vision_service
         vision_service.set_log_callback(self.log_to_debug)
 
         # Connect WindowTargetManager Logging & UI Updates
-        from src.services.window_target_manager import window_target_manager
+        from src.services.vision.window_target_manager import window_target_manager
         window_target_manager.set_log_callback(lambda msg, type='vision': self.log_to_debug(msg, type))
         
         def update_vision_target_ui(app_name, is_locked):
@@ -551,7 +551,7 @@ def create_app():
     api.set_window(window)
     
     # ★ Setting API Instance for Auth Logging
-    from src.services.google_auth_manager import GoogleAuthManager
+    from src.services.external.google_auth_manager import GoogleAuthManager
     GoogleAuthManager().set_api_instance(api)
 
     # ★ Inner Voice (Mind Logs) Wiring
@@ -566,13 +566,13 @@ def create_app():
             time.sleep(3) # Wait for network stabilization
             
             # 1. Google Doc -> Local MD
-            from src.services.docs_sync import DocsSyncService
+            from src.services.external.docs_sync import DocsSyncService
             syncer = DocsSyncService(api) # Pass API for AI Engine access
             local_md = os.path.join(os.getcwd(), "settings", "MindVault.md")
             syncer.fetch_and_sync(doc_title="MindVault", local_path=local_md)
             
             # 2. Local MD -> DB
-            from src.services.mind_loader import MindLoader
+            from src.services.memory.mind_loader import MindLoader
             loader = MindLoader(api)
             loader.sync_mind_vault(local_md)
             
@@ -586,7 +586,7 @@ def create_app():
 if __name__ == '__main__':
     # 1. Initialize Database
     print("Initializing Database (soulmate.db)...")
-    from src.services.db_manager import DatabaseManager
+    from src.services.memory.db_manager import DatabaseManager
     
     db = DatabaseManager()
     db.init_db()
@@ -596,7 +596,7 @@ if __name__ == '__main__':
     core_instance.set_db(db)
     
     # 3. Migrate Legacy History (JSON -> DB)
-    from src.services.migration_service import MigrationService
+    from src.services.memory.migration_service import MigrationService
     migration = MigrationService(db)
     migration.migrate_json_to_db()
     

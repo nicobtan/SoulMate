@@ -3,7 +3,7 @@ import { api } from '../api_client.js';
 import { LogManager } from './log_manager.js';
 import { UIManager } from './ui_manager.js';
 import { Live2DManager } from './live2d_manager.js';
-import { AudioManager } from '../services/audio_manager.js';
+import { AudioManager } from '../services/voice/audio_manager.js';
 import { emotions, categoryIcons, categoryMapping } from '../constants.js'; // constantsからimport
 
 export class ChatManager {

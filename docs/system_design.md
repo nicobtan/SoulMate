@@ -53,8 +53,14 @@ SoulMate/
 ├── main.py                 # Entry Point
 ├── dist/                   # Compiled Frontend Assets
 ├── src/
-│   ├── api/                # Python API Mixins
-│   ├── services/           # Business Logic (AI, DB, Voice, Resource)
+│   ├── api/                # Python API Mixins (Frontend Bridge)
+│   ├── services/           # Service Modules (Refactored v0.5)
+│   │   ├── core/           # Core Logic (AI, Active, User, Persona)
+│   │   ├── voice/          # Audio I/O (TTS, STT, VoiceService)
+│   │   ├── vision/         # Visual Perception (VisionService)
+│   │   ├── memory/         # Long-term Memory (DB, History, Mind)
+│   │   ├── content/        # Content Gen (Bubbles, Topics, Diary)
+│   │   └── external/       # Integrations (Google, Dify)
 │   ├── managers/           # TypeScript Managers (Frontend)
 │   └── index.ts            # Frontend Entry
 ├── docs/                   # Documentation

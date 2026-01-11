@@ -9,6 +9,13 @@ import { api } from './api_client.js';
 import { HistoryManager } from './managers/history_manager.js';
 import { SocketClient } from './managers/socket_client.js';
 
+// Queue for early logs
+const logQueue: { msg: string, type: any, category: any }[] = [];
+(window as any).logToDebug = (msg: string, type: 'info' | 'warn' | 'error' = 'info', category: 'sys' | 'rag' | 'dbg' | 'vision' = 'sys') => {
+    logQueue.push({ msg, type, category });
+    console.log(`[Pre-Init Log] ${msg}`);
+};
+
 // Make it globally accessible for Backend API
 (window as any).updateVisionTarget = (appName: string, isLocked: boolean) => {
     const el = document.getElementById('vision-target-label');
@@ -110,6 +117,13 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // 1. Initialize Managers
     const logManager = LogManager.getInstance();
+
+    // Flush Log Queue
+    if (logQueue.length > 0) {
+        console.log(`[Init] Flushing ${logQueue.length} early logs...`);
+        logQueue.forEach(l => logManager.log(l.msg, l.type, l.category));
+        logQueue.length = 0; // Clear
+    }
     const uiManager = UIManager.getInstance();
     const chatManager = ChatManager.getInstance();
     const configManager = ConfigManager.getInstance();

@@ -1,5 +1,5 @@
 import logging
-from src.services.window_target_manager import window_target_manager
+from src.services.vision.window_target_manager import window_target_manager
 
 logger = logging.getLogger(__name__)
 

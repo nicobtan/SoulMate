@@ -3,9 +3,9 @@ import time
 import logging
 import random
 import os
-from .news_collector import NewsCollector
-from .vision_service import vision_service
-from .dify_client import DifyClient
+from src.services.content.news_collector import NewsCollector
+from src.services.vision.vision_service import vision_service
+from src.services.external.dify_client import DifyClient
 from PIL import ImageGrab
 
 logging.basicConfig(level=logging.INFO)
@@ -266,7 +266,7 @@ class ActiveEngine:
 
             # 1. Capture
             try:
-                from src.services.window_target_manager import window_target_manager
+                from src.services.vision.window_target_manager import window_target_manager
                 image = window_target_manager.get_target_image()
             except Exception as e:
                 logger.error(f"Capture Error: {e}")
@@ -304,7 +304,7 @@ class ActiveEngine:
 
             # 3. Decision Making (via ProactiveChatManager)
             # Lazy Import & Init
-            from src.services.proactive_chat_manager import ProactiveChatManager
+            from src.services.core.proactive_chat_manager import ProactiveChatManager
             manager = ProactiveChatManager()
             
             # Configure if needed (using same key as VisionService or from settings if accessible?)
@@ -339,7 +339,7 @@ class ActiveEngine:
                     final_10 = ["もっと詳しく教えて", "ありがとう", "他の話題について"]
                     
                     try:
-                        from src.services.suggestion_engine import SuggestionEngine
+                        from src.services.content.suggestion_engine import SuggestionEngine
                         eng = SuggestionEngine(self.ai_engine)
                         hist = f"Vision Context: {vision_text}\nAI Spoke: {speak_text}"
                         more = eng.generate(hist, "Unknown", "あなた")
@@ -348,7 +348,7 @@ class ActiveEngine:
                         pass
                         
                     # Love Slot
-                    from src.services.affection_manager import AffectionManager
+                    from src.services.content.affection_manager import AffectionManager
                     if not any(AffectionManager.is_affectionate(s) for s in final_10):
                          love = f"❤ {AffectionManager().get_random_affection()}"
                          final_10.append(love)
@@ -437,7 +437,7 @@ class ActiveEngine:
             # Ensure 8 items
             if len(dynamic) < 8:
                 try:
-                    from src.services.suggestion_engine import SuggestionEngine
+                    from src.services.content.suggestion_engine import SuggestionEngine
                     eng = SuggestionEngine(self.ai_engine)
                     
                     hist = f"Context: Idle Talk Triggered.\nAI Spoke: {result.get('text', '')}"
@@ -459,7 +459,7 @@ class ActiveEngine:
             final_10 = fixed + dynamic[:8]
             
             # Love Slot
-            from src.services.affection_manager import AffectionManager
+            from src.services.content.affection_manager import AffectionManager
             if not any(AffectionManager.is_affectionate(s) for s in final_10):
                  love = f"❤ {AffectionManager().get_random_affection()}"
                  if len(final_10) >= 10: final_10[-1] = love

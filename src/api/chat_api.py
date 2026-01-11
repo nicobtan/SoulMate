@@ -9,10 +9,10 @@ import base64
 from .base import BaseApiMixin
 # from .json_helper import _extract_json_from_text # TOON化により不要
 from PIL import ImageGrab
-from ..services.topic_selector import TopicSelector
-from ..services.url_validator import UrlValidator
-from ..services.affection_manager import AffectionManager
-from ..services.vision_service import vision_service
+from src.services.content.topic_selector import TopicSelector
+from src.services.external.url_validator import UrlValidator
+from src.services.content.affection_manager import AffectionManager
+from src.services.vision.vision_service import vision_service
 
 class ChatApiMixin(BaseApiMixin):
     """
@@ -49,7 +49,7 @@ Be snappy and direct.
         # standardの場合は指示なし（自然な長さ）
 
         # 3. ペルソナ読み込み (既存ロジック)
-        from ..services.resource_manager import ResourceManager 
+        from src.services.external.resource_manager import ResourceManager 
         if not hasattr(self, 'resource_manager'):
              self.resource_manager = ResourceManager()
 
@@ -370,7 +370,7 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
              needed = 8 - len(dynamic_suggestions)
              
              if not hasattr(self, 'suggestion_engine'):
-                 from ..services.suggestion_engine import SuggestionEngine
+                 from src.services.content.suggestion_engine import SuggestionEngine
                  self.suggestion_engine = SuggestionEngine(self._ai_engine)
              
              # Construct context
@@ -410,7 +410,7 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
         self.log_to_debug(f"✅ Final Suggestions Dump: {final_suggestions}", 'info')
 
         # --- Guaranteed Love Slot Logic (Applied to Final List) ---
-        from ..services.affection_manager import AffectionManager
+        from src.services.content.affection_manager import AffectionManager
         has_love = any(AffectionManager.is_affectionate(s) for s in final_suggestions)
         
         if not has_love:
@@ -793,7 +793,7 @@ User Message: "{message}"
     def get_url_metadata(self, url):
         """API exposed to frontend to fetch OpenGraph metadata."""
         if not hasattr(self, 'metadata_fetcher'):
-            from ..services.metadata_fetcher import MetadataFetcher
+            from src.services.external.metadata_fetcher import MetadataFetcher
             self.metadata_fetcher = MetadataFetcher()
             
             
@@ -1156,7 +1156,7 @@ Output ONLY the suggested text.
         def _run_analysis():
             try:
                 # 1. Initialize Service (Lazy load)
-                from src.services.mind_feedback import MindFeedbackService
+                from src.services.memory.mind_feedback import MindFeedbackService
                 feedback_service = MindFeedbackService(self) # pass self (api container)
                 
                 # 2. Get history
