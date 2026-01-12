@@ -17,6 +17,7 @@ from src.services.memory.memory_manager import MemoryManager
 from src.services.voice.tts_engine import TTSEngine
 from src.services.core.active_engine import ActiveEngine
 from src.services.external.calendar_manager import CalendarManager
+from src.services.voice.soulmate_ears import SoulMateEars # Import Ears
 
 # Imports from API Mixins
 from src.api.window_api import WindowApiMixin
@@ -41,9 +42,13 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         super().__init__() # Initialize BaseApiMixin attributes
         self.services = self # Mixin Pattern: API instance itself is the service container
         
+        # 0. Lifecycle Flags
+        self.is_cleaning_up = False
+        
         # 1. Core & Services Initialization
         self._config_manager = ConfigManager()
         self._ai_engine = AIEngine()
+        
         self._persona_manager = PersonaManager()
         self._memory_manager = MemoryManager()
         self.history_manager = HistoryManager()
@@ -53,8 +58,6 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         self._ai_engine.set_memory_service(self.memory_service)
 
         # Database Manager (SQLite)
-# ... (existing code) ...
-
         from src.services.memory.db_manager import DatabaseManager
         self.db_manager = DatabaseManager()
         self.db_manager.init_db()
@@ -85,9 +88,7 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # --- Diary Generator (Phase 89) ---
         from src.services.content.diary_generator import DiaryGenerator
         self.diary_generator = DiaryGenerator(self)
-        # Thread started in set_window()
-
-
+        
         # TTS Engine
         try:
             key_path = os.path.join(os.getcwd(), "settings", "google-credentials.json")
@@ -105,10 +106,21 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         except Exception as e:
             print(f"[System] VoiceService Init Failed: {e}")
             self.voice_service = None
+
+        # SoulMateEars (Hearing)
+        try:
+             # Default CPU/CUDA is handled by SoulMateEars internal logic or default arg
+             self.soulmate_ears = SoulMateEars() 
+             print("[System] SoulMateEars initialized.")
+        except Exception as e:
+             print(f"[System] SoulMateEars Init Failed: {e}")
+             self.soulmate_ears = None
  
         # Active Engine
         self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback, log_callback=self.log_to_debug)
         self.active_engine.set_bubble_service(self.bubble_service) # Inject Bubble Service
+        if self.soulmate_ears:
+            self.active_engine.set_ears(self.soulmate_ears) # Inject Ears
         self.active_engine.configure(self._config_manager.get_all())
         
         # Connect VisionService Logging
@@ -143,50 +155,29 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
 
         # Calendar Manager & Auto-Auth
         self._calendar_manager = CalendarManager()
-        def auto_auth():
-            self._calendar_manager.authenticate() 
-            print(f"[System] Auto-Auth Result: {self._calendar_manager.is_authenticated}")
-        threading.Thread(target=auto_auth, daemon=True).start()
-
-        # Test Bubble Timer (Validation)
-        # Test Bubble Timer (Validation)
-        # Main Bubble Loop (Safe)
-        def bubble_loop():
-            import time
-            time.sleep(5) # Wait for startup
-            
-            # Wait for JS Readiness
-            while True:
-                if self._window:
-                    try:
-                        # Check if function exists
-                        is_ready = self._window.evaluate_js("typeof showSoulBubble === 'function'")
-                        if is_ready:
-                            print("[System] Frontend JS Ready.")
-                            break
-                    except Exception:
-                        pass
-                time.sleep(1)
-
-            while True:
-                if self._window:
-                    try:
-                        # Use refill_bubbles() which respects MAX limits and Time Intervals
-                        # Returns a list of new bubbles
-                        packets = self.bubble_service.refill_bubbles()
-                        if packets:
-                            for packet in packets:
-                                # JS Call
-                                b_type = packet.get('type', 'normal')
-                                js = f"showSoulBubble('{packet['category']}', '{packet['text']}', '{packet['action_id']}', '{b_type}')"
-                                self._window.evaluate_js(js)
-                                print(f"[System] Bubble Injected: {packet['text']} ({b_type})")
-                    except Exception as e:
-                         print(f"[System] Bubble Loop Error: {e}")
-                    
-                time.sleep(5) # Check frequently (Service handles 5min throttling)
+        # Note: auto_auth moved to start_services()
         
-        threading.Thread(target=bubble_loop, daemon=True).start()
+        # Note: bubble_loop moved to start_services()
+
+    def cleanup(self):
+        """Releases all resources on shutdown."""
+        if getattr(self, 'is_cleaning_up', False): return
+        self.is_cleaning_up = True
+        print("[System] Shutting down services...")
+        
+        # Stop Listeners
+        if hasattr(self, 'active_engine') and self.active_engine:
+            self.active_engine.stop()
+            
+        # Stop Ears
+        if hasattr(self, 'soulmate_ears') and self.soulmate_ears:
+            self.soulmate_ears.close()
+
+        # Stop TTS
+        if hasattr(self, 'tts_engine') and self.tts_engine:
+            pass
+            
+        print("[System] Cleanup complete.")
 
     def _configure_ai(self, settings):
         """Override to include User Profile Context"""
@@ -297,9 +288,96 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
         # Hook loaded event for startup settings (Background restore)
         self._window.events.loaded += self.on_window_loaded
         
-        self.active_engine.start()
-        # Start Diary Check (Delayed to ensure UI is ready)
-        threading.Thread(target=self.diary_generator.check_and_generate_diary, daemon=True).start()
+        # Note: active_engine.start() and diary check moved to start_services()
+
+    def start_services(self):
+        """Initializes background services after UI is ready (Event Driven)."""
+        print("[System] Starting Background Services...")
+        self.log_to_debug("[System] 🔄 Starting Background Services...", 'sys')
+        
+        # 1. Active Engine
+        if hasattr(self, 'active_engine') and self.active_engine:
+            self.active_engine.start()
+            print("[System] ActiveEngine Started.")
+            self.log_to_debug("[System] ✅ ActiveEngine Started.", 'sys')
+
+        # 2. Bubble Service (Loop)
+        def bubble_loop():
+            import time
+            time.sleep(2) # Short wait for safety
+            
+            # Double check JS Readiness
+            while True:
+                if self._window:
+                    try:
+                        if self._window.evaluate_js("typeof showSoulBubble === 'function'"):
+                            break
+                    except: pass
+                time.sleep(1)
+            
+            print("[System] Bubble Loop Started.")
+            self.log_to_debug("[System] ✅ Bubble Service Loop Started.", 'sys')
+
+            while True:
+                if self._window:
+                    try:
+                        # Check safe to access window
+                        # Use refill_bubbles() which respects MAX limits and Time Intervals
+                        packets = self.bubble_service.refill_bubbles()
+                        if packets:
+                            for packet in packets:
+                                b_type = packet.get('type', 'normal')
+                                # Ensure safe quoting
+                                safe_text = packet['text'].replace("'", "\\'")
+                                safe_cat = packet['category'].replace("'", "\\'")
+                                
+                                js = f"showSoulBubble('{safe_cat}', '{safe_text}', '{packet['action_id']}', '{b_type}')"
+                                self._window.evaluate_js(js)
+                                print(f"[System] Bubble Injected: {packet['text']} ({b_type})")
+                    except Exception as e:
+                         print(f"[System] Bubble Loop Error: {e}")
+                    
+                time.sleep(5) 
+        
+        threading.Thread(target=bubble_loop, daemon=True).start()
+
+        # 3. Calendar Auth
+        def auto_auth():
+            if self._calendar_manager:
+                self._calendar_manager.authenticate() 
+                print(f"[System] Auto-Auth Result: {self._calendar_manager.is_authenticated}")
+                if self._calendar_manager.is_authenticated:
+                     self.log_to_debug("[System] ✅ Calendar Authenticated.", 'sys')
+        threading.Thread(target=auto_auth, daemon=True).start()
+
+        # 4. Diary Generator
+        if self.diary_generator:
+            threading.Thread(target=self.diary_generator.check_and_generate_diary, daemon=True).start()
+
+        # 5. Title Fixer
+        start_background_title_fixer(self)
+
+        # 6. Cloud MindVault Sync
+        def sync_mind_vault_flow():
+            import time
+            time.sleep(3) 
+            from src.services.external.docs_sync import DocsSyncService
+            try:
+                syncer = DocsSyncService(self)
+                local_md = os.path.join(os.getcwd(), "settings", "MindVault.md")
+                syncer.fetch_and_sync(doc_title="MindVault", local_path=local_md)
+                
+                from src.services.memory.mind_loader import MindLoader
+                loader = MindLoader(self)
+                loader.sync_mind_vault(local_md)
+                self.log_to_debug("[System] ✅ MindVault Synced.", 'sys')
+            except Exception as e:
+                print(f"[System] CloudSync Error: {e}")
+
+        threading.Thread(target=sync_mind_vault_flow, daemon=True).start()
+
+        print("[System] 🚀 All Systems Operational. SoulMate is Ready.")
+        self.log_to_debug("[System] 🚀 All Systems Operational. SoulMate is Ready.", 'sys')
 
     def on_window_loaded(self):
         """Called when the main window DOM is ready."""
@@ -328,6 +406,21 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
                     print(f"[System] Failed to move window: {e}")
             
             threading.Thread(target=delayed_move, daemon=True).start()
+            
+            # ★ Start Services (Event Driven)
+            self.start_services()
+
+    def _handle_voice_input_payload(self, data):
+        """Handle voice input from ActiveEngine loop (simulate user message)"""
+        text = data.get("text", "")
+        if not text: return
+        
+        safe_text = text.replace("'", "\\'").replace("\n", " ")
+        if self._window:
+            # 1. Insert text into input box
+            self._window.evaluate_js(f"if(window.insertVoiceText) window.insertVoiceText('{safe_text}')")
+            # 2. Click Send Button
+            self._window.evaluate_js("document.getElementById('chat-send-btn')?.click()")
 
     def push_message_callback(self, message):
         """Callback for ActiveEngine to push messages to UI."""
@@ -343,6 +436,11 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
 
             try:
                 data = json.loads(message)
+                
+                # Check for voice_input (New)
+                if "type" in data and data["type"] == "voice_input":
+                     self._handle_voice_input_payload(data)
+                     return
                 
                 # Check for control-only messages
                 if "type" in data and data["type"] == "expression":
@@ -519,8 +617,9 @@ def start_background_title_fixer(api_instance):
 def create_app():
     api = Api()
     
-    # ★ Start Background Title Fixer
-    start_background_title_fixer(api)
+    api = Api()
+    
+    # Title Fixer moved to api.start_services()
     
     initial_width = 450 
     initial_height = 700
@@ -550,6 +649,14 @@ def create_app():
     )
     api.set_window(window)
     
+    # ★ Shutdown Hook
+    def on_closed():
+        print("[Main] Window closed. Triggering cleanup...")
+        api.cleanup()
+        os._exit(0) # Force kill to prevent zombies
+
+    window.events.closed += on_closed
+    
     # ★ Setting API Instance for Auth Logging
     from src.services.external.google_auth_manager import GoogleAuthManager
     GoogleAuthManager().set_api_instance(api)
@@ -559,29 +666,13 @@ def create_app():
     if hasattr(api, '_ai_engine') and api._ai_engine:
         api._ai_engine.set_mind_logger(api.log_to_mind)
 
-    # ★ Cloud MindVault Sync (Phase 91)
-    try:
-        def sync_mind_vault_flow():
-            import time
-            time.sleep(3) # Wait for network stabilization
-            
-            # 1. Google Doc -> Local MD
-            from src.services.external.docs_sync import DocsSyncService
-            syncer = DocsSyncService(api) # Pass API for AI Engine access
-            local_md = os.path.join(os.getcwd(), "settings", "MindVault.md")
-            syncer.fetch_and_sync(doc_title="MindVault", local_path=local_md)
-            
-            # 2. Local MD -> DB
-            from src.services.memory.mind_loader import MindLoader
-            loader = MindLoader(api)
-            loader.sync_mind_vault(local_md)
-            
-        threading.Thread(target=sync_mind_vault_flow, daemon=True).start()
-        
-    except Exception as e:
-        print(f"[Main] CloudSync Init Error: {e}")
+    # ★ Cloud MindVault Sync moved to api.start_services()
 
     webview.start(debug=True)
+    
+    # Fallback exit if window close event missed
+    print("[Main] Webview loop ended. Exiting...")
+    os._exit(0)
 
 if __name__ == '__main__':
     # 1. Initialize Database

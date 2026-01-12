@@ -13,8 +13,12 @@ class PersonaManager:
             import sys
             base_dir = sys._MEIPASS
         else:
-            # Current file is in src/services/. Project root is ../../
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            # Current file is in src/services/core/. Project root is ../../../
+            # dirname(file) -> core
+            # dirname^2 -> services
+            # dirname^3 -> src
+            # dirname^4 -> Root
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
             
         self.persona_dir = os.path.join(base_dir, persona_dir)
         if not os.path.exists(self.persona_dir):

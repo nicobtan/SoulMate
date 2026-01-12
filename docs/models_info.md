@@ -12,8 +12,8 @@ SoulMateアプリケーション内で使用されているAIモデルと、そ�
 | Role | Model ID | Description | Source |
 | :--- | :--- | :--- | :--- |
 | **TTS (Expressive)**<br>(音声合成) | `gemini-2.5-flash-preview-tts` | 感情表現豊かな音声合成を行う。音声のみの生成に使用。 | `src/services/voice_service.py` |
-| **STT (Voice Input)**<br>(音声認識) | `faster-whisper`<br>(Configurable) | **ローカル実行**。`tiny`, `base` (default), `small`, `medium`, `large-v3` から選択可能。CUDA(GPU)利用時は `float16`、CPU時は `int8` で動作。 | `src/services/voice_input_manager.py` |
-| **Local Vision**<br>(画面認識) | `google/paligemma-3b-mix-224` | **ローカル実行 (PaliGemma)**。ユーザーの画面（スクリーンショット）をキャプション（テキスト）化するために使用。軽量で高速。 | `src/services/vision_service.py` |
+| **Hearing (Voice & Emotion)**<br>(聴覚・感情) | `large-v2` (Faster-Whisper)<br>+ `OnnxEmotionRecognizer` | **ローカル実行 (Stable)**。日本語に強い `large-v2` を採用。`int8` (または `int8_float16`) 量子化を優先しつつ、環境に応じて `float16` へ自動フォールバックする堅牢な構成。 | `src/services/voice/soulmate_ears.py`
+| **Active Vision**<br>(画面認識) | `gemini-2.5-flash-lite` | 高速・安価なGeminiモデルを使用し、ユーザーの画面を常時モニタリング・状況説明する。 | `src/services/vision/vision_service.py` |
 | **Video Reasoning**<br>(YouTube/Native Vision) | `gemini-3-flash-preview` | 動画ファイルや画像の詳細なコンテキスト理解には、Geminiのネイティブマルチモーダル機能を使用。 | `src/services/ai_engine.py` |
 
 ## 3. Sub-Systems (サブシステム)
@@ -28,4 +28,4 @@ SoulMateアプリケーション内で使用されているAIモデルと、そ�
 ## 補足
 *   **Gemini 3 Flash Preview**: 高速かつ高度な推論能力を持つため、リアルタイム性が求められる会話や、大量のテキスト処理（日記、ドキュメント同期）に採用しています。
 *   **Gemini 2.5 Flash Lite / Pro**: 旧構成で使われていましたが、現在は主に `3-flash` へ移行済みです。TTSのみ `2.5` 系を使用しています。
-*   **PaliGemma**: プライバシーと速度を考慮し、画面の常時監視（Proactive Vision）の一次処理はローカルモデルで行っています。
+*   **Gemini 2.5 Flash Lite**: 画面認識（Vision）の速度と精度のバランスが良いため、PaliGemmaから移行しました。

@@ -865,7 +865,7 @@
     - [x] **Image Logging**: キャプチャ画像を `dist/debug/latest_vision.jpg` および `history` フォルダに保存する機能を強化。
     - [x] **Secure Logging**: API Keyのロード状態を安全にログ出力するロジックを追加。
 
-## フェーズ112: Proactive Logic 2.0 (Context & History) [完了]
+## フェーズ112: Proactive Logic 2.0 (Context & History) [完了] (2026-01-10)
 - [x] **ProactiveChatManager Implementation**
     - [x] `src/services/proactive_chat_manager.py` 作成 (Class Design)
     - [x] **Topic History**: 直近のトピック重複防止ロジック (Queue)
@@ -875,7 +875,7 @@
     - [x] `ActiveEngine` の `_perform_vision_scan` をリファクタリングして Manager を利用
     - [x] 既存の単純なLLM呼び出しを、Manager経由の高度な判断に置き換え
 
-## フェーズ113: Source Code Refactoring (Modularization) [完了]
+## フェーズ113: Source Code Refactoring (Modularization) [完了] (2026-01-10)
 - [x] **Directory Reorganization**
     - [x] Create packages: `core`, `voice`, `vision`, `memory`, `content`, `external`
     - [x] Move files to appropriate packages
@@ -887,9 +887,56 @@
     - [x] Update `docs/system_design.md` with new structure
 
 
-## フェーズ114: Stability Fixes after Refactor (v0.5.1) [完了]
+## フェーズ114: Stability Fixes after Refactor (v0.5.1) [完了] (2026-01-11)
 - [x] **Startup Stability Fixes**
     - [x] **Frontend Log Race Condition**: `index.ts` にログキュー（スタブ）を実装し、`LogManager` 初期化前の `logToDebug` 呼び出しによるクラッシュを修正。
     - [x] **Import Corrections**: リファクタリングによる `ModuleNotFoundError` (`main.py`, `active_engine.py` 等) を完全修正。
 - [x] **PyWebview Compatibility**
     - [x] **Logger Hiding**: `SuggestionEngine` の `self.logger` を `self._logger` にリネームし、`pywebview` のプロパティスキャンエラーを回避。
+
+## Phase 115: High-End Hearing (SoulMateEars) [完了] (2026-01-11)
+- [x] **SoulMateEars 実装**
+    - [x] `faster-whisper` による高速ASR (`large-v3-turbo`)
+    - [x] `webrtcvad` によるVAD (発話区間検出)
+    - [x] `ActiveEngine` への統合とバックグラウンドスレッド化
+
+## Phase 116: Emotion Model Optimization (ONNX) [完了] (2026-01-11)
+- [x] **Dependencies**
+    - [x] Add onnx, onnxruntime-gpu to requirements.txt
+    - [x] Install packages
+- [x] **Implementation**
+    - [x] Create tools/convert_emotion_model.py (Export & Quantize)
+    - [x] Create src/services/voice/onnx_emotion_recognizer.py (Inference)
+- [x] **Verification**
+    - [x] Run conversion and verify accuracy comparison
+
+## Phase 117: Continuous Listening Mode [完了] (2026-01-12)
+- [x] **Backend Implementation**
+    - [x] `active_engine.py`: Listening Loop (Threaded)
+    - [x] `voice_api.py`: `toggle_continuous_listening` API
+- [x] **Frontend Implementation**
+    - [x] Right-click logic on Mic button
+    - [x] `setContinuousListening` frontend API
+    - [x] Visual Feedback (`.mic-listening` CSS)
+    - [x] Direct execution (No intermediate text input)
+ 
+ ## Phase 118: Whisper Stability & Large-v2 Migration [完了] (2026-01-12)
+ - [x] **Model Upgrade**
+     - [x] **Migration**: `faster-distil-whisper-large-v3` -> `large-v2` (日本語認識の安定性重視)
+     - [x] **Quantization**: `int8` / `int8_float16` の積極採用 (VRAM削減)
+ - [x] **Robust Fallback (The Iron Wall)**
+     - [x] **Logic**: 量子化エラー発生時に `float16` へ自動フォールバックする「3段構え」のロード処理を実装。
+     - [x] **Backup**: 万が一の場合は `medium` モデルを使用する安全策を追加。
+ - [x] **Hallucination Mitigation**
+     - [x] **Prompt Engineering**: `initial_prompt` に日本語会話コンテキスト（「聞こえますか？」等）を強力に注入し、短い発話の誤認識("Can you?")を抑制。
+
+
+ ## Phase 119: Event-Driven Startup & Log Optimization [完了] (2026-01-12)
+ - [x] **Event-Driven Startup (Startup Refactor)**
+     - [x] **Architecture**: `main.py` の初期化フローを刷新。`__init__` でのスレッド起動を廃止し、`on_window_loaded` イベントをトリガーとする `start_services()` を実装。
+     - [x] **Race Condition Fix**: UI表示前に裏でバブル生成や認証が走る問題を解決。
+ - [x] **Startup Visibility (Log Enhancement)**
+     - [x] **Frontend Logging**: サービスの起動シーケンス（ActiveEngine, Bubble, Calendar, MindVault）をシステムログに可視化。
+     - [x] **Confirmation**: 起動完了時に `🚀 All Systems Operational` を表示。
+ - [x] **Log Cleanup**
+     - [x] **Live2D**: `ResizeObserver` との手動コールの重複による二重ログ出力を修正。

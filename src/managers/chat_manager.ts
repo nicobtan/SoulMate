@@ -80,8 +80,15 @@ export class ChatManager {
                 UIManager.getInstance().updateStatus("Thinking...");
             } else {
                 // idle
-                input.placeholder = "Type a message...";
-                UIManager.getInstance().updateStatus("Active");
+                if (this.isContinuousMode) {
+                    // 連続モード中はidleでもListening表示を維持
+                    if (btn) btn.classList.add('mic-listening');
+                    if (input) input.placeholder = "Continuous Listening...";
+                    UIManager.getInstance().updateStatus("Listening...");
+                } else {
+                    input.placeholder = "Type a message...";
+                    UIManager.getInstance().updateStatus("Active");
+                }
             }
         };
 
@@ -99,12 +106,15 @@ export class ChatManager {
 
         // ★追加: 音声認識結果を受け取って入力欄に入れる関数
         (window as any).insertVoiceText = (text: string) => {
+            // 連続モードなら直接送信
+            if (this.isContinuousMode) {
+                this.sendMessage(text);
+                return;
+            }
+
             const input = document.getElementById('chat-input') as HTMLTextAreaElement;
             if (input) {
                 if (input.value.trim().length > 0) {
-                    // プレビューで上書きされている場合があるので、一旦クリアするか、
-                    // あるいはプレビュー=最終結果ならばそのまま
-                    // ここではシンプルに上書き (すでにPreviewで入っているはずだが念のため)
                     input.value = text;
                 } else {
                     input.value = text;
@@ -113,13 +123,39 @@ export class ChatManager {
                 // 色を戻す
                 input.style.color = "white";
 
+                // 入力イベントを発火させて送信ボタンの状態を更新
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+
                 input.focus();
                 input.scrollTop = input.scrollHeight;
             }
         };
+
+        // ★追加: 連続聞き取りモードの状態管理
+        (window as any).setContinuousListening = (enabled: boolean) => {
+            this.isContinuousMode = enabled;
+            const btn = document.getElementById('mic-btn');
+            const input = document.getElementById('chat-input') as HTMLTextAreaElement;
+
+            console.log(`[ChatManager] setContinuousListening: ${enabled}`);
+
+            if (enabled) {
+                if (btn) btn.classList.add('mic-listening');
+                // プレースホルダー更新は updateMicUiState に任せるが、即時反映もする
+                if (input) input.placeholder = "Continuous Listening...";
+                UIManager.getInstance().updateStatus("Listening...");
+            } else {
+                if (btn) btn.classList.remove('mic-listening');
+                if (input) input.placeholder = "Type a message...";
+                UIManager.getInstance().updateStatus("Active");
+            }
+        };
+
     }
 
+
     public static getInstance(): ChatManager {
+
         if (!ChatManager.instance) ChatManager.instance = new ChatManager();
         return ChatManager.instance;
     }
@@ -350,6 +386,8 @@ export class ChatManager {
 
     // Voice Input Logic
     private isRecording = false;
+    private isContinuousMode = false; // ★追加
+
 
     public async toggleVoiceInput() {
         const btn = document.getElementById('mic-btn');

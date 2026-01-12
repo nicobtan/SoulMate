@@ -146,6 +146,33 @@ window.addEventListener('DOMContentLoaded', async () => {
         configManager.init(); // Web Mode
     }
 
+    // ★ Mic Button Right Click (Continuous Mode)
+    const micBtn = document.getElementById('mic-btn');
+    if (micBtn) {
+        micBtn.addEventListener('contextmenu', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("[UI] Toggling Continuous Listening Mode...");
+
+            try {
+                const res = await api.toggle_continuous_listening();
+                // Backend updates UI too via eval, but purely reactive here is safer for latency
+                if (res.status === 'success') {
+                    if (res.state === 'on') {
+                        micBtn.classList.add('mic-listening');
+                        logManager.log("Continuous Listening: ON", "info", "sys");
+                    } else {
+                        micBtn.classList.remove('mic-listening');
+                        logManager.log("Continuous Listening: OFF", "info", "sys");
+                    }
+                }
+            } catch (err) {
+                console.error("Toggle Failed:", err);
+            }
+        });
+    }
+
+
     // 3. Initialize Live2D
     const initLive2D = async () => {
         try {

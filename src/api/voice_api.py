@@ -121,3 +121,34 @@ class VoiceApiMixin:
 
         # 非同期実行 (Keyboardスレッドを解放するため)
         threading.Thread(target=_run_toggle, daemon=True).start()
+
+    def toggle_continuous_listening(self):
+        """
+        Toggle Continuous Listening Mode (Right-Click on Mic).
+        Calls ActiveEngine's loop.
+        """
+        logger.info("🎤 [VoiceApi] Toggling Continuous Listening...")
+        
+        if not hasattr(self, 'active_engine') or not self.active_engine:
+             logger.error("❌ ActiveEngine not attached.")
+             return {"status": "error", "message": "ActiveEngine not ready"}
+
+        current_active = self.active_engine.hearing_active
+        
+        if self.active_engine.hearing_active:
+             # Stop
+             self.active_engine.stop_listening_loop()
+             state = "off"
+             # Update UI via ChatManager helper
+             cmd = "if(window.setContinuousListening) window.setContinuousListening(false)"
+        else:
+             # Start
+             self.active_engine.start_listening_loop()
+             state = "on"
+             # Update UI via ChatManager helper
+             cmd = "if(window.setContinuousListening) window.setContinuousListening(true)"
+        
+        if hasattr(self, '_window') and self._window:
+             self._window.evaluate_js(cmd)
+             
+        return {"status": "success", "state": state}

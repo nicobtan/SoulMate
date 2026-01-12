@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 # --- Robust Environment Loading (Absolute Path) ---
 try:
-    # src/services/vision_service.py -> src/services -> src -> root -> .env
-    env_path = Path(__file__).resolve().parent.parent.parent / '.env'
+    # src/services/vision/vision_service.py -> src/services -> src -> root
+    env_path = Path(__file__).resolve().parent.parent.parent.parent / '.env'
     if env_path.exists():
         load_dotenv(dotenv_path=env_path)
     else:

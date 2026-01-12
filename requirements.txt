@@ -114,3 +114,10 @@ websockets==15.0.1
 zipp==3.23.0
 pywin32
 mss
+faster-whisper
+speechbrain
+transformers
+webrtcvad
+torchaudio
+onnx
+

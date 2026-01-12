@@ -349,6 +349,14 @@ export class ApiClient {
         }
         return { status: "ignored" };
     }
+
+    async toggle_continuous_listening(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.toggle_continuous_listening) {
+            return await this.desktopApi.toggle_continuous_listening();
+        }
+        return { status: "ignored" };
+    }
 }
+
 
 export const api = new ApiClient();

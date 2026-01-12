@@ -18,6 +18,8 @@ class ActiveEngine:
         self.log_callback = log_callback
         self.dify_client = None # Initialized in configure
         self.bubble_service = bubble_service # Injected dependency
+        self.ears = None # Injected SoulMateEars
+        self.hearing_active = False # Continuous Listening Flag
         # self.news_collector = NewsCollector() # Deprecated for now, logic moved to AIEngine
         
         self.is_running = False
@@ -201,6 +203,88 @@ class ActiveEngine:
             self.last_vision_time = 0
         else:
             self.last_vision_time = time.time()
+
+    def start_listening_loop(self):
+        """Start continuous listening thread."""
+        if not self.ears:
+            logger.warning("ActiveEngine: No Ears configured.")
+            return
+
+        if self.hearing_active: return
+
+        self.hearing_active = True
+        logger.info("ActiveEngine: Starting Continuous Listening Loop...")
+        threading.Thread(target=self._run_listening_loop, daemon=True).start()
+
+    def stop_listening_loop(self):
+        self.hearing_active = False
+        logger.info("ActiveEngine: Stopping Continuous Listening Loop.")
+        # self._stop_listening_loop() # Not implemented as method, just flag control
+
+    def toggle_listening(self):
+        """
+        Toggles continuous listening mode.
+        """
+        # 1. Force OFF if ears missing (UI stuck fix)
+        if not self.ears:
+            if self.hearing_active:
+                self.hearing_active = False
+                logger.info("ActiveEngine: Continuous Listening FORCE STOP (No Ears).")
+                return {"status": "success", "state": "off", "message": "Forced OFF (No Ears)"}
+            else:
+                logger.warning("ActiveEngine: No Ears configured. Cannot start listening.")
+                return {"status": "error", "message": "No Ears configured"}
+
+        # 2. Normal Toggle
+        if self.hearing_active:
+            # STOP
+            self.stop_listening_loop()
+            return {"status": "success", "state": "off"}
+        else:
+            # START
+            self.start_listening_loop()
+            return {"status": "success", "state": "on"}
+
+    def set_ears(self, ears_instance):
+        self.ears = ears_instance
+
+    def _run_listening_loop(self):
+        """Loop for continuous voice input."""
+        logger.info("👂 [Active] Listening Loop Started.")
+        no_speech_count = 0
+        
+        while self.hearing_active:
+            if not self.ears: break
+            
+            try:
+                # Listen with short timeout to allow loop check
+                # listen_and_process blocks until speech or timeout
+                res = self.ears.listen_and_process(timeout=1.0)
+                
+                if res and res.get('text'):
+                    text = res['text']
+                    emotion = res.get('emotion', 'neutral')
+                    logger.info(f"🎤 [Active] Heard: {text} ({emotion})")
+                    
+                    # Log to UI
+                    self._send_log(f"🎤 Heard: {text}", "info", "sys")
+
+                    # Trigger Callback (Main API should handle this)
+                    # We send a special payload type 'voice_input'
+                    if self.on_message_callback:
+                        import json
+                        payload = {
+                            "type": "voice_input",
+                            "text": text,
+                            "emotion": emotion
+                        }
+                        self.on_message_callback(json.dumps(payload, ensure_ascii=False))
+                
+            except Exception as e:
+                logger.error(f"Listening Loop Error: {e}")
+                time.sleep(1) # Backoff
+        
+        logger.info("👂 [Active] Listening Loop Stopped.")
 
     def force_proactive_scan(self):
         """Manually trigger scan, ignoring timer. Spawns thread to avoid blocking."""

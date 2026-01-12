@@ -88,6 +88,11 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 ### ❤ Emotional Balance (Love Slot)
 - **Guaranteed Love Slot**: AIが知的になりすぎないよう、会話選択肢の1つを必ず「甘え」「癒やし」などの感情的なアクション（❤マーク付き）に強制置換するロジックを実装。
 - **Categorized Interests**: 「Love & Healing」カテゴリを新設し、ユーザーを癒やす話題（心理学、アロマ、褒める技術など）を強化。
+### 👂 High-End Hearing (SoulMateEars)
+- **Engine**: `faster-whisper` (large-v3-turbo) + `webrtcvad` + ONNX Emotion Recognition.
+- **Continuous Listening**: マイクボタンを**右クリック**することで「連続聞き取りモード」が起動。
+    - いちいちボタンを押さなくても、あなたの声を常に聴き取り、即座に返答します。
+    - マイクボタンが緑色に脈動し、動作中であることを示します。
 
 ## 将来の機能アイデア (Roadmap)
 ### 💡 アイデア 2: 「PCの体調管理（システム監視）」 (System Monitor)

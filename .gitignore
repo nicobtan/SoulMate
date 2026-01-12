@@ -39,3 +39,9 @@ history.json.bak
 chat_history.jsonl
 chroma_db/
 sbv2/
+
+# Models & Checkpoints
+wav2vec2_checkpoints/
+*.safetensors
+*.bin
+*.pt
