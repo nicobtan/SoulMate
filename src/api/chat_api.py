@@ -238,7 +238,25 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
                 context += f"{profile_context}\n"
 
         if self._memory_manager:
-            context += self._memory_manager.retrieve_context(message)
+            # ★ Query Transformation (RAG Optimization)
+            rewritten_query = message
+            try:
+                if self._ai_engine and hasattr(self, 'history_manager') and self.history_manager:
+                     # Get recent history text for context
+                     # Need raw text format: "User: ...\nAI: ..."
+                     recent_history = self.history_manager.get_session_history(limit=4)
+                     history_text = ""
+                     for h in recent_history:
+                         role = "User" if h['role'] == 'user' else "AI"
+                         history_text += f"{role}: {h['content']}\n"
+                     
+                     if history_text.strip():
+                         rewritten_query = self._ai_engine.transform_query(message, history_text)
+            except Exception as e:
+                self.log_to_debug(f"Query Transform Loop Error: {e}", 'warn')
+
+            # Use REWRITTEN query for retrieval
+            context += self._memory_manager.retrieve_context(rewritten_query)
             
         # Active Topic Context
         if self.active_engine and getattr(self.active_engine, 'current_active_topic', None):

@@ -457,3 +457,74 @@ AI: {ai_text}
             # Observer failure should not impact main thread
             # logger.error(f"Observer Error: {e}")
             pass
+
+    def transform_query(self, user_question, chat_history):
+        """
+        Retrieval-Augmented Generation (RAG) 向けのクエリ変換を行います。
+        直前の会話履歴を踏まえ、ユーザーの質問を「検索に適した完全な質問文」に書き換えます。
+        """
+        if not self.client: return user_question # Fallback
+
+        # Lightweight model for this specific NLP task
+        model_name = "gemini-2.0-flash-lite-preview-02-05" # Recommended lightweight model (or flash-exp)
+        # Fallback to flash-exp if lite not available, or just use reasoning model if fast enough.
+        # Given "gemini-2.5-flash-lite" mention in rules, let's use a fast one.
+        # Note: Rule says "AI Model: Gemini 2.5 Flash Lite".
+        model_name = "gemini-2.0-flash-lite-preview-02-05" 
+
+        prompt = f"""
+# Role
+あなたは会話の文脈を理解し、検索クエリを最適化するアシスタントです。
+ユーザーは直前の会話の流れを踏まえて短い質問（主語の省略など）をすることがあります。
+あなたの仕事は、以下の「会話履歴」と「最新の質問」を読み解き、**検索エンジンが正しく情報を探せるように、最新の質問を具体的かつ独立した質問文（Standalone Question）に書き換えること**です。
+
+# Constraints
+- 元の質問の意図を変えないでください。
+- 「それ」「あれ」「この」などの指示語がある場合は、会話履歴から具体的な名詞を特定して置き換えてください。
+- 主語が省略されている場合は、会話履歴から現在のトピック（話題）を特定し、主語を補ってください。
+- 回答は**書き換えた質問文のみ**を出力してください。余計な挨拶や説明は不要です。
+
+# Examples
+History:
+User: 光るキノコの栽培キットってある？
+AI: はい、ヤコウタケ栽培キットなどが販売されています。
+
+Current Input:
+User: 寿命はどれくらい？
+
+Rewritten Query:
+ヤコウタケ栽培キットの寿命はどれくらいですか？
+----------------
+History:
+User: Pythonのコードがエラーになるんだ。
+AI: どのようなエラーですか？
+User: "IndexError: list index out of range" って出る。
+
+Current Input:
+User: どうやって直せばいい？
+
+Rewritten Query:
+Pythonの "IndexError: list index out of range" の直し方は？
+----------------
+
+# Conversation History
+{chat_history}
+
+# Current Input
+{user_question}
+
+# Rewritten Query:
+"""
+        try:
+            # Use raw generate_content for speed
+            response = self.client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.1) # Low temp for precision
+            )
+            rewritten = response.text.strip()
+            self._log_thought(f"🔄 [Query Transform] '{user_question}' -> '{rewritten}'")
+            return rewritten
+        except Exception as e:
+            logger.warning(f"Query Transform Failed: {e}")
+            return user_question
