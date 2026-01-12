@@ -940,3 +940,24 @@
      - [x] **Confirmation**: 起動完了時に `🚀 All Systems Operational` を表示。
  - [x] **Log Cleanup**
      - [x] **Live2D**: `ResizeObserver` との手動コールの重複による二重ログ出力を修正。
+## フェーズ120: RAGクエリ変換 (Query Transformation) [完了] (2026-01-12)
+- [x] **クエリ書き換えロジックの実装**
+    - [x] `src/services/ai_engine.py`: `transform_query` メソッドの追加。
+    - [x] **Model**: `gemini-2.0-flash-lite-preview-02-05` (高速・軽量) を採用。
+    - [x] **Prompt**: 直前の会話履歴を踏まえ、ユーザーの指示語（「それ」「あれ」）を具体的な名詞に置換するプロンプトを実装。
+- [x] **チャットフロー統合**
+    - [x] `src/api/chat_api.py`: RAG検索 (`retrieve_context`) の直前に書き換え処理を挿入。
+    - [x] **検証**: 文脈依存の質問でも正確な検索ソースがヒットすることを確認。
+
+## フェーズ121: Gitリポジトリの軽量化 (Large File Cleanup) [完了] (2026-01-12)
+- [x] **巨大ファイルの除去**
+    - [x] 誤ってコミットされたモデルファイル (`.safetensors`, `.onnx`, `.ckpt`) を特定し履歴から削除。
+    - [x] `git reset --soft` と `git rm --cached` によるクリーンアップ。
+- [x] **再発防止**
+    - [x] `.gitignore`: モデル拡張子とディレクトリ (`wav2vec2_checkpoints/`, `sbv2/`) を包括的に除外設定。
+    - [x] **検証**: `git push` が正常に完了することを確認。
+
+## フェーズ122: Live2D初期化プロセスの修正 [完了] (2026-01-12)
+- [x] **表示不具合の修正**
+    - [x] **原因**: 重複ログ削除のために `init()` 末尾の `resize()` を削除した結果、初期ロード時間とObserverの発火タイミングのズレによりモデルが表示されない問題が発生。
+    - [x] **修正**: `live2d_manager.ts` に明示的な初期配置処理 (`this.resize()`) を復活させ、ロード完了後の表示を保証。

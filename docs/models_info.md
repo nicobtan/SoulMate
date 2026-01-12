@@ -15,6 +15,7 @@ SoulMateアプリケーション内で使用されているAIモデルと、そ�
 | **Hearing (Voice & Emotion)**<br>(聴覚・感情) | `large-v2` (Faster-Whisper)<br>+ `OnnxEmotionRecognizer` | **ローカル実行 (Stable)**。日本語に強い `large-v2` を採用。`int8` (または `int8_float16`) 量子化を優先しつつ、環境に応じて `float16` へ自動フォールバックする堅牢な構成。 | `src/services/voice/soulmate_ears.py`
 | **Active Vision**<br>(画面認識) | `gemini-2.5-flash-lite` | 高速・安価なGeminiモデルを使用し、ユーザーの画面を常時モニタリング・状況説明する。 | `src/services/vision/vision_service.py` |
 | **Video Reasoning**<br>(YouTube/Native Vision) | `gemini-3-flash-preview` | 動画ファイルや画像の詳細なコンテキスト理解には、Geminiのネイティブマルチモーダル機能を使用。 | `src/services/ai_engine.py` |
+| **RAG Query Rewrite**<br>(クエリ最適化) | `gemini-2.0-flash-lite-preview-02-05` | ユーザーの曖昧な質問（指示語、主語省略）を、会話履歴に基づいて検索に適した完全な文に書き換える。 | `src/services/ai_engine.py` |
 
 ## 3. Sub-Systems (サブシステム)
 | Role | Model ID | Description | Source |

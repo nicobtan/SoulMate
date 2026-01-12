@@ -158,8 +158,9 @@ export class Live2DManager {
         // Also expose as camelCase for compatibility with Python API calls
         (window as any).live2dManager = this;
 
-        // Initial Resize is handled by ResizeObserver callback
-        // this.resize();
+        // Initial Resize is handled by ResizeObserver callback, BUT we must ensure it runs after model load
+        // because ResizeObserver might fire too early (while model is null).
+        this.resize();
 
         // 6. Setup Zoom Control
         window.addEventListener('wheel', (e) => this.handleZoom(e), { passive: false });
