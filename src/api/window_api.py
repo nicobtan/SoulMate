@@ -19,6 +19,24 @@ class WindowApiMixin(BaseApiMixin):
             return {"x": self._window.x, "y": self._window.y}
         return {"x": 0, "y": 0}
 
+    def save_window_position(self):
+        """Saves current window position to config."""
+        if self._window and self._config_manager:
+            try:
+                x = self._window.x
+                y = self._window.y
+                
+                # Check for None (Shutdown race condition)
+                if x is not None and y is not None:
+                     # Only save valid coordinates
+                    if x > -10000 and y > -10000:
+                        self._config_manager.update({'window_x': x, 'window_y': y})
+                        print(f"[WindowApi] Saved Position: {x}, {y}")
+                else:
+                    print("[WindowApi] Skipping save (Window closed or invalid coordinates)")
+            except Exception as e:
+                print(f"[WindowApi] Save Error: {e}")
+
     def close_window(self):
         if self._window:
             self._window.destroy()

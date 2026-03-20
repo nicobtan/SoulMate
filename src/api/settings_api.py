@@ -8,14 +8,22 @@ class SettingsApiMixin(BaseApiMixin):
     def get_settings(self):
         return self._config_manager.get_all()
 
+    # Alias for redundancy against frontend missing method issues
+    def fetch_settings(self):
+        return self.get_settings()
+
     def save_settings(self, settings):
+        print(f"[DEBUG] save_settings received: {settings}")
         self._config_manager.update(settings)
-        # Re-configure AI
-        self._configure_ai(settings)
-        
-        # Re-configure Active Engine
-        if hasattr(self, 'active_engine') and self.active_engine:
-            self.active_engine.configure(settings)
+        print(f"[DEBUG] Config after update: {self._config_manager.get('always_on_top')}")
+
+        # Re-configure AI & Active Engine (バックグラウンドで実行してUIをブロックしない)
+        def _ai_reconfigure():
+            self._configure_ai(settings)
+            if hasattr(self, 'active_engine') and self.active_engine:
+                self.active_engine.configure(settings)
+
+        threading.Thread(target=_ai_reconfigure, daemon=True).start()
         
         # Apply visual settings to Main Window immediately
         if self._window:
@@ -39,6 +47,12 @@ class SettingsApiMixin(BaseApiMixin):
             if hasattr(self, 'configure_voice_hotkey'):
                 self.configure_voice_hotkey(settings)
 
+            # Re-configure Always on Top
+            if 'always_on_top' in settings:
+                on_top = settings['always_on_top']
+                self._window.on_top = on_top
+                self.log_to_debug(f"📌 [Window] Always on Top set to: {on_top}", 'info')
+
             # Re-configure Whisper Model (Async)
             stt_size = settings.get('stt_model_size', 'base')
             # Check against current loaded size (We can check manager directly)
@@ -49,7 +63,7 @@ class SettingsApiMixin(BaseApiMixin):
             self.log_to_debug(f"✅ [System] Settings Saved: (Hotkeys updated)", 'info')
 
         return {"status": "success", "settings": self._config_manager.get_all()}
-    
+
     def apply_background_image(self, bg_path=None):
         """Helper to inject background image via Base64 to bypass CORS/File restrictions."""
         if not self._window: return
@@ -171,14 +185,7 @@ class SettingsApiMixin(BaseApiMixin):
             return self._calendar_manager.authenticate()
         return False
         
-    def save_window_position(self):
-        """Saves current window position to config."""
-        if self._window:
-            x, y = self._window.x, self._window.y
-            print(f"[SettingsApi] Saving Window Position: x={x}, y={y}")
-            self._config_manager.update({'window_x': x, 'window_y': y})
-            return {"status": "success", "x": x, "y": y}
-        return {"status": "error", "message": "Window not found"}
+
     
     def select_background_image(self):
         """Opens a file dialog to select a background image."""
@@ -212,8 +219,12 @@ class SettingsApiMixin(BaseApiMixin):
             
         persona_data = self._persona_manager.load_persona(persona_id)
         
+        # 🟢 FIX: 常にVoice_typeからボイス名を取得 (config.jsonのキーはvoice_type、内部はvoice_name)
+        # Nayaのボイス(Zephyrなど)がPuck(初期値)に上書きされるバグを防ぐため、存在確認を強化
+        voice = settings.get('voice_type') or self._config_manager.get('voice_type') or 'Aoede'
+
         # Update AI
-        self._ai_engine.configure(api_key, model)
+        self._ai_engine.configure(api_key, model, voice_name=voice)
         
         if persona_data:
             # --- Deep Context Injection (User Name Fix) ---

@@ -6,6 +6,10 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 import time
+import os
+
+CACHE_FILE = os.path.join(os.getcwd(), "dist", "data", "bubble_cache.json")
+
 
 class BubbleService:
     def _infer_category(self, text: str) -> str:
@@ -303,8 +307,15 @@ class BubbleService:
         new_bubbles = []
         attempts = 0
         
-        # ★ Startup Special: Force 1 MindVault Bubble
+        # ★ Startup Special: Force 1 MindVault Bubble (or Load from Cache)
         if self._startup_mode:
+            # 1. Try to Load from Cache First
+            if self._load_cache():
+                logger.info("[Bubble] Startup: Loaded Bubbles from Cache. Skipping Generation.")
+                self._startup_mode = False
+                return list(self._active_bubbles.values())
+
+            # 2. If no cache, generate fresh
             ctx = self._get_time_context()
             mind_bubble = self._generate_mind_bubble_llm(ctx)
             if mind_bubble:
@@ -325,7 +336,54 @@ class BubbleService:
             self._last_gen_time = now
             self._startup_mode = False # Startup burst done
             
+            # Save Cache if we generated something
+            if new_bubbles:
+                self._save_cache()
+            
         return new_bubbles
+
+    def _load_cache(self):
+        """Loads bubbles from JSON cache if valid (< 6 hours)."""
+        try:
+            if not os.path.exists(CACHE_FILE):
+                return False
+                
+            with open(CACHE_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                
+            timestamp = data.get('timestamp', 0)
+            bubbles = data.get('bubbles', {})
+            
+            # Validity Check (6 hours = 21600 sec)
+            if time.time() - timestamp > 21600:
+                logger.info("[Bubble] Cache expired.")
+                return False
+                
+            if not bubbles:
+                return False
+                
+            self._active_bubbles = bubbles
+            logger.info(f"[Bubble] Cache loaded: {len(bubbles)} bubbles.")
+            return True
+            
+        except Exception as e:
+            logger.error(f"[Bubble] Load Cache Failed: {e}")
+            return False
+
+    def _save_cache(self):
+        """Saves current active bubbles to JSON."""
+        try:
+            os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+            data = {
+                "timestamp": time.time(),
+                "bubbles": self._active_bubbles
+            }
+            with open(CACHE_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            logger.info("[Bubble] Cache saved.")
+        except Exception as e:
+            logger.error(f"[Bubble] Save Cache Failed: {e}")
+
 
     def _generate_mind_bubble_llm(self, ctx):
         """

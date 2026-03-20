@@ -26,5 +26,19 @@
         "scale": 1.0,
         "x": 0,
         "y": 0
+    },
+    {
+        "id": "naya",
+        "name": "Naya",
+        "description": "正義感はあるけど普段はダラダラ。平和を愛するゆるふわパートナー",
+        "model_id": "naya",
+        "persona_id": "naya",
+        "voice": {
+            "provider": "gemini-2.5-flash-preview-tts",
+            "voice_name": "Aoede"
+        },
+        "scale": 0.8,
+        "x": 0,
+        "y": -50
     }
 ]

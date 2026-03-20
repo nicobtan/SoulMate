@@ -7,6 +7,8 @@ SoulMateアプリケーション内で使用されているAIモデルと、そ�
 | :--- | :--- | :--- | :--- |
 | **Reasoning Engine**<br>(推論・会話) | `gemini-3-flash-preview` | 会話の生成、感情分析、ツール判定、全体的な思考を担うメインエンジン。 | `src/services/ai_engine.py`<br>`src/services/active_engine.py` |
 | **Learned Facts**<br>(長期記憶オブザーバー) | `gemini-2.0-flash-exp` | **非同期処理**。会話終了後にバックグラウンドで会話ログを分析し、ユーザーの好みや事実を抽出して保存する。ツール利用（Function Calling）に強いモデルを採用。 | `src/services/ai_engine.py` |
+| **Thinking Engine**<br>(自律思考ループ) | `gemini-3-flash-preview` | **SoulOperator (Thinking Mode)**。現在の画面状況を見て、次に取るべき行動(Click/Type)を動的に決定する。 | `src/services/control/soul_operator.py` |
+
 
 ## 2. Voice & Vision (音声・視覚)
 | Role | Model ID | Description | Source |
@@ -15,7 +17,8 @@ SoulMateアプリケーション内で使用されているAIモデルと、そ�
 | **Hearing (Voice & Emotion)**<br>(聴覚・感情) | `large-v2` (Faster-Whisper)<br>+ `OnnxEmotionRecognizer` | **ローカル実行 (Stable)**。日本語に強い `large-v2` を採用。`int8` (または `int8_float16`) 量子化を優先しつつ、環境に応じて `float16` へ自動フォールバックする堅牢な構成。 | `src/services/voice/soulmate_ears.py`
 | **Active Vision**<br>(画面認識) | `gemini-2.5-flash-lite` | 高速・安価なGeminiモデルを使用し、ユーザーの画面を常時モニタリング・状況説明する。 | `src/services/vision/vision_service.py` |
 | **Video Reasoning**<br>(YouTube/Native Vision) | `gemini-3-flash-preview` | 動画ファイルや画像の詳細なコンテキスト理解には、Geminiのネイティブマルチモーダル機能を使用。 | `src/services/ai_engine.py` |
-| **RAG Query Rewrite**<br>(クエリ最適化) | `gemini-2.0-flash-lite-preview-02-05` | ユーザーの曖昧な質問（指示語、主語省略）を、会話履歴に基づいて検索に適した完全な文に書き換える。 | `src/services/ai_engine.py` |
+| **RAG Query Rewrite**<br>(クエリ最適化) | `gemini-2.5-flash` | ユーザーの曖昧な質問（指示語、主語省略）を、会話履歴に基づいて検索に適した完全な文に書き換える。 | `src/services/ai_engine.py` |
+| **Live2D Character**<br>(Naya) | `naya` | 新規統合されたメインキャラクター。`dist/models/naya/` に配置。表情豊かなアニメーションとリップシンクに対応。 | `profiles/characters.json`<br>`Live2D/` |
 
 ## 3. Sub-Systems (サブシステム)
 | Role | Model ID | Description | Source |
@@ -30,3 +33,5 @@ SoulMateアプリケーション内で使用されているAIモデルと、そ�
 *   **Gemini 3 Flash Preview**: 高速かつ高度な推論能力を持つため、リアルタイム性が求められる会話や、大量のテキスト処理（日記、ドキュメント同期）に採用しています。
 *   **Gemini 2.5 Flash Lite / Pro**: 旧構成で使われていましたが、現在は主に `3-flash` へ移行済みです。TTSのみ `2.5` 系を使用しています。
 *   **Gemini 2.5 Flash Lite**: 画面認識（Vision）の速度と精度のバランスが良いため、PaliGemmaから移行しました。
+*   **TTS Stability**: `gemini-2.5-flash-preview-tts` の安定性向上のため、リクエストから `system_instruction` や `temperature` を排除した「クリーンリクエスト」方式を採用しています（2026-03-19）。
+*   **Character Voice**: Nayaのデフォルトボイスには `Aoede` (または `Zephyr`) を採用し、日本語の波ダッシュ（〜）などの記号によるサーバーエラー(500)を回避するクレンジング処理を実装しています。

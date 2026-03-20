@@ -47,3 +47,8 @@ class CharacterApiMixin:
             }
         else:
             return {"status": "error", "message": "Profile not found"}
+    def get_current_character(self):
+        """現在のキャラクター情報を返す"""
+        if not hasattr(self, 'character_service'):
+            return None
+        return self.character_service.get_current_character()

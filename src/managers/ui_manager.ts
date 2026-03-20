@@ -424,25 +424,38 @@ export class UIManager {
         // CSS Grid handles layout, we just append items.
         const fixedNavs = ["もっと詳しく教えて", "他の話題について"];
 
-        suggestions.forEach(text => {
+        suggestions.forEach(rawText => {
             const chip = document.createElement('div');
             chip.className = 'suggestion-chip';
 
+            // ★ Parse Label > Value
+            let displayText = rawText;
+            let valueText = rawText;
+
+            if (rawText.includes('＞')) {
+                const parts = rawText.split('＞');
+                displayText = parts[0].trim();
+                valueText = parts[1].trim();
+            } else if (rawText.includes('>')) {
+                const parts = rawText.split('>');
+                displayText = parts[0].trim();
+                valueText = parts[1].trim();
+            }
+
             // Check for Love Prefix
-            let displayText = text;
-            if (text.startsWith("❤ ")) {
+            if (displayText.startsWith("❤ ")) {
                 chip.classList.add('love-chip');
             }
 
             // Check for Fixed Nav
-            if (fixedNavs.some(n => text.includes(n)) || text === "別の話題はある？") {
+            if (fixedNavs.some(n => displayText.includes(n)) || displayText === "別の話題はある？") {
                 chip.classList.add('static-nav');
             }
 
             chip.innerText = displayText;
 
             chip.addEventListener('click', () => {
-                onClickCallback(text);
+                onClickCallback(valueText);
                 this.suggestionPopup!.classList.remove('visible');
             });
             this.suggestionPopup!.appendChild(chip);

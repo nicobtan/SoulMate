@@ -82,6 +82,7 @@
                 <button class="tab-btn mind-tab" onclick="uiManager.switchLogTab('mind')">Mind</button>
                 <button class="tab-btn" onclick="uiManager.switchLogTab('rag')">RAG</button>
                 <button class="tab-btn vision-tab" onclick="uiManager.switchLogTab('vision')">Vision</button>
+                <button class="tab-btn control-tab" onclick="uiManager.switchLogTab('control')">Action</button>
             </div>
 
             <div id="log-all" class="log-content active"></div>
@@ -89,6 +90,7 @@
             <div id="log-mind" class="log-content"></div>
             <div id="log-rag" class="log-content"></div>
             <div id="log-vision" class="log-content"></div>
+            <div id="log-control" class="log-content"></div>
 
         </div>
 
@@ -193,6 +195,14 @@
             </div>
 
             <div id="input-area">
+                <!-- Quick Message Button (Floating) -->
+                <button id="quick-msg-btn" class="icon-button" title="Quick Messages (定型文)">
+                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                         <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+                     </svg>
+                </button>
+                <div id="quick-msg-list" class="quick-msg-popup" style="display: none;"></div>
+
                 <!-- Stacked Action Buttons -->
                 <div class="input-actions">
                     <button id="suggestion-toggle-btn" title="AI Suggestions">💡</button>

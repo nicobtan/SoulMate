@@ -32,10 +32,10 @@ try:
             
     # Also check specific model availability if possible
     try:
-        client.models.get(model="models/gemini-2.0-flash-lite-preview-02-05")
-        print("✅ gemini-2.0-flash-lite-preview-02-05 EXISTS")
+        client.models.get(model="models/gemini-2.5-flash")
+        print("✅ gemini-2.5-flash EXISTS")
     except:
-        print("❌ gemini-2.0-flash-lite-preview-02-05 NOT FOUND")
+        print("❌ gemini-2.5-flash NOT FOUND")
 
 except Exception as e:
     print(f"Error: {e}")

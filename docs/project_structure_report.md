@@ -27,7 +27,7 @@ The **Backend** `server.py` and `bubble_service.py` are growing larger and may n
 ### Frontend Managers (`src/managers/`) [NEW]
 - `chat_manager.ts`: 397 lines (Chat, Audio, Vision)
 - `ui_manager.ts`: 311 lines (DOM, Clock, Buttons)
-- `live2d_manager.ts`: 257 lines (Model, Motion, LipSync)
+- `live2d_manager.ts`: 512 lines (Model, Motion, LipSync) [UPDATED]
 - `log_manager.ts`: 145 lines (Logging, Debug)
 - `config_manager.ts`: 133 lines (Settings I/O)
 

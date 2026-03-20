@@ -1003,6 +1003,7 @@
                 document.getElementById('vision-val').innerText = visionInt + ' min';
 
                 document.getElementById('proactive-silent').checked = currentSettings.proactive_silent_mode || false;
+                document.getElementById('always-on-top').checked = currentSettings.always_on_top !== undefined ? currentSettings.always_on_top : true;
 
                 const targets = currentSettings.proactive_targets || ["work", "media", "health"];
                 ['work', 'media', 'social', 'health', 'game'].forEach(t => {
@@ -1067,8 +1068,6 @@
                 tts_provider: document.getElementById('tts-provider').value,
                 voice_type: document.getElementById('voice-select').value,
                 active_talk_interval: parseInt(document.getElementById('active-interval').value),
-                active_talk_interval: parseInt(document.getElementById('active-interval').value),
-                active_talk_interval: parseInt(document.getElementById('active-interval').value),
                 proactive_vision_interval_min: parseInt(document.getElementById('vision-interval').value),
                 proactive_silent_mode: document.getElementById('proactive-silent').checked,
                 proactive_targets: ['work', 'media', 'social', 'health', 'game'].filter(t => {
@@ -1081,6 +1080,7 @@
                 stt_model_size: document.getElementById('stt-model-select').value,
                 voice_input_hotkey: document.getElementById('voice-hotkey').value.trim(),
                 voice_input_mode: document.querySelector('input[name="voice-mode"]:checked').value,
+                always_on_top: document.getElementById('always-on-top').checked
                 // Add others
             };
 

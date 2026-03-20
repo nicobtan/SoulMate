@@ -119,6 +119,7 @@ export class Live2DManager {
             console.log(`[Init] Resolved Model ID '${modelIdOrPath}' to path: ${finalPath}`);
         }
 
+        // Retry logic is inside loadModel now, but we await it here
         await this.loadModel(finalPath);
 
         // 3. Init LipSync
@@ -187,20 +188,41 @@ export class Live2DManager {
         return this.init(defaultContainer, defaultModel);
     }
 
-    private async loadModel(path: string) {
+    private async loadModel(path: string, retryCount = 0): Promise<void> {
         // Class check
         let ModelClass = (window as any).Live2DModel;
         if (!ModelClass && (window as any).PIXI.live2d) {
             ModelClass = (window as any).PIXI.live2d.Live2DModel;
         }
 
-        console.log(`Loading Model: ${path} `);
-        this.model = await ModelClass.from(path);
-        this.app.stage.addChild(this.model);
-        console.log("Model Loaded.");
+        console.log(`Loading Model (Attempt ${retryCount + 1}): ${path} `);
 
-        // Update global reference
-        (window as any).live2d_model = this.model;
+        try {
+            // Optional: Timeout implementation could go here, but Pixi loader usually handles it.
+            // We'll rely on try/catch first.
+            this.model = await ModelClass.from(path);
+            this.app.stage.addChild(this.model);
+            console.log(`Model Loaded successfully on attempt ${retryCount + 1}.`);
+
+            // Update global reference
+            (window as any).live2d_model = this.model;
+
+        } catch (e) {
+            console.error(`[Live2D] Load failed (Attempt ${retryCount + 1}):`, e);
+
+            if (retryCount < 3) {
+                const delay = 1000 * (retryCount + 1); // 1s, 2s, 3s wait
+                console.log(`[Live2D] Retrying in ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return this.loadModel(path, retryCount + 1);
+            } else {
+                console.error("[Live2D] All retry attempts failed. Model could not be loaded.");
+                this.remoteLog(`❌ Live2D Load Failed: ${path}`);
+                // Don't throw here to prevent full app crash? Or throw to notify caller?
+                // Let's not throw, just log. Caller 'switchModel' might want to know though.
+                throw e;
+            }
+        }
     }
 
     // Custom Positioning (Offsets)
@@ -247,6 +269,14 @@ export class Live2DManager {
         // const frameH = this.characterArea.clientHeight; 
         // ★ Fix: Use window.innerHeight to ensure full screen height coverage (avoid black bars)
         const frameH = window.innerHeight;
+
+        // ★ Safety Check: If size is 0 (hidden or not ready), wait and retry
+        if (frameW === 0 || frameH === 0) {
+            console.warn("[Live2D] Frame size is 0, deferring resize...");
+            setTimeout(() => this.resize(), 500);
+            return;
+        }
+
         const isMobile = document.body.classList.contains('mobile-mode');
 
         // Resize Renderer

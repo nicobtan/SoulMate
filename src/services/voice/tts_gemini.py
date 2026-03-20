@@ -41,23 +41,57 @@ class GeminiTTSClient:
             start_time = time.time()
             model_id = "gemini-2.5-flash-preview-tts"
             
+            # 0. Text Cleaning (User Recommendation)
+            import re
+            clean_text = text.replace('〜', 'ー').replace('～', 'ー')
+            clean_text = clean_text.replace('…', '。').replace('♪', '。')
+            clean_text = re.sub(r'[^\w\sぁ-んァ-ヶー一-龠、。！？]', '', clean_text)
+            clean_text = clean_text.strip()
+            
+            if not clean_text:
+                logger.warning("TTS: Input text became empty after cleaning.")
+                return None
+
             logger.info(f"Generating Audio via Gemini TTS... (Model: {model_id}, Voice: {voice_name})")
             
-            # 1. API Call
-            response = self.client.models.generate_content(
-                model=model_id,
-                contents=text,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name=voice_name
-                            )
+            # 1. API Call with Retry Loop
+            max_retries = 3
+            base_delay = 1.5
+            response = None
+            
+            for attempt in range(max_retries):
+                try:
+                    actual_model = f"models/{model_id}" if not model_id.startswith("models/") else model_id
+                    response = self.client.models.generate_content(
+                        model=actual_model,
+                        contents=[clean_text],
+                        config=types.GenerateContentConfig(
+                            response_modalities=["AUDIO"],
+                            speech_config=types.SpeechConfig(
+                                voice_config=types.VoiceConfig(
+                                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                        voice_name=voice_name
+                                    )
+                                )
+                            ),
+                            automatic_function_calling=None,
+                            temperature=None,
+                            top_p=None,
+                            top_k=None
                         )
                     )
-                )
-            )
+                    break # Success
+                except Exception as api_error:
+                    error_msg = str(api_error)
+                    is_retryable = any(code in error_msg for code in ["500", "503", "429", "INTERNAL", "UNAVAILABLE", "ResourceExhausted"])
+                    
+                    if is_retryable and attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        logger.warning(f"Gemini API transient error (Attempt {attempt+1}/{max_retries}): {error_msg}. Retrying in {delay}s...")
+                        time.sleep(delay)
+                    else:
+                        raise api_error # Retries exhausted or non-retryable error
+
             
             # 2. Extract Audio
             audio_data = None

@@ -129,21 +129,21 @@ class VoiceApiMixin:
         """
         logger.info("🎤 [VoiceApi] Toggling Continuous Listening...")
         
-        if not hasattr(self, 'active_engine') or not self.active_engine:
+        if not hasattr(self, '_active_engine') or not self._active_engine:
              logger.error("❌ ActiveEngine not attached.")
              return {"status": "error", "message": "ActiveEngine not ready"}
 
-        current_active = self.active_engine.hearing_active
+        current_active = self._active_engine.hearing_active
         
-        if self.active_engine.hearing_active:
+        if self._active_engine.hearing_active:
              # Stop
-             self.active_engine.stop_listening_loop()
+             self._active_engine.stop_listening_loop()
              state = "off"
              # Update UI via ChatManager helper
              cmd = "if(window.setContinuousListening) window.setContinuousListening(false)"
         else:
              # Start
-             self.active_engine.start_listening_loop()
+             self._active_engine.start_listening_loop()
              state = "on"
              # Update UI via ChatManager helper
              cmd = "if(window.setContinuousListening) window.setContinuousListening(true)"

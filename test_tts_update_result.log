@@ -1,0 +1,10 @@
+API Key loaded: Yes
+
+--- Testing Model: gemini-2.5-flash-preview-tts ---
+Success! Response parts: 1
+
+--- Testing Model: gemini-2.5-flash ---
+Failed: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'This model only supports text output.', 'status': 'INVALID_ARGUMENT'}}
+
+--- Testing Model: gemini-2.0-flash ---
+Failed: 400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Model does not support the requested response modalities: audio', 'status': 'INVALID_ARGUMENT'}}

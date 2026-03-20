@@ -305,14 +305,6 @@ class SoulMateEars:
             
         return b''.join(speech_frames)
 
-if __name__ == "__main__":
-    # Simple Test
-    ears = SoulMateEars()
-    while True:
-        res = ears.listen_and_process()
-        if res:
-            print(f"📝 {res['text']} [{res['emotion']}]")
-
     def close(self):
         """Releases PyAudio resources."""
         if hasattr(self, 'p') and self.p:
@@ -321,3 +313,14 @@ if __name__ == "__main__":
                 logger.info("🎧 [SoulMateEars] PyAudio terminated.")
             except Exception as e:
                 logger.error(f"🎧 [SoulMateEars] PyAudio termination failed: {e}")
+                
+if __name__ == "__main__":
+    # Simple Test
+    ears = SoulMateEars()
+    try:
+        while True:
+            res = ears.listen_and_process()
+            if res:
+                print(f"📝 {res['text']} [{res['emotion']}]")
+    except KeyboardInterrupt:
+        ears.close()

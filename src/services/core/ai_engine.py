@@ -18,6 +18,7 @@ class AIEngine:
         self.client = None
         self.reasoning_model = "gemini-3-flash-preview" 
         self.tts_model = "gemini-2.5-flash-preview-tts"
+        self.voice_name = "Aoede" # Default voice
         self.parser = ResponseParser() 
         self.mind_logger = None 
         self.memory_service = None
@@ -39,7 +40,7 @@ class AIEngine:
         if self.mind_logger:
             self.mind_logger(thought)
 
-    def configure(self, api_key, reasoning_model=None, tts_model=None, system_instruction=None):
+    def configure(self, api_key, reasoning_model=None, tts_model=None, voice_name=None, system_instruction=None):
         """
         API設定を初期化または更新します。
         
@@ -47,11 +48,13 @@ class AIEngine:
             api_key (str): Google GenAI APIキー
             reasoning_model (str): 推論用モデル名 (例: gemini-2.0-flash)
             tts_model (str): 音声合成用モデル名
+            voice_name (str): 音声名 (例: Puck, Charon)
             system_instruction (str): システムプロンプト（ペルソナ設定など）
         """
         self.api_key = api_key
         if reasoning_model: self.reasoning_model = reasoning_model
         if tts_model: self.tts_model = tts_model
+        if voice_name: self.voice_name = voice_name
         if system_instruction: self.system_instruction = system_instruction
             
         if self.api_key:
@@ -274,12 +277,55 @@ Format:
             return None
 
         try:
-            config = types.GenerateContentConfig(response_modalities=["AUDIO"])
-            return self.client.models.generate_content(
-                model=self.tts_model,
-                contents=text, 
-                config=config
-            )
+            # 0. Text Cleaning (User Recommendation)
+            import re
+            clean_text = text.replace('〜', 'ー').replace('～', 'ー')
+            clean_text = clean_text.replace('…', '。').replace('♪', '。')
+            clean_text = re.sub(r'[^\w\sぁ-んァ-ヶー一-龠、。！？]', '', clean_text)
+            clean_text = clean_text.strip()
+            
+            if not clean_text:
+                logger.warning("TTS: Input text became empty after cleaning.")
+                return None
+
+            # 1. API Call with Retry Loop
+            max_retries = 3
+            import time
+            
+            for attempt in range(max_retries):
+                try:
+                    # TTS専用モデルのためのクリーンリクエスト（500エラー回避）
+                    config = types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name=self.voice_name
+                                )
+                            )
+                        ),
+                        automatic_function_calling=None,
+                        temperature=None,
+                        top_p=None,
+                        top_k=None
+                    )
+                    actual_model = f"models/{self.tts_model}" if not self.tts_model.startswith("models/") else self.tts_model
+                    return self.client.models.generate_content(
+                        model=actual_model,
+                        contents=[clean_text], 
+                        config=config
+                    )
+                except Exception as api_error:
+                    error_msg = str(api_error)
+                    is_retryable = any(code in error_msg for code in ["500", "503", "429", "INTERNAL", "UNAVAILABLE", "ResourceExhausted"])
+                    
+                    if is_retryable and attempt < max_retries - 1:
+                        delay = 1.0 * (2 ** attempt)
+                        logger.warning(f"AIEngine: Gemini TTS transient error (Attempt {attempt+1}/{max_retries}): {error_msg}. Retrying in {delay}s...")
+                        time.sleep(delay)
+                    else:
+                        raise api_error
+
         except Exception as e:
             logger.error(f"TTS Error: {e}")
             return None
@@ -458,6 +504,7 @@ AI: {ai_text}
             # logger.error(f"Observer Error: {e}")
             pass
 
+
     def transform_query(self, user_question, chat_history):
         """
         Retrieval-Augmented Generation (RAG) 向けのクエリ変換を行います。
@@ -466,11 +513,7 @@ AI: {ai_text}
         if not self.client: return user_question # Fallback
 
         # Lightweight model for this specific NLP task
-        model_name = "gemini-2.0-flash-lite-preview-02-05" # Recommended lightweight model (or flash-exp)
-        # Fallback to flash-exp if lite not available, or just use reasoning model if fast enough.
-        # Given "gemini-2.5-flash-lite" mention in rules, let's use a fast one.
-        # Note: Rule says "AI Model: Gemini 2.5 Flash Lite".
-        model_name = "gemini-2.0-flash-lite-preview-02-05" 
+        model_name = "gemini-2.5-flash" 
 
         prompt = f"""
 # Role
@@ -528,3 +571,111 @@ Pythonの "IndexError: list index out of range" の直し方は？
         except Exception as e:
             logger.warning(f"Query Transform Failed: {e}")
             return user_question
+
+    def plan_os_action(self, instruction, context=None):
+        """
+        [OS Control] 自然言語の指示を `pyautogui` コードに変換します。
+        Args:
+            instruction (str): ユーザーの指示
+            context (str, optional): 過去の失敗やリトライ時の補足情報
+        Returns:
+            dict: {"code": "...", "explanation": "..."}
+        """
+        if not self.client: return None
+
+        prompt = f"""
+# Role
+あなたはWindows OS操作のエキスパートです。
+ユーザーの指示に従い、`pyautogui` や `win32_input` を使用してタスクを実行するPythonコードを生成してください。
+
+# User Instruction
+{instruction}
+
+# Context (Experience & Retry Info)
+{context or "特になし"}
+
+# Requirements
+- Output MUST be valid Python code.
+- Use `pyautogui` library for basic keys (enter, esc, etc).
+- **CRITICAL: NO TAB NAVIGATION**: Do NOT use `pyautogui.press('tab')` for selecting items. It is unreliable.
+- **CRITICAL: USE VISION CLICK**: To select or click ANYTHING (links, buttons, videos), use `vision_click('description')`.
+    - Example: `vision_click('Top video thumbnail')`, `vision_click('Search Button')`
+- **Text Input**: Use `safe_type('text')`.
+- **Browser**: Use `open_browser('url')`.
+- **Discord**:
+    - `discord_navigate('channel_name')`: Use Quick Switcher (Ctrl+K) to jump to channel per user request.
+    - `discord_send_message('message')`: Send message (Auto-Activates active chat).
+- **Refinement**: If 'Context' contains failure info, CHANGE the approach.
+
+# Output Format: JSON
+{{
+    "code": "open_browser('https://youtube.com'); time.sleep(5); vision_click('Top left video thumbnail');",
+    "explanation": "YouTubeを開き、ロードを待ってから、一番左上の動画を目視でクリックします。"
+}}
+
+# Example 1: Search and Click
+Instruction: "Open YouTube and click the first video"
+Code:
+open_browser('https://www.youtube.com')
+time.sleep(5) # Wait for load!
+vision_click('First video thumbnail in the list')
+
+# Example 2: Discord Message
+Instruction: "Discordで開発チャンネルに「お疲れ様」と送って"
+Code:
+discord_navigate('開発')
+time.sleep(1)
+discord_send_message('お疲れ様！')
+"""
+        try:
+            response = self.client.models.generate_content(
+                model="gemini-3-flash-preview", # Intelligent enough for coding
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            logger.error(f"Plan OS Action Failed: {e}")
+            return None
+
+    def verify_action_success(self, instruction, before_img, after_img):
+        """
+        [OS Control] Visionを使って操作の成否を判定します。
+        Returns:
+            dict: {"success": bool, "reason": "Notepad appeared"}
+        """
+        if not self.client: return {"success": False, "reason": "No Client"}
+
+        prompt = f"""
+# Role
+あなたはUIテストの判定員です。
+OS操作の「実行前」と「実行後」の画像を見て、ユーザーの指示が達成されたか判断してください。
+
+# Instruction
+{instruction}
+
+# Output Format (JSON)
+{{
+    "success": true/false,
+    "reason": "詳細な理由（例：メモ帳のウィンドウが表示されているため）"
+}}
+"""
+        try:
+            # Check inputs
+            if not before_img or not after_img:
+                return {"success": False, "reason": "Images missing"}
+
+            response = self.client.models.generate_content(
+                model="gemini-3-flash-preview",
+                contents=[prompt, "Before:", before_img, "After:", after_img],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            logger.error(f"Verify Action Failed: {e}")
+            return {"success": False, "reason": str(e)}
+

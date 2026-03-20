@@ -58,9 +58,18 @@ class ActiveEngine:
             if minutes > 0:
                 self.idle_threshold = minutes * 60
                 logger.info(f"Active Talk Interval set to {minutes} min ({self.idle_threshold} sec).")
-            else:
                 self.idle_threshold = 0
                 logger.info("Active Talk Disabled.")
+            
+            # --- Context Manager Init ---
+            from src.services.core.context_manager import ContextManager
+            self.context_manager = ContextManager()
+            # Hook logging
+            self.context_manager.set_log_callback(lambda msg, type='sys': self._send_log(msg, "info", type))
+            # Hook message callback for Greetings
+            if self.on_message_callback:
+                self.context_manager.set_message_callback(self.on_message_callback)
+
             
             # Reset state just in case
             self.has_triggered_idle = False
@@ -101,11 +110,18 @@ class ActiveEngine:
             
             # --- Vision Service Init (Inject Key from Config) ---
             api_key = settings.get('api_key')
+            
+            # Fallback to Environment Variable
+            if not api_key:
+                api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+                if api_key:
+                    logger.info("ActiveEngine: API Key found in Environment Variables.")
+
             if api_key:
                 vision_service.configure(api_key)
                 logger.info("ActiveEngine: VisionService Configured with API Key.")
             else:
-                logger.warning("ActiveEngine: No API Key found for VisionService.")
+                logger.warning("ActiveEngine: No API Key found for VisionService (Config or Env). Vision features may fail.")
             # ----------------------------------------------------
 
         except Exception as e:
@@ -316,9 +332,28 @@ class ActiveEngine:
         while self.is_running:
             time.sleep(self.check_interval)
             
+            # 0. Context Update
+            if hasattr(self, 'context_manager'):
+                self.context_manager.update()
+
             # 1. Proactive Vision Loop
             if self.proactive_mode:
-                if time.time() - self.last_vision_time > self.vision_interval:
+                # Determine current interval preference
+                current_interval = self.vision_interval
+                
+                # Check active game engine override
+                if hasattr(self, 'context_manager'):
+                    active_engine = self.context_manager.get_active_engine()
+                    # If active engine has 'settings' with 'vision_interval', use it
+                    if active_engine and hasattr(active_engine, 'settings'):
+                        # Override to 45s (or specific setting) for AoE2
+                        # Default AoE2DB config is 60s, user asked for 45s override logic.
+                        # Let's verify valid interval:
+                        override = active_engine.settings.get('vision_interval', 45)
+                        current_interval = override
+                        # logger.debug(f"ActiveEngine: Interval overridden to {current_interval}s by Context.")
+
+                if time.time() - self.last_vision_time > current_interval:
                     self._perform_vision_scan()
                     self.last_vision_time = time.time()
 
@@ -377,27 +412,104 @@ class ActiveEngine:
             except Exception as e:
                 logger.error(f"Failed to save debug image: {e}")
 
-            # 2. Local Vision Analysis (Gemini Flash Lite)
-            context_title = window_target_manager.target_title if window_target_manager.target_hwnd else "Full Screen Desktop"
-            vision_text = vision_service.analyze_image(image, prompt=f"User's active window: '{context_title}'.")
-            
-            logger.info(f"👁️ [Vision] Saw: {vision_text}")
-            
-            # Send Log to Frontend (Vision Tab)
-            self._send_log(f"Saw: {vision_text}", "info", "vision")
+            # 2. Vision Analysis (Routing)
+            active_game_engine = None
+            if hasattr(self, 'context_manager'):
+                active_game_engine = self.context_manager.get_active_engine()
 
-            # 3. Decision Making (via ProactiveChatManager)
-            # Lazy Import & Init
-            from src.services.core.proactive_chat_manager import ProactiveChatManager
-            manager = ProactiveChatManager()
+            if active_game_engine:
+                 # === Game Logic Route ===
+                 self._send_log(f"🎮 [Active] Using Game Engine: {type(active_game_engine).__name__}", "info", "sys")
+                 
+                 # Analyze (Assuming Engine has standardized method or we cast)
+                 # For AoE2, we know it has analyze_situation & generate_commentary_prompt
+                 # We need to feed it text? No, AoE2 engine planned to take JSON from Vision?
+                 # Wait, VisionService returns TEXT description by default.
+                 # Actually AoE2 Prompt Logic expected "Vision JSON".
+                 # BUT VisionService.analyze_image returns STRING (Gemini caption).
+                 # We need a Structured Analysis for Games?
+                 # Or we ask Gemini to output JSON for AoE2?
+                 
+                 # Update: Let's ask VisionService to analyze with specific prompt for the game
+                 game_prompt = "Identify unit composition, resources, and score. Return JSON." 
+                 # Currently analyze_image takes 'prompt'.
+                 
+                 vision_text = vision_service.analyze_image(image, prompt="Analyze the Age of Empires 2 game screen. List user civilization, score, expected age, and visible enemy units/colors in JSON format.")
+                 
+                 # Now feed text to Engine
+                 # Note: commentary_engine.analyze_situation expects JSON string or dict.
+                 # But vision_text from current vision_service is usually TEXT description.
+                 # We must ensure Vision Service returns JSON if we asked for it. 
+                 # However, 'vision_service.analyze_image' returns 'text' (Gemini output).
+                 
+                 # The prompt we sent: "Analyze... Return JSON format."
+                 # So we should attempt to extract JSON from 'vision_text'
+                 
+                 import json
+                 import re
+                 
+                 json_data = {}
+                 try:
+                     # Simple extraction: find first '{' and last '}'
+                     match = re.search(r'\{.*\}', vision_text, re.DOTALL)
+                     if match:
+                         json_str = match.group(0)
+                         json_data = json.loads(json_str)
+                     else:
+                         # Fallback: maybe it IS just text?
+                         logger.warning("ActiveEngine: Could not extract JSON from Vision response. Using raw text.")
+                         # If we pass raw text, analyze_situation might fail.
+                         # Let's try to construct dummy JSON or fail gracefully.
+                         json_data = {"error": "JSON parse failed", "raw_text": vision_text}
+                 except Exception as e:
+                     logger.error(f"ActiveEngine: JSON Parse Error: {e}")
+                     json_data = {"error": str(e)}
+
+                 analysis = active_game_engine.analyze_situation(json_data)
+                 
+                 # Generate System Prompt
+                 sys_prompt = active_game_engine.generate_commentary_prompt(analysis)
+                 
+                 if sys_prompt:
+                     self._send_log(f"🧠 [AoE2] Prompt Generated. Requesting Speech...", "info", "mind")
+                     
+                     # Generate Speech using AIEngine with this system prompt
+                     # generate_proactive_message(context) uses the context as instruction.
+                     result = self.ai_engine.generate_proactive_message(context=sys_prompt)
+                     
+                     # Force decision to SPEAK
+                     text_content = result.get('text', '')
+                     if not text_content: text_content = "戦況分析完了。" # Fallback
+                     
+                     decision = {
+                         "action": "speak", 
+                         "text": text_content, 
+                         "topic_tag": "game_strategy",
+                         "emotion": result.get('emotion', 'neutral'),
+                         "suggestions": result.get('suggestions', ["なるほど", "ありがとう"])
+                     }
+                 else:
+                     logger.warning("Game Engine returned no prompt (Parsing failed?)")
+                     decision = {"action": "silent"}
+
+            else:
+                # === Standard Logic Route ===
+                context_title = window_target_manager.target_title if window_target_manager.target_hwnd else "Full Screen Desktop"
+                vision_text = vision_service.analyze_image(image, prompt=f"User's active window: '{context_title}'.")
+                
+                logger.info(f"👁️ [Vision] Saw: {vision_text}")
+                self._send_log(f"Saw: {vision_text}", "info", "vision")
+    
+                # 3. Decision Making (via ProactiveChatManager)
+                from src.services.core.proactive_chat_manager import ProactiveChatManager
+                manager = ProactiveChatManager()
+                if not manager.client and vision_service.api_key:
+                    manager.configure(vision_service.api_key)
+                
+                decision = manager.decide_next_action(vision_text)
             
-            # Configure if needed (using same key as VisionService or from settings if accessible?)
-            # ActiveEngine doesn't hold 'api_key' but 'vision_service' has it.
-            if not manager.client and vision_service.api_key:
-                manager.configure(vision_service.api_key)
-            
-            # Decide Action
-            decision = manager.decide_next_action(vision_text)
+            # --- Common Execution Logic ---
+            action = decision.get("action", "silent").lower()
             
             action = decision.get("action", "silent").lower()
             speak_text = decision.get("text", "").strip()

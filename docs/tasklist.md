@@ -74,7 +74,7 @@
     - [x] `gemini-2.5-flash-preview-tts`: 動作確認済み。
     - [ ] `gemini-2.5-pro-preview-tts` / `lite`: 現時点では404エラー (API未公開またはAllowlist制限の可能性)。
 
-## フェーズ123: 能動的会話のUX改善 [完了] (2025-12-15)
+## フェーズ7.2: 能動的会話のUX改善 [完了] (2025-12-15)
 - [x] **サジェスト整合性 (Consistency)**
     - [x] **課題**: Active Engineからの能動的な発言（アイドル時等）には、サジェストが固定の3つしか付与されていなかった。
     - [x] **修正**: `ActiveEngine` の `_trigger_idle_action` にも、通常会話と同じサジェスト生成ロジック（SuggestionEngineによる補完 + Love Slot）を実装。
@@ -885,6 +885,13 @@
     - [x] Update inter-service imports
 - [x] **Documentation Update**
     - [x] Update `docs/system_design.md` with new structure
+- [x] **OS Control & Learning**
+    - [x] Create `SoulOperator` (Hands)
+    - [x] Create `ExperienceLogger` (Memory)
+    - [x] Update `AIEngine` (Brain: Plan & Verify)
+    - [x] Update `ChatApiMixin` (Interface: `/do` command)
+    - [x] Update UI (`ActionLog` Tab)
+    - [ ] **Verification**: Test with simple commands (Calculcator, Notepad)
 
 
 ## フェーズ114: Stability Fixes after Refactor (v0.5.1) [完了] (2026-01-11)
@@ -943,7 +950,7 @@
 ## フェーズ120: RAGクエリ変換 (Query Transformation) [完了] (2026-01-12)
 - [x] **クエリ書き換えロジックの実装**
     - [x] `src/services/ai_engine.py`: `transform_query` メソッドの追加。
-    - [x] **Model**: `gemini-2.0-flash-lite-preview-02-05` (高速・軽量) を採用。
+    - [x] **Model**: `gemini-2.5-flash` (高速・軽量) を採用。
     - [x] **Prompt**: 直前の会話履歴を踏まえ、ユーザーの指示語（「それ」「あれ」）を具体的な名詞に置換するプロンプトを実装。
 - [x] **チャットフロー統合**
     - [x] `src/api/chat_api.py`: RAG検索 (`retrieve_context`) の直前に書き換え処理を挿入。
@@ -961,3 +968,135 @@
 - [x] **表示不具合の修正**
     - [x] **原因**: 重複ログ削除のために `init()` 末尾の `resize()` を削除した結果、初期ロード時間とObserverの発火タイミングのズレによりモデルが表示されない問題が発生。
     - [x] **修正**: `live2d_manager.ts` に明示的な初期配置処理 (`this.resize()`) を復活させ、ロード完了後の表示を保証。
+
+## フェーズ123: OS操作基盤の安定化と可視化 [完了] (2026-01-12)
+- [x] **Live2Dブリッジ安定化**
+    - [x] **Privatization**: SoulOperator や tts_engine などの複雑なPythonオブジェクトを _ 付きのプライベート変数に変更し、pywebview がシリアライズしようとしてクラッシュする問題を解決。
+- [x] **Action Log UI (可視化)**
+    - [x] **UX**: OS操作の「計画(Plan)」「コード(Code)」「結果(Result)」を時系列で表示する Action タブを実装。
+    - [x] **Styling**: 操作ログをCyan色で統一し、視認性を向上。
+    - [x] **Chronology**: ログの追加順序を修正し、新しい操作が下に追加されるように変更。
+
+## フェーズ124: OS操作の信頼性向上 (Telepathy Input) [完了] (2026-01-12)
+- [x] **Direct Unicode Input (Win32 API)**
+    - [x] **課題**: pyautogui によるキー入力では、JIS/USキーボードの違いにより : が * になるなどの文字化けが発生。またクリップボードを使用する方法はユーザーの作業を阻害する。
+    - [x] **解決策 (win32_input.py)**: ctypes を使用して SendInput APIをラップし、Unicode文字イベントを直接OSに送信する InputSimulator を実装。
+    - [x] **効果**: キー配列に依存せず、かつクリップボードを汚さずに、日本語や特殊記号を確実に入力可能に。
+- [x] **Smart Browser Launch**
+    - [x] **解決策 (browser_helper.py)**: 不安定な Win+R ショートカットの代わりに、Pythonの webbrowser モジュールを使用してブラウザを起動。
+- [x] **Vision Verification (Multi-Monitor)**
+    - [x] pyautogui.screenshot から ImageGrab.grab(all_screens=True) に変更し、マルチモニター環境でも正しく操作結果を確認できるように修正。
+
+
+## フェーズ125: Thinking AI & Experience Memory (Self-Correction) [完了] (2026-01-14)
+- [x] **Thinking AI Architecture (自律思考ループ)**
+    - [x] **SoulOperator Refactor**: 従来のハードコードされた操作ロジック(`_run_demo_logic`)を廃止し、`_think_and_act_loop` による思考ループへ移行。
+    - [x] **Visual Reasoning**: Gemini Vision (`gemini-2.0-flash-exp`) を使用し、現在の画面状況から「次の一手」を動的に判断(Click/Type/Finish)。
+    - [x] **Action Log Streaming**: AIの思考プロセス("Thinking")、決定理由、実行アクションをリアルタイムでActionログタブに可視化。
+- [x] **Experience Memory (経験記憶)**
+    - [x] **ChromaDB**: 成功・失敗のパターンを保存するためのVector DB導入 (`memory/chroma_db`)。
+    - [x] **ExperienceManager**: 指示(`instruction`)に基づき、過去の成功例("Success Plan")と避けるべき失敗("Failure")を想起(`recall`)する仕組みを実装。
+    - [x] **Feedback Loop**: ユーザーの `/ok`, `/ng` コマンドにより、AIがその場で学習し、次回の挙動を修正する強化学習的なサイクルを確立。
+- [x] **UI/UX Improvements**
+    - [x] **Ninja Click**: クリックの瞬間だけゴーストカーソルを隠し、操作対象の視認性を確保するロジック実装。
+    - [x] **Action Log Compactness**: ログ表示の余白を削減し、一覧性を向上。
+
+## フェーズ126: SoulOperator Polish & Optimization (v0.6.2) [完了] (2026-01-14)
+- [x] **Emotional Feedback (感情的リアクション)**
+    - [x] **Logic**: `/ok` (成功) や `/ng` (失敗) のフィードバックに対し、単なるシステムメッセージではなく、SoulMateの人格（Gemini 2.5 Flash Lite）で感情豊かに返答する機能を実装。
+    - [x] **Experience**: 成功時の喜びや失敗時の反省を共有することで、単なるツールではなく「パートナー」としての存在感を強化。
+- [x] **UI Polish (Ghost Cursor Fix)**
+    - [x] **Offset Fix**: ゴーストカーソルの画像の基準点(Anchor)を `Center` から `NorthWest` (左上) に変更し、矢印の先端が正確にクリック座標を指すように修正。
+- [x] **Performance (Bubble Caching)**
+    - [x] **Startup Cache**: 起動時に生成されるSoul BubbleをJSONにキャッシュし、6時間以内であれば再利用するロジックを実装。
+    - [x] **Cost Reduction**: 起動のたびに発生していたAPIコール(Gemini)を削減し、トークン消費と起動時間を改善。
+
+
+### 調整とバグ修正 (v0.6.2)
+- [x] **Soul Bubble Caching (高速化)**
+    - [x] **Backend**: Bubbleservice にJSONキャッシュ機構 (_load_cache/_save_cache) を実装。
+    - [x] **Optimization**: 起動時の不要なLLM生成をスキップし、前回のバブルを再利用することで起動を高速化。
+- [x] **SoulOperator Constitution (憲法制定)**
+    - [x] **Logic**: SoulOperator のプロンプトに「システム憲法（コンテンツ優先、クリック必須など）」を注入。
+    - [x] **Memory**: 過去の失敗を行動指針として参照するロジックを追加し、同じ過ち（検索バーではなくURLバーをクリックなど）を防ぐ仕組みを実装。
+- [x] **Critical User Experience Fixes**
+    - [x] **Ghost Cursor**: 座標計算のズレ（アンカー位置）を修正し、クリック精度を向上 (nchor="nw").
+    - [x] **Verification Loop**: 行動後に即終了せず、必ず一度画面を確認（Verify）してからタスクを完了するループ処理への変更。
+    - [x] **Browser UI Ignorance**: "Browser UI"（タブ、URLバー）を無視し、ウェブコンテンツのみに集中するようVisionプロンプトを強化。
+- [x] **Bug Fixes**
+    - [x] **Shutdown Safety**: 終了時にウィンドウ座標保存がクラッシュする問題を修正。
+    - [x] **ActiveEngine Ref**: ChatApi における変数名参照エラー (ctive_engine -> _active_engine) を修正し、プロアクティブ機能の安定性を確保。
+
+
+## フェーズ127: 開発プロセスの標準化 (SKILL.md) [作業中]
+- [x] **SKILL.md の導入**
+    - [x] 開発指針の定義と読み込み。
+    - [x] タスク管理フロー（Step 1 & Step 2）の運用開始。
+
+
+
+
+## フェーズ128: 定型文機能 (Quick Message) [完了] (2026-01-16)
+- [x] **定型文リスト機能**
+    - [x] **Backend**: `QuickMessageManager` によるJSON管理 (`settings/quick_messages.json`)。
+    - [x] **API**: `/api/quick_messages` エンドポイントの実装 (Web/Mobile対応)。
+    - [x] **Frontend**: マイクボタン上部に定型文ボタン(📄)を追加し、ポップアップリストからクリック送信する機能の実装。
+    - [x] **Stability**: `api_client.ts` の `get_settings` フォールバック実装によるLive2D初期化クラッシュ修正。
+
+## フェーズ129: 自律思考ループの記憶修正 (Fixing UI Loop) [完了] (2026-01-16)
+- [x] **短期記憶 (Session History) の注入**
+    - [x] **Problem**: `SoulOperator` が直前の行動（クリック等）を忘れ、同じ箇所を無限にクリックするループが発生。
+    - [x] **Fix**: `_think_and_act_loop` 内に `session_history` 配列を追加し、ターンごとの行動を記録。
+    - [x] **Prompt**: Geminiへのプロンプトに `Session History` セクションを追加し、「さっきクリックしたから次は入力」と判断できるように改善。
+
+## フェーズ130: AoE2 実況エンジン (Proactive Commentary) [完了]
+- [x] **データベース構築**
+    - [x] `game_aoe2.db`: 正規化されたユニット/相性データのインポート (221ユニット)
+    - [x] **ダメージ計算ロジック**: `calculate_damage` 実装 (Attack/Armor Class照合)
+- [x] **実況エンジン実装 (`AoE2CommentaryEngine`)**
+    - [x] `system_config` テーブルによる設定管理 (Vision頻度, ターゲット)
+    - [x] `analyze_situation`: VisionデータとDB知識の統合ロジック
+    - [x] `Proactive Prompt`: 具体的な戦術アドバイスを生成するプロンプト設計
+- [x] **インテグレーション**
+    - [x] Main Loopへの統合
+    - [x] **機能強化**: インターバル強制上書き(45s) & 起動時挨拶機能の実装
+- [x] **ライバル偵察フィルタ (Rival Scout)**
+    - [x] **DB拡張**: `rivals` テーブルと `match_logs` テーブルの追加
+    - [x] **Scraper実装**: `AoE2Insights` から特定ユーザーの対戦履歴を取得
+    - [x] **Filter**: Custom Game (Badges) のみの抽出とページネーション(2025年以降)の実装
+    - [x] **Sync**: 取得データのDB同期ロジック
+
+
+## フェーズ105: AoE2 実況機能 (Proactive Commentary) [完了] (2026-01-18)
+- [x] **アンチユニットデータベース**
+    - [x] `game_aoe2.db`: `units` テーブルへの `attack_bonuses` データ投入。
+    - [x] `AoE2DatabaseManager`: `find_best_counters` ロジックの実装。
+- [x] **実況エンジン (Commentary Engine)**
+    - [x] `AoE2CommentaryEngine`: Vision APIの結果(`enemies` list)から対抗策を検索するロジック。
+    - [x] プロンプトエンジニアリング: 戦術的アドバイスと簡潔な日本語出力を強制。
+- [x] **プロアクティブ挙動の最適化**
+    - [x] **インターバル短縮**: AoE2モード時は強制的に **45秒間隔** でVisionを実行。
+    - [x] **無言対策**: Vision実行後は必ずAI発話パイプライン(`generate_proactive_message`)を呼ぶよう修正。
+    - [x] **起動時挨拶**: `ActiveEngine` がAoE2を検知した瞬間に開始宣言を行う。
+- [x] **Vision API 安定性修正 (Bug Fix)**
+    - [x] **API Key Fallback**: `.env` 読み込み失敗時に `config.json` を直接参照するロジックを `VisionService` に追加。
+    - [x] **Crash Fix**: `log_callback` の初期化順序ミスによる `AttributeError` を修正。
+
+## フェーズ106: 最前面表示の修正 (Always on Top Fix) [完了] (2026-02-18)
+- [x] **設定の永続化修正**
+    - [x] **Frontend**: `settings_desktop.html` のインラインスクリプトに `always_on_top` の保存・読み込みロジックを追加。
+    - [x] **Backend**: `settings_api.py` で設定変更時に即座にウィンドウの `on_top` 属性を更新するよう修正。
+    - [x] **Startup**: `main.py` 起動時に `config.json` の値を読み込んでウィンドウ生成時に適用。
+
+## フェーズ107: Naya 統合 & TTS 安定化 (v0.7.0) [完了] (2026-03-19)
+- [x] **新キャラクター Naya の統合**
+    - [x] **Live2D**: `Live2D/naya` フォルダのモデルを `dist/models/naya` へ配置し、パス解決ロジックを修正。
+    - [x] **Profile**: `characters.json` に Naya のプロファイルを追加し、デフォルトキャラクターに設定。
+- [x] **TTS 500 INTERNAL エラーの徹底解消**
+    - [x] **Clean Request**: Gemini TTS API (Preview) のバグ回避のため、リクエストから不要なパラメータ (temperature, system_instruction 等) を完全に除去。
+    - [x] **Text Cleansing**: 日本語特有の記号（〜、…、絵文字等）が原因で発生するサーバーエラーを回避するためのテキスト前処理を実装。
+- [x] **システム安定性の向上**
+    - [x] **Path Handling**: 音声ファイルの URL デコード処理を強化し、`Audio file not found` 警告を解消。
+    - [x] **Fix bug**: `chat_api.py` での `base64` インポートエラー、および `save_window_position` の重複定義によるアンパックエラーを修正。
+- [x] **検証**
+    - [x] デスクトップ版での Naya 表示、音声再生、設定保存の正常動作を確認。

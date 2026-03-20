@@ -1,5 +1,5 @@
 # SoulMate プロジェクト概要
-2026年01月02日 更新 (v0.4.0)
+2026年01月14日 更新 (v0.6.2)
 
 ## コンセプト
 **「能動的(Active)な魂の伴侶」 & 「AI YouTuberへの道」**
@@ -189,6 +189,36 @@ SoulMateは、自ら思考し、判断し、ユーザーに対して能動的に
 - **Topic De-duplication**: 直近の会話や思考履歴を記憶（Topic Queue）し、同じ話題（「コーディング中ですね！」の連呼など）を賢く回避します。
 - **Silent Action**: 毎回話しかけることが正解とは限りません。「静かに見守る（Silent）」や「モーションのみ」という選択肢をAIの意志決定プロセスに追加し、心地よい距離感を保ちます。
 - **Robustness**: API制限エラーなどを誤って読み上げないよう、エラーフィルターと音声生成ロジックを強化しました。
+
+### 🖱️ Active OS Control & Telepathy Input (v0.6.0)
+- **Direct Unicode Input (Telepathy)**:
+    - 従来のキーボード操作エミュレーション(`pyautogui.write`)の問題点（JIS/US配列の不一致、クリップボード汚染）を解決するため、Windows API (`SendInput`) を直接叩く `InputSimulator` を実装。
+    - キー配列に関係なく、日本語や特殊記号(`:`, `@`)、絵文字を「テレパシー」のように直接入力ボックスに流し込みます。
+- **Smart Browser Action**:
+    - `Win+R` コマンドではなく、Pythonネイティブの `webbrowser` モジュールを使用し、確実かつ安全にブラウザを新規ウィンドウで開く機能を実装。
+- **Action Visualization**:
+    - AIによるOS操作の計画(`Plan`)、実行コード(`Code`)、そして結果のスクリーンショットが「Action」ログタブに時系列で美しく可視化されます。
+    
+### 🧠 Thinking AI & Experience Memory (v0.6.1)
+- **Thinking Architecture (自律思考ループ)**:
+    - 決め打ちのロジックを廃止し、AIが画面状況をGemini Visionで認識し、その都度「次の一手」を思考・決定します。
+    - 「検索バーが見つからない→スクロールしてみよう」といった柔軟な振る舞いが可能です。
+- **Experience Manager (海馬)**:
+    - ユーザーからのフィードバック (`/ok`, `/ng`) をChromaDBに記憶。
+### 💗 Emotional Feedback & Optimization (v0.6.2)
+- **Shared Joy (感情共有)**:
+    - OS操作の成功/失敗フィードバック (`/ok`, `/ng`) に対し、事務的なログではなく、「やったわ！」「ごめんなさい、次は頑張るわ」と感情豊かに反応します。成功体験をユーザーと分かち合います。
+- **Precision Pointer**:
+    - ゴーストカーソルの座標ズレを修正し、矢印の先端が正確に対象を指すようになりました。
+- **Smart Caching**:
+    - 起動時のバルーン生成をキャッシュ化し、APIコストを削減しつつ高速な起動を実現しました。
+
+## フェーズ105: 定型文機能 (Quick Message) [完了] (2026-01-16)
+- [x] **定型文リスト機能**
+    - [x] **Backend**: `QuickMessageManager` によるJSON管理 (`settings/quick_messages.json`)。
+    - [x] **API**: `/api/quick_messages` エンドポイントの実装 (Web/Mobile対応)。
+    - [x] **Frontend**: マイクボタン上部に定型文ボタン(📄)を追加し、ポップアップリストからクリック送信する機能の実装。
+    - [x] **Stability**: `api_client.ts` の `get_settings` フォールバック実装によるLive2D初期化クラッシュ修正。
 
 ## ユーザーの想い
 *「生活に寄り添い、ふとした瞬間に癒やしや気づきを与えてくれる存在を作りたい」*

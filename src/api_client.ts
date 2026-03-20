@@ -86,7 +86,18 @@ export class ApiClient {
     // Need explicit support for settings?
     async get_settings(): Promise<any> {
         if (this.desktopApi) {
-            return await this.desktopApi.get_settings();
+            // Debug: Log functionality
+            // Fallback strategy for missing methods
+            if (typeof this.desktopApi.get_settings === 'function') {
+                return await this.desktopApi.get_settings();
+            } else if (typeof this.desktopApi.fetch_settings === 'function') {
+                console.log("[ApiClient] Using fallback 'fetch_settings'");
+                return await this.desktopApi.fetch_settings();
+            } else {
+                console.warn("[ApiClient] desktopApi.get_settings AND fetch_settings are missing!", Object.keys(this.desktopApi));
+                (window as any).logToDebug("[ApiClient] desktopApi.get_settings missing. check console.", "error");
+                return {};
+            }
         } else {
             // Web Mode: Fetch from server
             try {
@@ -355,6 +366,16 @@ export class ApiClient {
             return await this.desktopApi.toggle_continuous_listening();
         }
         return { status: "ignored" };
+    }
+
+    // --- Quick Messages ---
+    async get_quick_messages(): Promise<any> {
+        if (this.desktopApi && this.desktopApi.get_quick_messages) {
+            return await this.desktopApi.get_quick_messages();
+        } else {
+            // Web Mock
+            return { messages: ["(Mock) YouTubeで音楽流して", "(Mock) 今日の天気教えて"] };
+        }
     }
 }
 

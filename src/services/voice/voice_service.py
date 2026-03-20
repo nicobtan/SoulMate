@@ -66,22 +66,55 @@ class VoiceService:
             logger.info(f"Generating Audio via Gemini TTS... (Model: {model_id}, Voice: {voice_name})")
             print(f"[AUDIO DEBUG] Generating Audio via Gemini TTS... (Voice: {voice_name}, Model: {model_id})")
             
-            # 1. API Call
-            # SDKの制約上、現在はRaw PCMが返ってくるため、フォーマット指定は行わずデフォルトを受け取ります
-            response = self.genai_client.models.generate_content(
-                model=model_id,
-                contents=text,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name=voice_name
-                            )
+            # 0. Text Cleaning (User Recommendation)
+            # Remove emojis and special symbols that may cause 500/400 errors in preview models
+            import re
+            clean_text = text.replace('〜', 'ー').replace('～', 'ー')
+            clean_text = clean_text.replace('…', '。').replace('♪', '。')
+            clean_text = re.sub(r'[^\w\sぁ-んァ-ヶー一-龠、。！？]', '', clean_text)
+            clean_text = clean_text.strip()
+            
+            if not clean_text:
+                logger.warning("TTS: Input text became empty after cleaning.")
+                return None
+
+            # 1. API Call with Retry Loop
+            max_retries = 3
+            base_delay = 1.0
+            response = None
+            
+            for attempt in range(max_retries):
+                try:
+                    actual_model = f"models/{model_id}" if not model_id.startswith("models/") else model_id
+                    response = self.genai_client.models.generate_content(
+                        model=actual_model,
+                        contents=[clean_text],
+                        config=types.GenerateContentConfig(
+                            response_modalities=["AUDIO"],
+                            speech_config=types.SpeechConfig(
+                                voice_config=types.VoiceConfig(
+                                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                        voice_name=voice_name
+                                    )
+                                )
+                            ),
+                            automatic_function_calling=None,
+                            temperature=None,
+                            top_p=None,
+                            top_k=None
                         )
                     )
-                )
-            )
+                    break # Success
+                except Exception as api_error:
+                    error_msg = str(api_error)
+                    is_retryable = any(code in error_msg for code in ["500", "503", "429", "INTERNAL", "UNAVAILABLE", "ResourceExhausted"])
+                    
+                    if is_retryable and attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        logger.warning(f"VoiceService: Gemini TTS transient error (Attempt {attempt+1}/{max_retries}): {error_msg}. Retrying in {delay}s...")
+                        time.sleep(delay)
+                    else:
+                        raise api_error
             
             # 2. 音声データの抽出
             audio_data = None

@@ -11,6 +11,7 @@ const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement
 const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
 const personaSelect = document.getElementById('persona-select') as HTMLSelectElement;
 const voiceSelect = document.getElementById('voice-select') as HTMLSelectElement;
+const alwaysOnTopCheckbox = document.getElementById('always-on-top') as HTMLInputElement;
 const saveBtn = document.getElementById('save-btn');
 // const closeBtn = document.getElementById('settings-close-btn'); // Not present in HTML
 
@@ -48,6 +49,7 @@ window.addEventListener('pywebviewready', async () => {
             if (apiKeyInput) apiKeyInput.value = settings.api_key || "";
             if (modelSelect) modelSelect.value = settings.model || "gemini-2.5-flash-lite";
             if (voiceSelect) voiceSelect.value = settings.voice_type || "ja-JP-Neural2-B";
+            if (alwaysOnTopCheckbox) alwaysOnTopCheckbox.checked = settings.always_on_top !== undefined ? settings.always_on_top : true;
 
             // Populate Personas
             if (personaSelect && personas) {
@@ -80,7 +82,8 @@ if (saveBtn) {
             font_size: fontSizeRange ? parseInt(fontSizeRange.value) : 13,
             background_opacity: bgOpacityRange ? parseInt(bgOpacityRange.value) : 0,
             current_persona_file: personaSelect ? personaSelect.value : "default.yaml",
-            voice_type: voiceSelect ? voiceSelect.value : "ja-JP-Neural2-B"
+            voice_type: voiceSelect ? voiceSelect.value : "ja-JP-Neural2-B",
+            always_on_top: alwaysOnTopCheckbox ? alwaysOnTopCheckbox.checked : true
         };
 
         if (window.pywebview && window.pywebview.api) {

@@ -1,1 +1,11 @@
-learned_facts: []
+facts:
+- category: preference
+  content: User is interested in Love psychology (恋愛心理学).
+  timestamp: '2026-01-20 23:26:32'
+- category: preference
+  content: User is interested in AI companions and views different AI models as potentially
+    competitive (e.g., Grok's Ani vs. SoulMate).
+  timestamp: '2026-01-21 14:13:09'
+- category: preference
+  content: ユーザーはSoulMateにノイズを残すことを検討している
+  timestamp: '2026-01-23 22:47:31'

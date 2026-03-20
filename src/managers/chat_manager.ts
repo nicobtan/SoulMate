@@ -22,6 +22,7 @@ export class ChatManager {
     private audioStopBtn: HTMLElement | null;
     private currentSpeedIndex: number = 0; // 0=x1.0
     private readonly speeds = [1.0, 1.25, 1.5, 2.0];
+    private baseInputText: string = ""; // 音声入力前のテキスト保持用
 
     private constructor() {
         this.chatInput = document.getElementById('chat-input') as HTMLTextAreaElement;
@@ -71,6 +72,7 @@ export class ChatManager {
             btn.classList.remove('recording', 'processing');
 
             if (state === 'recording') {
+                this.baseInputText = input.value; // ★録音開始時のテキストを保存
                 btn.classList.add('recording');
                 input.placeholder = "Listening... (Hotkey)";
                 UIManager.getInstance().updateStatus("Listening...");
@@ -96,8 +98,9 @@ export class ChatManager {
         (window as any).updateVoicePreview = (text: string) => {
             const input = document.getElementById('chat-input') as HTMLTextAreaElement;
             if (input) {
-                // 入力中の内容を一時的に上書き
-                input.value = text;
+                // 入力中の内容を一時的に上書き（元のテキストがあれば保持）
+                const prefix = this.baseInputText ? this.baseInputText + " " : "";
+                input.value = prefix + text;
                 input.scrollTop = input.scrollHeight;
                 // プレビュー中であることを示すためグレーにする
                 input.style.color = "#aaa";
@@ -114,11 +117,9 @@ export class ChatManager {
 
             const input = document.getElementById('chat-input') as HTMLTextAreaElement;
             if (input) {
-                if (input.value.trim().length > 0) {
-                    input.value = text;
-                } else {
-                    input.value = text;
-                }
+                const prefix = this.baseInputText ? this.baseInputText + " " : "";
+                input.value = prefix + text;
+                this.baseInputText = ""; // キャッシュをリセット
 
                 // 色を戻す
                 input.style.color = "white";
@@ -398,6 +399,7 @@ export class ChatManager {
         if (!this.isRecording) {
             // Start
             try {
+                this.baseInputText = input.value; // ★録音開始時のテキストを保存
                 // デバイスIDは設定から自動で読まれるか、Python側でデフォルトを使用 (null = default)
                 await (window as any).pywebview.api.start_voice_input(null);
                 this.isRecording = true;
@@ -422,11 +424,12 @@ export class ChatManager {
 
                 if (res.status === 'success' && res.text) {
                     // テキスト挿入ロジック
-                    if (input.value.trim().length > 0) {
-                        input.value += " " + res.text;
-                    } else {
-                        input.value = res.text;
-                    }
+                    const prefix = this.baseInputText ? this.baseInputText + " " : "";
+                    input.value = prefix + res.text;
+                    this.baseInputText = ""; // ★ キャッシュをリセット
+                    
+                    input.style.color = "white";
+                    
                     // カーソルを末尾へ
                     input.focus();
                     input.scrollTop = input.scrollHeight;

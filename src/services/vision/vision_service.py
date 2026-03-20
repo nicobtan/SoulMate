@@ -6,6 +6,7 @@ import threading
 import io
 import traceback
 from pathlib import Path
+import json
 from dotenv import load_dotenv
 
 # Google GenAI SDK
@@ -44,15 +45,37 @@ class VisionService:
             return
         
         # Configuration
+        # Configuration
         self.model_name = "gemini-2.5-flash-lite" 
         self.client = None
+        self.log_callback = None
+        
+        # Log suppression flags
+        self._logged_capture = False
+        self._logged_analyze = False
+        self._logged_result = False
         
         # 1. Try to get key from environment (Explicit Loading)
         self.api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        
-        self._initialized = True
-        self.log_callback = None
-        
+
+        if not self.api_key:
+             # 2. Fallback: Try loading directly from settings/config.json
+             try:
+                 base_dir = os.path.dirname(os.path.abspath(__file__))
+                 # Move up from src/services/vision -> settings
+                 # 3 levels up: src/services/vision -> src/services -> src -> root
+                 config_path = os.path.join(base_dir, "..", "..", "..", "settings", "config.json")
+                 config_path = os.path.abspath(config_path)
+                 
+                 if os.path.exists(config_path):
+                     with open(config_path, 'r', encoding='utf-8') as f:
+                         data = json.load(f)
+                         self.api_key = data.get('api_key')
+                         if self.api_key:
+                             logger.info(f"🔑 [Vision] API Key loaded from config.json fallback.")
+             except Exception as e:
+                 logger.error(f"Failed to load config.json fallback: {e}")
+
         # Debug Logging (Critical) as requested
         found_status = 'Found' if self.api_key else 'Missing'
         path_str = str(env_path) if 'env_path' in globals() else "Unknown"
@@ -85,6 +108,35 @@ class VisionService:
             logger.error(f"Vision Client Init Error: {e}")
             self._log(f"❌ [Vision] Client Init Failed: {e}", 'error')
 
+    def capture_screen(self):
+        """Captures the target monitor and returns base64 string"""
+        try:
+            # Workspace Locking: Get Target Monitor Region
+            target = self.monitor.get_target_monitor()
+            region = None
+            if target:
+                region = (target.x, target.y, target.width, target.height)
+                # logger.info(f"👁️ [Vision] Capturing Region: {region} (Monitor {target.name})") # Verbose off
+            
+            # Capture specific region
+            screenshot = pyautogui.screenshot(region=region)
+            
+            # Resize if too large (Optimization)
+            # Monitor 3 might be large, but we keep it reasonable for Vision API
+            if screenshot.width > 1920:
+                ratio = 1920 / screenshot.width
+                new_h = int(screenshot.height * ratio)
+                screenshot = screenshot.resize((1920, new_h), Image.Resampling.LANCZOS)
+
+            buffered = io.BytesIO()
+            screenshot.save(buffered, format="PNG")
+            img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            return img_str, screenshot.size
+            
+        except Exception as e:
+            logger.error(f"Screen capture failed: {e}")
+            return None, (0, 0)
+
     def save_debug_image(self, image: Image.Image, prefix="latest_vision"):
         """Saves the image to dist/debug/ for inspection."""
         try:
@@ -104,7 +156,9 @@ class VisionService:
             history_path = os.path.join(history_dir, f"{timestamp}_{prefix}.jpg")
             image.save(history_path, quality=85)
             
-            self._log(f"📸 [Vision] Image captured: {timestamp} (Type: {prefix})")
+            if not self._logged_capture:
+                self._log(f"📸 [Vision] Image captured: {timestamp} (Type: {prefix})")
+                self._logged_capture = True
             return latest_path
         except Exception as e:
             logger.error(f"Failed to save debug image: {e}")
@@ -131,7 +185,9 @@ class VisionService:
             # ---------------------------------
 
             window_title = prompt if prompt else "Unknown Window"
-            self._log(f"👁️ [Vision] Analyzing '{window_title}'...")
+            if not self._logged_analyze:
+                self._log(f"👁️ [Vision] Analyzing '{window_title}'...")
+                self._logged_analyze = True
 
             # Convert PIL Image to Bytes
             img_byte_arr = io.BytesIO()
@@ -174,7 +230,9 @@ GAMEPLAY NOTE: If this is a game, explain what is happening in the game scene.
             log_text = result_text.replace('\n', ' ')
             if len(log_text) > 100: log_text = log_text[:100] + "..."
             
-            self._log(f"👁️ [Vision] Result ({elapsed:.2f}s): {log_text}")
+            if not self._logged_result:
+                self._log(f"👁️ [Vision] Result ({elapsed:.2f}s): {log_text}")
+                self._logged_result = True
             return result_text
 
         except Exception as e:

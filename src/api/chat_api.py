@@ -155,16 +155,16 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             start_ts = time.time()
             result_path = None
             # VoiceService Check (VOICEVOX or Gemini variants)
-            if (provider == 'voicevox' or 'gemini' in provider) and getattr(self, 'voice_service', None):
+            if (provider == 'voicevox' or 'gemini' in provider) and getattr(self, '_voice_service', None):
                  # For Gemini, we trust validation is done in VoiceService or Settings
-                 result_path = self.voice_service.generate_voice(tts_text.strip(), voice_name=voice_name, provider=provider)
+                 result_path = self._voice_service.generate_voice(tts_text.strip(), voice_name=voice_name, provider=provider)
             
             # Google Fallback
-            elif getattr(self, 'tts_engine', None):
+            elif getattr(self, '_tts_engine', None):
                  if provider == 'google' and len(str(voice_name)) < 3:
                      voice_name = 'ja-JP-Neural2-B'
                      
-                 result_path = self.tts_engine.generate_voice(
+                 result_path = self._tts_engine.generate_voice(
                     tts_text, 
                     output_dir=os.path.join(base_dir, 'dist/audio'), 
                     voice_name=voice_name
@@ -196,6 +196,7 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
         if image_data: log_msg += " [with image]"
         self.log_to_debug(log_msg, 'info')
         
+
         # --- COMMAND: /dify [tag] ---
         if message.startswith("/dify"):
             tag = message.replace("/dify", "").strip() or "AI"
@@ -205,13 +206,78 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
                 "audio": None,
                 "suggestions": []
             }
-        
+
+        # --- COMMAND: /ok (Feedback: Success) ---
+        if message.lower() == "/ok":
+            if not getattr(self, '_soul_operator', None):
+                return {"text": "OS操作履歴がありません。", "suggestions": []}
+            
+            res_text = self._soul_operator.handle_feedback(True)
+            return {"text": res_text, "suggestions": []}
+
+        # --- COMMAND: /ng (Feedback: Failure) ---
+        if message.lower().startswith("/ng"):
+            reason = message.replace("/ng", "").strip()
+            if not getattr(self, '_soul_operator', None):
+                return {"text": "OS操作履歴がありません。", "suggestions": []}
+            
+            res_text = self._soul_operator.handle_feedback(False, reason)
+            return {"text": res_text, "suggestions": [f"もう一度試して＞/do {self._soul_operator.current_instruction}"]}
+
+        # --- COMMAND: /do [instruction] (Phase 130: OS Control) ---
+        if message.startswith("/do"):
+            instruction = message.replace("/do", "").strip()
+            if not instruction: return {"text": "指示が空です。`/do メモ帳を開いて` のように入力してください。", "suggestions": []}
+            
+            if not getattr(self, '_soul_operator', None):
+                err = getattr(self, '_soul_operator_init_error', 'Unknown Error')
+                return {"text": f"OS操作機能 (SoulOperator) が初期化されていません。\n(Error: {err})", "suggestions": []}
+
+            self.log_to_debug(f"🤖 [Control] Request: {instruction}", 'control')
+            
+            # Use SoulOperator's Self-Refining Loop
+            if not getattr(self, '_soul_operator', None):
+                 return {"text": "OS操作機能が無効になっています。", "suggestions": []}
+
+            # Callback for UI Log
+            def update_ui_log(entry):
+                if self._window:
+                    import json
+                    try:
+                        save_entry_str = json.dumps(entry, ensure_ascii=False)
+                        safe_entry = save_entry_str.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n")
+                        self._window.evaluate_js(f"if(window.addActionLog) window.addActionLog('{safe_entry}')")
+                    except Exception as e:
+                        self.log_to_debug(f"UI Log Error: {e}", 'error')
+
+            # 1. Log Initial Request (so user knows we started)
+            try:
+                initial_entry = self._soul_operator.experience_manager.create_log_entry(
+                    instruction, "Planning...", True, None, "Request Received", None, None
+                )
+                update_ui_log(initial_entry)
+            except Exception as e:
+                self.log_to_debug(f"Initial Log Error: {e}", 'error')
+
+            # Execute with Retry Loop
+            success, reason, before_img, after_img = self._soul_operator.plan_and_execute_task(
+                instruction, 
+                self._ai_engine,
+                on_action=update_ui_log
+            )
+            
+            msg = f"操作完了: {reason}"
+            if not success:
+                msg = f"操作失敗: {reason}"
+                
+            return {"text": msg, "suggestions": ["ありがとう＞/ok ありがとう", f"もう一度試して＞/do {instruction}"]}
+            
         # 0. Latency Masking: Filler
         self.play_filler()
 
         # Update Active Engine Interaction Time
-        if self.active_engine:
-            self.active_engine.update_interaction()
+        if hasattr(self, '_active_engine') and self._active_engine:
+            self._active_engine.update_interaction()
 
         # Retrieve Context (RAG)
         context = ""
@@ -259,8 +325,8 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             context += self._memory_manager.retrieve_context(rewritten_query)
             
         # Active Topic Context
-        if self.active_engine and getattr(self.active_engine, 'current_active_topic', None):
-             context += f"\n[System Note: The AI recently mentioned this topic. If the user asks 'Tell me' or 'What is it', refer to this.]\n{self.active_engine.current_active_topic}\n"
+        if hasattr(self, '_active_engine') and self._active_engine and getattr(self._active_engine, 'current_active_topic', None):
+             context += f"\n[System Note: The AI recently mentioned this topic. If the user asks 'Tell me' or 'What is it', refer to this.]\n{self._active_engine.current_active_topic}\n"
         
         # Calendar Intent Check
         trigger_keywords = ["予定", "スケジュール", "カレンダー", "schedule", "calendar"]
@@ -490,14 +556,6 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             current_persona = self._config_manager.get('current_persona_file', 'default')
             self._memory_manager.log_interaction(message, response_text, current_persona)
 
-        return {
-            "text": response_text,
-            "audio": audio_path,
-            "suggestions": final_suggestions,
-            "emotion": emotion,
-            "grounding_info": grounding_info
-        }
-        
         # --- ACTION PARSING (Legacy/Fallback support if AI outputs string) ---
         # 1. Open Calendar
         if "[ACTION:OPEN_CALENDAR]" in response_text:
@@ -525,17 +583,6 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             except Exception as e:
                 self.log_to_debug(f"Add Event Failed: {e}", 'error')
                 response_text = f"予定の追加に失敗しました: {e}"
-
-        # Logic to Memory
-        if self._memory_manager and self._config_manager:
-            current_persona = self._config_manager.get('current_persona_file', 'default')
-            self._memory_manager.log_interaction(message, response_text, current_persona)
-        
-        # TTS
-        audio_path = self.generate_tts_audio(response_text)
-        
-        # Append Static Suggestion
-        suggestions_list.append("別の話題はある？")
         
         # --- Title Auto-Generation (Post-Chat) ---
         if db and session_id:
@@ -599,7 +646,14 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
                 # Assuming standard path "audio/xyz.wav"
                 
                 # Construct real path
-                real_path = os.path.join(base_dir, "dist", audio_path)
+                import urllib.parse
+                import base64
+                # 万が一の二重エンコードに対応して念のため2回デコード
+                unquoted_audio_path = urllib.parse.unquote(urllib.parse.unquote(audio_path))
+                if unquoted_audio_path.startswith('/'):
+                    unquoted_audio_path = unquoted_audio_path[1:]
+                
+                real_path = os.path.normpath(os.path.join(base_dir, "dist", unquoted_audio_path))
                 
                 if os.path.exists(real_path):
                     with open(real_path, "rb") as f:
@@ -662,7 +716,8 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             "text": response_text,
             "audio": audio_path,
             "suggestions": final_suggestions,
-            "grounding_info": raw_result.get("grounding_info") if isinstance(raw_result, dict) else None
+            "emotion": emotion,
+            "grounding_info": grounding_info
         }
 
 
@@ -780,32 +835,32 @@ User Message: "{message}"
 
     def toggle_proactive(self, enabled):
         """アクティブモード（自律的な視覚スキャン）のON/OFFを切り替えます。"""
-        if not hasattr(self, 'active_engine') or not self.active_engine:
+        if not hasattr(self, '_active_engine') or not self._active_engine:
              return {'status': 'error', 'message': 'ActiveEngine not available'}
             
         self.log_to_debug(f"Proactive Mode Toggled: {enabled}", 'info')
-        self.active_engine.set_proactive_mode(enabled)
+        self._active_engine.set_proactive_mode(enabled)
         return {'status': 'success', 'enabled': enabled}
 
     def force_proactive(self):
         """プロアクティブスキャン（画面を見て話しかける動作）を手動でトリガーします。"""
         print("DEBUG: ChatApi.force_proactive called!") # DEBUG
-        if not hasattr(self, 'active_engine') or not self.active_engine:
+        if not hasattr(self, '_active_engine') or not self._active_engine:
              print("DEBUG: ActiveEngine NOT FOUND") # DEBUG
              return {'status': 'error', 'message': 'ActiveEngine not available'}
         
         self.log_to_debug("🚀 Force-Triggering Proactive Scan...", 'info')
         # We run it in background to not block the UI
-        threading.Thread(target=self.active_engine.force_proactive_scan, daemon=True).start()
+        threading.Thread(target=self._active_engine.force_proactive_scan, daemon=True).start()
         return {'status': 'success'}
 
     def trigger_dify_workflow(self, tag="AI"):
         """Dify Workflowを手動でトリガーします。"""
-        if not hasattr(self, 'active_engine') or not self.active_engine:
+        if not hasattr(self, '_active_engine') or not self._active_engine:
              return {'status': 'error', 'message': 'ActiveEngine not available'}
         
         self.log_to_debug(f"▶ Triggering Dify Workflow (Tag: {tag})...", 'info')
-        self.active_engine.force_dify_workflow(tag)
+        self._active_engine.force_dify_workflow(tag)
         return {'status': 'success'}
 
     def get_url_metadata(self, url):

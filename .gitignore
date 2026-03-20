@@ -33,6 +33,64 @@ settings/token.pickle
 # Soulmate Specific
 logs/
 temp/
+*.db
+*.sqlite3
+history.json
+history.json.bak
+chat_history.jsonl
+chroma_db/
+sbv2/
+chrome_data_soulmate/
+settings/config.json
+settings/token*.pickle
+debug_vision.png
+
+# Models & Checkpoints
+wav2vec2_checkpoints/
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+*.onnx
+
+chroma_db/
+logs/
+dist/debug/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment / Secrets
+.env
+google-credentials.json
+key.json
+*.pem
+settings/token.pickle
+
+# Soulmate Specific
+logs/
+temp/
 soulmate.db
 history.json
 history.json.bak
@@ -45,3 +103,7 @@ wav2vec2_checkpoints/
 *.safetensors
 *.bin
 *.pt
+*.ckpt
+*.onnx
+
+# End of file

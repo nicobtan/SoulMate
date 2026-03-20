@@ -35,6 +35,17 @@ class CharacterService:
     def get_profile_by_id(self, profile_id):
         return next((p for p in self.profiles if p["id"] == profile_id), None)
 
+    def get_current_character(self):
+        """現在のキャラクター設定を取得する"""
+        if not hasattr(self.api, '_config_manager'):
+            return None
+        
+        current_id = self.api._config_manager.get('current_character_id')
+        if not current_id:
+            return None
+            
+        return self.get_profile_by_id(current_id)
+
     def switch_character(self, profile_id):
         """
         キャラクターを切り替え、関連する設定を一括更新する

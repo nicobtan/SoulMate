@@ -1,4 +1,4 @@
-export type LogCategory = 'sys' | 'rag' | 'dbg' | 'vision';
+export type LogCategory = 'sys' | 'rag' | 'dbg' | 'vision' | 'control';
 
 export class LogManager {
     private static instance: LogManager;
@@ -67,11 +67,35 @@ export class LogManager {
 
         // 2. Append to Specific Category
         if (logTarget) {
-            // For Mind, we might use different styling (handled by CSS/logToMind), 
-            // but for standard log() calls just reuse entry style or redirect to logToMind if category is dbg?
+            // For Mind, we might use different styling
             if (category === 'dbg') {
-                // Redirect to structured mind log
                 this.logToMind(`[DBG] ${msg}`);
+            } else if (category === 'control') {
+                // For Control logs (Text based plans, code etc)
+                // We want them effectively in the Action tab (#log-control)
+                // Re-use standard entry style but maybe cyan text?
+                const controlContent = document.getElementById('log-control');
+                if (controlContent) {
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry cat-control`;
+                    entry.innerHTML = `<span class="log-time">${timeStr}</span> <span style="color:#00e5ff;">${msg}</span>`;
+                    // Append at the end (Below the big cards? Or above?)
+                    // If we want chronological order, appendChild is correct.
+                    // But addActionLog (Result Card) uses insertBefore(firstChild).
+                    // So Results appear at TOP.
+                    // Plans appear at BOTTOM? That's split.
+                    // If we want Plans to appear ABOVE the result (chronological for that action), 
+                    // but the Action Card summarizes the WHOLE action.
+                    // User wants "These logs to be written to Action tab".
+                    // Let's just append them. The Result Card will appear at the top when finished.
+                    // The text logs will accumulate at the bottom?
+                    // Actually, if we use prepend for cards, and append for text, they separate.
+                    // Better: Control logs should ALSO use prepend?
+                    // No, text logs should flow down. Card logs flow up?
+                    // Let's stick to append for text logs for now as they are "streamed".
+                    controlContent.appendChild(entry);
+                    controlContent.scrollTop = controlContent.scrollHeight;
+                }
             } else {
                 const entry = document.createElement('div');
                 entry.className = `log-entry cat-${category}`;

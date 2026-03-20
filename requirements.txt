@@ -120,4 +120,5 @@ transformers
 webrtcvad
 torchaudio
 onnx
-
+pyautogui
+pyperclip

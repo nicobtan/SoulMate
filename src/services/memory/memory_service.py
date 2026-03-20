@@ -66,7 +66,14 @@ class MemoryService:
         try:
             if os.path.exists(self.memory_file):
                 with open(self.memory_file, "r", encoding="utf-8") as f:
-                    return yaml.safe_load(f) or {"facts": []}
+                    data = yaml.safe_load(f) or {}
+                    # Migration: learned_facts -> facts
+                    if "learned_facts" in data and "facts" not in data:
+                        data["facts"] = data.pop("learned_facts")
+                    
+                    if "facts" not in data:
+                        data["facts"] = []
+                    return data
         except Exception as e:
             logger.error(f"Failed to load memory: {e}")
         return {"facts": []}

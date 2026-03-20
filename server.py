@@ -492,6 +492,11 @@ async def get_topic_suggestions():
     if not server_api: raise HTTPException(status_code=500, detail="Not Ready")
     return server_api.get_topic_suggestions()
 
+@app.get("/api/quick_messages")
+async def get_quick_messages():
+    if not server_api: raise HTTPException(status_code=500, detail="Not Ready")
+    return server_api.get_quick_messages()
+
 # Static / Audio
 os.makedirs("dist/audio", exist_ok=True)
 app.mount("/audio", StaticFiles(directory="dist/audio"), name="audio")

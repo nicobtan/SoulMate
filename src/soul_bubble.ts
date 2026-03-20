@@ -69,10 +69,10 @@ export class SoulBubbleManager {
         // 初期配置
         const randomX = 180 + Math.random() * 140;
 
-        // ★修正: Manual/Debug生成の場合、キャラの頭上(Y < 100)に制限
-        let randomY = 60 + Math.random() * 100;
+        // ★修正: ユーザー要望により生成位置を赤線より上（画面上部 10px ~ 50px）に限定
+        let randomY = 10 + Math.random() * 40;
         if (type === 'manual' || type === 'debug') {
-            randomY = 30 + Math.random() * 50; // 30px ~ 80px (Head area)
+            randomY = 10 + Math.random() * 40;
         }
 
         bubble.style.left = `${randomX}px`;

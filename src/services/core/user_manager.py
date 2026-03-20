@@ -23,6 +23,10 @@ class UserManager:
         except Exception as e:
             logger.error(f"Failed to load user profile: {e}")
 
+    def get_user_name(self):
+        """ユーザー名を取得する"""
+        return self.profile_data.get('name', 'User')
+
     def get_profile_context(self):
         """プロンプトに埋め込むためのテキストを生成する"""
         if not self.profile_data:

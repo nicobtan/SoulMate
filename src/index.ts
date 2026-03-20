@@ -33,6 +33,73 @@ const logQueue: { msg: string, type: any, category: any }[] = [];
     }
 };
 
+// Make it globally accessible for Backend API
+(window as any).addActionLog = (jsonData: string) => {
+    try {
+        const data = JSON.parse(jsonData);
+        const container = document.getElementById('log-control');
+
+        if (container) {
+            const div = document.createElement('div');
+            const isStatus = data.instruction === 'Status Update';
+
+            if (isStatus) {
+                // Compact Mode for Status Updates
+                div.className = `log-entry compact ${data.success ? 'success' : 'error'}`;
+                // Minimal styling
+                div.style.marginBottom = '2px';
+                div.style.fontSize = '11px';
+                div.style.color = '#ccc';
+                div.style.padding = '2px 4px';
+                div.style.borderLeft = data.success ? '2px solid #00ffaa' : '2px solid #ff4444';
+                div.style.background = 'rgba(0,0,0,0.1)';
+
+                // Format: [TIME] [STATUS] Message
+                const time = data.timestamp.split(' ')[1];
+                const msg = data.reasoning || data.error;
+
+                div.innerHTML = `
+                    <span style="opacity:0.6; margin-right:5px;">${time}</span>
+                    <span style="color:${data.success ? '#00ffaa' : '#ff4444'}; margin-right:5px;">${data.success ? '●' : '×'}</span>
+                    <span>${msg}</span>
+                `;
+            } else {
+                // Compact / Terminal Style Mode (Ultra Compact)
+                div.className = `log-entry ${data.success ? 'success' : 'error'}`;
+                div.style.borderLeft = data.success ? '2px solid #00ffaa' : '2px solid #ff4444';
+                div.style.background = 'rgba(0,0,0,0.1)';
+                div.style.padding = '1px 4px';
+                div.style.marginBottom = '0px';
+                div.style.fontSize = '11px';
+                div.style.color = '#ccc';
+                div.style.lineHeight = '1.2';
+                div.style.fontFamily = 'Consolas, monospace, "Meiryo UI"';
+                // ★ Fix: css .log-entry has white-space: pre-wrap which reveals HTML indentation.
+                // Force normal whitespace for container so it collapses source indentation.
+                div.style.whiteSpace = 'normal';
+
+                // Format: [TIME] [TYPE] Message
+                const time = data.timestamp ? data.timestamp.split(' ')[1] : '';
+                const typeMark = data.success ? '●' : '×';
+
+                // If instruction is "Thinking", merge it. If it's "Request Received", show standard log.
+                let header = `[${data.instruction}] `;
+                if (data.instruction === 'Thinking') header = '';
+
+                const content = data.reasoning || data.error || '';
+
+                // Single line flex layout (Compact HTML string)
+                div.innerHTML = `<div style="display:flex; align-items:baseline;"><span style="opacity:0.5; margin-right:6px; font-size:10px; min-width:32px;">${time}</span><span style="color:${data.success ? '#00ffaa' : '#ff4444'}; margin-right:4px;">${typeMark}</span><span style="white-space:pre-wrap; word-break:break-all;">${header}${content}</span></div>`;
+            }
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+    } catch (e) {
+        console.error("ActionLog Error", e);
+    }
+};
+
 // --- Initialization ---
 window.addEventListener('DOMContentLoaded', async () => {
     console.log("SoulMate System Booting...");
@@ -203,6 +270,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             logManager.log("Live2D Initialized", "info", "sys");
         } catch (e) {
             console.error("Live2D Init Error", e);
+            logManager.log(`Live2D Init Error: ${e}`, 'error', 'sys');
         }
     };
 
@@ -291,6 +359,58 @@ window.addEventListener('DOMContentLoaded', async () => {
     (window as any).showSoulBubble = function (cat: string, txt: string, aid: string, type: string) {
         chatManager.showSoulBubble(cat, txt, aid, type);
     };
+
+    // --- Quick Message Logic ---
+    const quickBtn = document.getElementById('quick-msg-btn');
+    const quickList = document.getElementById('quick-msg-list');
+
+    if (quickBtn && quickList) {
+        const toggleQuickList = async () => {
+            if (quickList.style.display === 'none') {
+                try {
+                    const data = await api.get_quick_messages(); // Use API Client
+                    const messages = data.messages || [];
+
+                    quickList.innerHTML = '';
+                    if (messages.length === 0) {
+                        const empty = document.createElement('div');
+                        empty.className = 'quick-msg-item';
+                        empty.textContent = 'No messages configured.';
+                        quickList.appendChild(empty);
+                    } else {
+                        messages.forEach((msg: string) => {
+                            const item = document.createElement('div');
+                            item.className = 'quick-msg-item';
+                            item.textContent = msg;
+                            item.onclick = () => {
+                                // Send message via ChatManager
+                                chatManager.sendMessage(msg);
+                                quickList.style.display = 'none';
+                            };
+                            quickList.appendChild(item);
+                        });
+                    }
+                    quickList.style.display = 'block';
+                } catch (e) {
+                    console.error("Failed to load quick messages", e);
+                }
+            } else {
+                quickList.style.display = 'none';
+            }
+        };
+
+        quickBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleQuickList();
+        });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+            if (quickList.style.display !== 'none' && !quickList.contains(e.target as Node) && !quickBtn.contains(e.target as Node)) {
+                quickList.style.display = 'none';
+            }
+        });
+    }
 
     logManager.log("System Ready.", "info", "sys");
 });

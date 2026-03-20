@@ -666,6 +666,25 @@ body {
     border-bottom: 2px solid #b066f5;
 }
 
+/* Tab Button Styling for Control/Action */
+.tab-btn.control-tab {
+    color: #00e5ff;
+}
+
+.tab-btn.control-tab.active {
+    border-bottom: 2px solid #00e5ff;
+}
+
+/* Control Log Styling */
+#log-control {
+    color: #e0f7fa;
+    font-family: 'Consolas', monospace;
+    font-size: 0.9em;
+    padding: 10px;
+    background-color: rgba(0, 40, 60, 0.4);
+    /* Dark Cyan tint */
+}
+
 /* Buttons & Context Menu */
 #chat-toggle-btn,
 #debug-btn,
@@ -1529,6 +1548,7 @@ textarea,
         opacity: 0.7;
     }
 }
+
 /* Continuous Listening Mode */
 .mic-listening {
     background-color: rgba(0, 255, 0, 0.2) !important;
@@ -1550,4 +1570,73 @@ textarea,
     100% {
         box-shadow: 0 0 5px #00ff00;
     }
+}
+
+/* Quick Message Button */
+#quick-msg-btn {
+    position: absolute;
+    right: 20px;
+    bottom: 90px; /* Slightly above input area (80px) */
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, background-color 0.2s;
+    color: #eee;
+}
+
+#quick-msg-btn:hover {
+    transform: scale(1.1);
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Quick Message Popup */
+.quick-msg-popup {
+    position: absolute;
+    right: 20px;
+    bottom: 135px; /* Button (90) + Height (36) + Margin */
+    width: 260px;
+    max-height: 300px;
+    overflow-y: auto;
+    
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    padding: 8px 0;
+    z-index: 2000; /* Above chat */
+    
+    transform-origin: bottom right;
+    animation: popupFadeIn 0.2s ease-out;
+}
+
+.quick-msg-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #eee;
+    transition: background 0.2s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.quick-msg-item:last-child {
+    border-bottom: none;
+}
+
+.quick-msg-item:hover {
+    background-color: rgba(0, 120, 255, 0.3);
+    color: #fff;
+}
+
+@keyframes popupFadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }

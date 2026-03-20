@@ -8,6 +8,10 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 if base_dir not in sys.path:
     sys.path.append(base_dir)
 
+# Load Environment Variables Early
+from dotenv import load_dotenv
+load_dotenv()
+
 # Imports from new structure
 from src.core.config_manager import ConfigManager
 from src.services.core.ai_engine import AIEngine
@@ -29,6 +33,7 @@ from src.api.history_api import HistoryApiMixin
 from src.api.voice_api import VoiceApiMixin
 from src.api.character_api import CharacterApiMixin
 from src.api.vision_api import VisionApiMixin
+from src.api.quick_message_api import QuickMessageApiMixin
 from src.services.content.bubble_service import BubbleService
 from src.services.core.character_service import CharacterService
 from src.services.memory.history_manager import HistoryManager
@@ -37,7 +42,7 @@ from src.services.core.user_manager import UserManager
 from src.services.content.interest_manager import InterestManager
 from src.services.content.topic_selector import TopicSelector
 
-class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin, CharacterApiMixin, VisionApiMixin):
+class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixin, HistoryApiMixin, VoiceApiMixin, CharacterApiMixin, VisionApiMixin, QuickMessageApiMixin):
     def __init__(self):
         super().__init__() # Initialize BaseApiMixin attributes
         self.services = self # Mixin Pattern: API instance itself is the service container
@@ -92,36 +97,39 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         # TTS Engine
         try:
             key_path = os.path.join(os.getcwd(), "settings", "google-credentials.json")
-            self.tts_engine = TTSEngine(key_path=key_path)
+            self._tts_engine = TTSEngine(key_path=key_path)
             print("[System] TTS Engine initialized.")
         except Exception as e:
             print(f"[System] TTS Init Failed: {e}")
-            self.tts_engine = None
+            self._tts_engine = None
 
         # VOICEVOX Service
         try:
             from src.services.voice.voice_service import VoiceService
-            self.voice_service = VoiceService()
+            self._voice_service = VoiceService()
             print("[System] VoiceService initialized.")
         except Exception as e:
             print(f"[System] VoiceService Init Failed: {e}")
-            self.voice_service = None
+            self._voice_service = None
 
+        # SoulMateEars (Hearing)
         # SoulMateEars (Hearing)
         try:
              # Default CPU/CUDA is handled by SoulMateEars internal logic or default arg
-             self.soulmate_ears = SoulMateEars() 
-             print("[System] SoulMateEars initialized.")
+             # self._soulmate_ears = SoulMateEars() 
+             # print("[System] SoulMateEars initialized.")
+             print("[System] SoulMateEars DISABLED for debugging.")
+             self._soulmate_ears = None
         except Exception as e:
              print(f"[System] SoulMateEars Init Failed: {e}")
-             self.soulmate_ears = None
+             self._soulmate_ears = None
  
         # Active Engine
-        self.active_engine = ActiveEngine(self._ai_engine, self.push_message_callback, log_callback=self.log_to_debug)
-        self.active_engine.set_bubble_service(self.bubble_service) # Inject Bubble Service
-        if self.soulmate_ears:
-            self.active_engine.set_ears(self.soulmate_ears) # Inject Ears
-        self.active_engine.configure(self._config_manager.get_all())
+        self._active_engine = ActiveEngine(self._ai_engine, self.push_message_callback, log_callback=self.log_to_debug)
+        self._active_engine.set_bubble_service(self.bubble_service) # Inject Bubble Service
+        if self._soulmate_ears:
+            self._active_engine.set_ears(self._soulmate_ears) # Inject Ears
+        self._active_engine.configure(self._config_manager.get_all())
         
         # Connect VisionService Logging
         from src.services.vision.vision_service import vision_service
@@ -157,7 +165,27 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         self._calendar_manager = CalendarManager()
         # Note: auto_auth moved to start_services()
         
+
         # Note: bubble_loop moved to start_services()
+
+        # Phase 130: OS Control Services (Singleton Usage)
+        try:
+             # Use the singleton instance explicitly to avoid double-init/Tkinter conflicts
+             from src.services.control.soul_operator import soul_operator
+             from src.services.control.experience_logger import ExperienceLogger
+             self._soul_operator = soul_operator
+             self._soul_operator.set_window_provider(self.get_window_pos) # Inject Position Provider
+             self._soul_operator.set_services(self.character_service, self.user_manager)
+             self._experience_logger = ExperienceLogger()
+             print("[System] SoulOperator (OS Control) Initialized.")
+        except Exception as e:
+             msg = f"[System] SoulOperator Init Failed: {e}"
+             print(msg)
+             self.log_to_debug(msg, 'error') # Show in UI
+             self._soul_operator = None
+             self._soul_operator_init_error = str(e) # Store for ChatApi
+             self._experience_logger = None
+
 
     def cleanup(self):
         """Releases all resources on shutdown."""
@@ -166,15 +194,15 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         print("[System] Shutting down services...")
         
         # Stop Listeners
-        if hasattr(self, 'active_engine') and self.active_engine:
-            self.active_engine.stop()
+        if hasattr(self, '_active_engine') and self._active_engine:
+            self._active_engine.stop()
             
         # Stop Ears
-        if hasattr(self, 'soulmate_ears') and self.soulmate_ears:
-            self.soulmate_ears.close()
+        if hasattr(self, '_soulmate_ears') and self._soulmate_ears:
+            self._soulmate_ears.close()
 
         # Stop TTS
-        if hasattr(self, 'tts_engine') and self.tts_engine:
+        if hasattr(self, '_tts_engine') and self._tts_engine:
             pass
             
         print("[System] Cleanup complete.")
@@ -278,8 +306,8 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
             )
             
             # Pass API Key to VoiceService (for Gemini TTS)
-            if self.voice_service and api_key:
-                self.voice_service.set_api_key(api_key)
+            if self._voice_service and api_key:
+                self._voice_service.set_api_key(api_key)
 
             print(f"[System] AI Configured: {model} with Deep Context ({user_name})")
 
@@ -296,8 +324,8 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
         self.log_to_debug("[System] 🔄 Starting Background Services...", 'sys')
         
         # 1. Active Engine
-        if hasattr(self, 'active_engine') and self.active_engine:
-            self.active_engine.start()
+        if hasattr(self, '_active_engine') and self._active_engine:
+            self._active_engine.start()
             print("[System] ActiveEngine Started.")
             self.log_to_debug("[System] ✅ ActiveEngine Started.", 'sys')
 
@@ -470,6 +498,25 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
             except json.JSONDecodeError:
                 pass # Treat as raw text
             
+            # ★ Save to History (Proactive/Bubble messages)
+            if tts_text:
+                # 1. JSONL Backup (chat_history.jsonl)
+                if hasattr(self, 'history_manager') and self.history_manager:
+                    self.history_manager.add_message("ai", tts_text)
+                
+                # 2. SQLite Database
+                try:
+                    from src import core_instance
+                    db = core_instance.get_db()
+                    if db:
+                        active = db.get_active_session()
+                        if active:
+                            session_id = active['id']
+                            meta = data if isinstance(data, dict) else None
+                            db.add_message(session_id, "ai", tts_text, meta=meta)
+                except Exception as e:
+                    self.log_to_debug(f"Proactive DB Save Error: {e}", 'error')
+
             # Speak it
             out_path = self.generate_tts_audio(tts_text)
             
@@ -617,8 +664,18 @@ def start_background_title_fixer(api_instance):
 def create_app():
     api = Api()
     
-    api = Api()
+    # api = Api() # Duplicate removed
     
+    # Debug: Check if get_settings is available
+    print("[Main] Inspecting API methods...")
+    methods = [m for m in dir(api) if not m.startswith('_')]
+    if 'get_settings' in methods:
+        print("[Main] ✅ get_settings FOUND in API class.")
+    else:
+        print("[Main] ❌ get_settings NOT FOUND in API class!")
+        # Force check base classes
+        print(f"[Main] API MRO: {Api.mro()}")
+
     # Title Fixer moved to api.start_services()
     
     initial_width = 450 
@@ -644,7 +701,7 @@ def create_app():
         y=y,
         transparent=True,
         frameless=True,
-        on_top=True,
+        on_top=api._config_manager.get('always_on_top', True),
         easy_drag=False
     )
     api.set_window(window)
@@ -652,6 +709,9 @@ def create_app():
     # ★ Shutdown Hook
     def on_closed():
         print("[Main] Window closed. Triggering cleanup...")
+        try:
+            api.save_window_position()
+        except: pass
         api.cleanup()
         os._exit(0) # Force kill to prevent zombies
 
