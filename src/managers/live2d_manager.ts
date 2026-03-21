@@ -391,11 +391,43 @@ export class Live2DManager {
      * ランダムな表情をセットする (ボタン用)
      */
     public setRandomExpression() {
-        const keys = Object.keys(Live2DManager.EMOTION_MAP).filter(k => k !== 'neutral' && k !== 'default');
-        if (keys.length === 0) return;
+        if (!this.model) return;
 
-        const randomKey = keys[Math.floor(Math.random() * keys.length)];
-        this.triggerExpression(randomKey);
+        let availableExpressions: string[] = [];
+
+        // 1. モデル内部に定義されている表情リストを動的に取得する (PixiLive2DDisplay)
+        if (this.model.internalModel && this.model.internalModel.settings && this.model.internalModel.settings.expressions) {
+            availableExpressions = this.model.internalModel.settings.expressions.map((e: any) => e.name || e.Name);
+        }
+
+        // 2. 内部リストが見つからなければ、ハードコードされたマップから候補を生成
+        if (availableExpressions.length === 0) {
+            const keys = Object.keys(Live2DManager.EMOTION_MAP).filter(k => k !== 'neutral' && k !== 'default');
+            keys.forEach(k => {
+                const val = Live2DManager.EMOTION_MAP[k];
+                if (Array.isArray(val)) {
+                    availableExpressions.push(...val);
+                } else if (val) {
+                    availableExpressions.push(val);
+                }
+            });
+            // 重複を削除
+            availableExpressions = Array.from(new Set(availableExpressions));
+        }
+
+        if (availableExpressions.length === 0) return;
+
+        // ランダムに選んで適用
+        const randomExpId = availableExpressions[Math.floor(Math.random() * availableExpressions.length)];
+        
+        const logger = LogManager.getInstance();
+        logger.log(`Expression: Random Button (${randomExpId})`, 'info', 'sys');
+
+        this.model.expression(randomExpId).catch((e: any) => {
+            console.warn(`[Expression] Failed to set random expression: ${randomExpId}`, e);
+        });
+
+        this.currentExpression = randomExpId;
     }
 
     public async triggerExpression(aiEmotionTag: string) {
