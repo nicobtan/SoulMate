@@ -23,6 +23,7 @@ class ActiveEngine:
         # self.news_collector = NewsCollector() # Deprecated for now, logic moved to AIEngine
         
         self.is_running = False
+        self.stealth_mode = False
         self.last_interaction_time = time.time()
         self.thread = None
         
@@ -49,6 +50,16 @@ class ActiveEngine:
     def set_bubble_service(self, service):
         """ dependency injection setter """
         self.bubble_service = service
+
+    def set_stealth_mode(self, enabled):
+        self.stealth_mode = enabled
+        logger.info(f"ActiveEngine: Stealth Mode set to {enabled}")
+        # When in stealth mode, we override AIEngine system prompt for background OS work
+        if self.stealth_mode and self.ai_engine:
+            stealth_prompt = "現在あなたはステルスモードでバックグラウンド稼働中です。音声や表示は使えません。ユーザーの作業を邪魔せず、OS操作や情報収集、記録などを優先してください。(Gemini 3.1 Pro)"
+            import json
+            # We use the existing update logic via context injection
+            self.ai_engine.set_system_prompt(stealth_prompt)
 
     def configure(self, settings):
         """Updates settings dynamically."""
@@ -378,7 +389,7 @@ class ActiveEngine:
             logger.info("👁️ [Proactive] Vision Scan Started...")
             
             # 0. Visual Feedback (Eyes)
-            if self.on_message_callback:
+            if self.on_message_callback and not self.stealth_mode:
                 import json
                 # Send expression trigger (requires Main.py support)
                 self.on_message_callback(json.dumps({"type": "expression", "name": "focused"}))
@@ -521,10 +532,14 @@ class ActiveEngine:
             logger.info(f"🧠 [Proactive] Decision: {action.upper()} | Topic: {topic_tag} | Text: {speak_text[:30]}...")
 
             if action == "speak" and speak_text:
-                # Check Silent Mode (Global Setting)
-                if self.proactive_silent_mode:
-                    logger.info("🤫 [Proactive] Silent Mode: Skipping TTS, Log only.")
-                    self._send_log(f"(Silent) {speak_text}", "info", "mind")
+                # Check Silent Mode (Global Setting) or Stealth Mode
+                if self.proactive_silent_mode or self.stealth_mode:
+                    logger.info("🤫 [Proactive] Silent Mode / Stealth Mode: Skipping TTS, Log only.")
+                    self._send_log(f"(Stealth) {speak_text}", "info", "mind")
+                    # Send pure text for controller to log when in stealth
+                    if self.stealth_mode and self.on_message_callback:
+                        import json
+                        self.on_message_callback(json.dumps({"type": "stealth_log", "text": speak_text}))
                 else:
                     # Construct Payload for Frontend
                     # Reuse Suggestion Padding Logic (could be refactored to helper but keeping inline for now)

@@ -51,7 +51,10 @@ class BaseApiMixin:
             safe_level = json.dumps(level)
             safe_category = json.dumps(category)
             
-            self._window.evaluate_js(f"logToDebug({safe_msg}, {safe_level}, {safe_category})")
+            try:
+                self._window.evaluate_js(f"if(typeof window.logToDebug === 'function') window.logToDebug({safe_msg}, {safe_level}, {safe_category})")
+            except Exception as e:
+                pass
 
     
     def log_to_mind(self, msg):
@@ -95,7 +98,10 @@ class BaseApiMixin:
         
         if self._window:
             safe_msg = json.dumps(str(translated_msg))
-            self._window.evaluate_js(f"logToMind({safe_msg})")
+            try:
+                self._window.evaluate_js(f"if(typeof window.logToMind === 'function') window.logToMind({safe_msg})")
+            except Exception as e:
+                pass
 
     def play_filler(self):
         """Play a random filler sound and show Ghost Message in UI."""

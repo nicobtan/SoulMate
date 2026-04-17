@@ -39,25 +39,34 @@ class LipSyncManager {
         });
     }
 
+    private currentVolume = 0; // 現在の音量を保持
+
     update(model: any) {
         if (!this.isInitialized || !model || !this.analyser || !this.dataArray) return;
 
         this.analyser.getByteFrequencyData(this.dataArray as any);
 
+        // 人の声に近い周波数帯(低〜中音域)に絞って平均を取る
         let values = 0;
-        const length = this.dataArray.length;
-        for (let i = 0; i < length; i++) {
+        const start = Math.floor(this.dataArray.length * 0.05); // 低音
+        const end = Math.floor(this.dataArray.length * 0.4);   // 中音
+        for (let i = start; i < end; i++) {
             values += this.dataArray[i];
         }
-        const average = values / length;
+        const average = values / (end - start);
 
-        // Sensitivity (0.0 - 1.0)
-        let volume = (average / 255) * 5.0;
-        if (volume > 1.0) volume = 1.0;
-        if (volume < 0.1) volume = 0;
+        // 感度調整とゲイン
+        let targetVolume = (average / 255) * 6.5; 
+        if (targetVolume > 1.0) targetVolume = 1.0;
+        if (targetVolume < 0.05) targetVolume = 0;
+
+        // Lerp(線形補間)で滑らかに開閉させる (0.35 = 追従速度)
+        this.currentVolume += (targetVolume - this.currentVolume) * 0.35;
+
+        // 音量が小さくなった後、一定時間で表情をリセットする処理などをここに追加することも可能
 
         if (model.internalModel && model.internalModel.coreModel) {
-            model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', volume);
+            model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', this.currentVolume);
         }
     }
 
@@ -326,39 +335,40 @@ export class Live2DManager {
 
     // ▼ AIの感情タグ(Key) と Live2Dの表情名(Value) の対応表
     private static readonly EMOTION_MAP: { [key: string]: string | string[] } = {
-        // 喜び・ポジティブ系 (配列で複数を指定！)
-        "happy": ["18.smile", "08.XD", "11.perori"],
-        "joy": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised"],
-        "excited": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised"],
-        "fun": ["08.XD", "11.perori", "12.cat_mouth"],
+        // 喜び・ポジティブ系
+        "happy": ["18.smile", "08.XD", "11.perori", "expression1", "expression2"],
+        "joy": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised", "expression1", "expression2"],
+        "excited": ["18.smile", "08.XD", "12.cat_mouth", "13.surprised", "expression4"],
+        "fun": ["08.XD", "11.perori", "12.cat_mouth", "expression4"],
 
-        // 愛情・デレ系 (ここが重要！)
-        "loving": "01.blush",     // 照れる
-        "love": "01.blush",
-        "shy": "01.blush",
+        // 愛情・デレ系
+        "loving": ["01.blush", "expression5"],
+        "love": ["01.blush", "expression5"],
+        "shy": ["01.blush", "expression5"],
 
         // 悲しみ・ネガティブ系
-        "sad": "03.cry",
-        "sorrow": "03.cry",
-        "cry": "03.cry",
+        "sad": ["03.cry", "expression6"],
+        "sorrow": ["03.cry", "expression6"],
+        "cry": ["03.cry", "expression6"],
 
         // 怒り
-        "angry": ["02.angry", "15.angry2"], // 怒りも2種類
-        "anger": "02.angry",
+        "angry": ["02.angry", "15.angry2", "expression3"],
+        "anger": ["02.angry", "expression3"],
 
-        // 驚き
-        "surprised": "13.surprised",
-        "shock": "04.pale",       // 驚愕で青ざめる演出
+        // 驚き・＞＜など
+        "surprised": ["13.surprised", "expression8"],
+        "shock": ["04.pale", "expression8"], // ＞＜ の代替
+        "fear": ["04.pale", "expression8"],
+        "error": ["04.pale", "expression8", "03.cry"], // エラー時専用タグ
 
         // その他・特殊
-        "fear": "04.pale",        // 恐怖
-        "sleepy": "17.sleep",     // 眠い
-        "tired": "17.sleep",
-        "disgust": "10.jitome",   // 軽蔑/ジト目
-        "doubt": "10.jitome",
+        "sleepy": ["17.sleep", "expression7"],
+        "tired": ["17.sleep", "expression7"],
+        "disgust": ["10.jitome", "expression3"],
+        "doubt": ["10.jitome", "expression3"],
 
         // デフォルト
-        "neutral": "",            // 表情リセット
+        "neutral": "",            
         "default": ""
     };
 
@@ -433,8 +443,43 @@ export class Live2DManager {
     public async triggerExpression(aiEmotionTag: string) {
         if (!this.model) return;
 
-        // 1. IDの取得 (neutralなら空文字 "" が返る)
-        const expressionId = Live2DManager.getExpressionId(aiEmotionTag, this.currentExpression);
+        const key = (aiEmotionTag || "neutral").toLowerCase().trim();
+        const mappedValue = Live2DManager.EMOTION_MAP[key] || Live2DManager.EMOTION_MAP["neutral"] || "";
+
+        if (!mappedValue) {
+            this.focusReset(); // default/neutralの時はリセット
+            return;
+        }
+
+        // --- モデルが持っている表情リストを取得 ---
+        let availableExpressions: string[] = [];
+        if (this.model.internalModel && this.model.internalModel.settings && this.model.internalModel.settings.expressions) {
+            availableExpressions = this.model.internalModel.settings.expressions.map((e: any) => e.name || e.Name);
+        }
+
+        let candidates: string[] = [];
+        if (Array.isArray(mappedValue)) {
+            candidates = mappedValue;
+        } else {
+            candidates = [mappedValue];
+        }
+
+        // 利用可能な表情のみにフィルタリング
+        if (availableExpressions.length > 0) {
+            const validCandidates = candidates.filter(c => availableExpressions.includes(c));
+            if (validCandidates.length > 0) {
+                candidates = validCandidates;
+            } else {
+                console.warn(`[Expression] Model does not have any of mapped expressions for '${key}': ${candidates}`);
+                return;
+            }
+        }
+
+        // 現在の表情を除外した候補リストを作成（ランダム変化用）
+        const filteredByCurrent = this.currentExpression ? candidates.filter(v => v !== this.currentExpression) : candidates;
+        const listToUse = filteredByCurrent.length > 0 ? filteredByCurrent : candidates;
+
+        const expressionId = listToUse[Math.floor(Math.random() * listToUse.length)];
         const logger = LogManager.getInstance();
 
         try {
@@ -507,11 +552,22 @@ export class Live2DManager {
         if (!this.model || !this.model.internalModel || !this.model.internalModel.coreModel) return;
 
         const now = Date.now();
+        const core = this.model.internalModel.coreModel;
 
         // 1. Breathing
-        const t = (now / 1000) * 2;
-        const breathValue = (Math.sin(t) + 1) / 2;
-        this.model.internalModel.coreModel.setParameterValueById('ParamBreath', breathValue);
+        const breathT = (now / 1000) * 1.5; // 少しゆっくりめの呼吸
+        const breathValue = (Math.sin(breathT) + 1) / 2;
+        core.setParameterValueById('ParamBreath', breathValue);
+
+        // 2. 微細な体の揺れ (予測しづらい動き)
+        const idleT = now / 2000;
+        const angleX = Math.sin(idleT * 0.7) * 2 + Math.cos(idleT * 0.3) * 1;
+        const angleY = Math.cos(idleT * 0.8) * 1.5;
+        const bodyAngleX = Math.sin(idleT * 0.5) * 1.2;
+
+        core.setParameterValueById('ParamAngleX', angleX); // 首の左右
+        core.setParameterValueById('ParamAngleY', angleY); // 首の上下
+        core.setParameterValueById('ParamBodyAngleX', bodyAngleX); // 体の揺れ
 
         // 2. Blinking
         if (this.blinkState === 0) {

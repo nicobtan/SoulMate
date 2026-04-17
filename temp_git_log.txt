@@ -1,0 +1,100 @@
+2026-03-22 feat: make expression button dynamically support any model (like Naya)
+2026-03-21 chore: remove large onnx data and update documentation
+2026-01-12 docs: update tasklist and models info, fix live2d init
+2026-01-12 feat: implement RAG query transformation with gemini-2.0-flash-lite
+2026-01-12 fix: remove ALL large ONNX files
+2026-01-11 Refactor: Modularize services and fix stability issues (Phase 113, 114)
+2026-01-10 feat: Implement Proactive Logic 2.0 (History, Time-Aware, Silent Mode)
+2026-01-10 feat(vision): Major Refactor v0.5.0 - Gemini 2.5 Flash Lite, Game Mode & Robust API Key
+2026-01-10 feat(ui): consolidate vision controls and refine window dragging
+2026-01-09 feat(vision): overhaul vision system with mss, gemini-flash-lite, and UI feedback
+2026-01-09 docs: add commands.md and fix build error
+2026-01-08 Refactor: Switch voice hotkey to Polling (GetAsyncKeyState) for stability (Phase 109)
+2026-01-07 Docs: Update docs for v0.4.5 (Dynamic Whisper Model Config) & Phase 108
+2026-01-07 Docs: Add models_info.md, update project docs & tasklist (Phase 107)
+2026-01-07 feat(memory): Implement Learned Facts system with Async Observer pattern\n\n- Add MemoryService for learned_facts.yaml\n- Update AIEngine with _check_and_learn_facts (Gemini 2.0 Flash)\n- Update main.py to inject learned facts into prompt\n- Fix voice hotkey regression and persona sync issues
+2026-01-07 Fix voice hotkey blocking and double-trigger issues
+2026-01-06 Fix voice hotkey regression and persona config synchronization
+2026-01-06 Fix character persistence race condition and initialization order
+2026-01-06 Fix: Voice input hotkey issues and add debug logging
+2026-01-06 Update: Implement custom Live2D character positioning and scaling
+2026-01-06 Update: Save current state (including token update)
+2026-01-06 Fix: Add compatibility initialize method to Live2DManager
+2026-01-05 feat(voice): Add Real-time Voice Transcription Preview
+2026-01-05 feat(ui): Add Modern Hotkey Recorder to Settings
+2026-01-05 feat(voice): Implement Voice Input & Global Hotkey logic
+2026-01-04 feat(v0.4.3): Integrate Dify Workflow, Desktop UI Logs, and Doc Updates
+2026-01-03 docs: Update documentation for v0.4.2 (Mobile UI Polish)
+2026-01-03 fix(audio): propagate TTS errors to UI logs & add Naya persona
+2026-01-03 docs: update tasklist and features for v0.4.1 (persistence fix)
+2026-01-02 Update documentation for v0.4.0 (Gemini 3.0 Stable)
+2026-01-02 Fix force_talk suggestions & main.py model migration
+2026-01-02 Fix Gemini TTS 404/400 errors: Corrected model IDs and added auto-mapping
+2026-01-02 Update: Consistent Suggestions for Active Messages & TaskList
+2026-01-02 Update: Gemini 2.5 TTS Integration (Preview) & Dynamic Model Selection
+2026-01-01 Fix: Desktop Audio Support, Mobile UI Adjustments, and cleanup
+2026-01-01 Mobile UI Refinement: Fix Black Glass, Layout & Readability
+2025-12-31 Fix(Mobile): UI transparency, Model name override, Audio logs, Suggestion logic
+2025-12-31 Update: Mobile UI Separation, Chat Length Setting, Docs update
+2025-12-31 Feature: Topic Selection Modal & Mobile UI Separation
+2025-12-31 feat(mobile): Overhaul mobile UI layout and fix migration loop
+2025-12-31 feat(mobile-ui): Finalize mobile layout interactions (input height, button clearance, z-indexing)
+2025-12-31 Docs: Add Japanese comments to core files (server, main, AI, chat)
+2025-12-30 Fix: Server stability, Model rollback, Diary logs, System Prompt injection, and Language constraints
+2025-12-29 feat(MindFeedback): Implement Deep Reflection (Phase 93)
+2025-12-28 Docs Update: Completed Phase 90-92 (MindVault Integration & Deep Conversation)
+2025-12-28 Phase 92 Complete: MindVault Integration, Deep Conversation Mode, & Purple Bubble Styling
+2025-12-28 Phase 92: Enhanced MindVault Parsing (Granular) & Startup Bubbles
+2025-12-28 Feat: 日記機能の実装完了 (Phase 89) - 自動/手動生成、履歴UI刷新、バグ修正
+2025-12-27 feat: Finalize Suggestion Engine (Phase 88) - 10 items guarantee, Proactive support, Bug fixes
+2025-12-27 fix(ai-engine): Reliability fixes for Phase 87 (Parser, Model, Prompt)
+2025-12-27 feat(proactive): Advanced settings (Silent/Filter) & Anti-Hallucination fixes
+2025-12-27 feat: Add Proactive Settings, Fix RAG Logs & JSON/Tools Conflict
+2025-12-26 feat(proactive): fix ActiveEngine logic & enable RTX 50 GPU support
+2025-12-26 feat: Add Vision Log Tab & Local Vision Research (PaliGemma)
+2025-12-26 feat: Implement Vision Log Tab & Proactive Mode Spec
+2025-12-25 feat: Add Expression Button, Fix YouTube Link Analysis & Optimize Live2D Reset logic
+2025-12-24 feat(log): Log Observability 3.0 & Live2D Expression Button
+2025-12-24 feat: enhance logs (Mind/Vision/RAG) & update late night rule to 2AM
+2025-12-24 update: .gitignore and recent changes
+2025-12-23 feat: Implement Guaranteed Love Slot, Unify Heart Icons, and Fix Bubble Service Crash
+2025-12-23 Update docs/tasklist.md with recent phases (71-72)
+2025-12-23 Update docs/whatisSoulMate.md with Chaos Logic & UrlValidator features
+2025-12-23 Fix URL Hallucinations (UrlValidator, Strict Prompt), Implement Chaos Logic (TopicSelector), Fix JSON Robustness, Feature: Random Topic Balloons
+2025-12-22 update: audio interrupt & calendar fix
+2025-12-22 filer実装
+2025-12-22 filler_v1
+2025-12-22 mindタブ実装
+2025-12-22 Make MindVault Doc Sync Operational
+2025-12-22 Vision機能実装完了
+2025-12-22 v0.3 Native JSON 導入版
+2025-12-21 fix: Ensure all entry points (Bubble, Force Talk, Proactive) use TOON format and expanded suggestions
+2025-12-21 feat: Implement TOON standard protocol and expand AI suggestions to 5 items
+2025-12-21 feat: implement modern vision flow with image preview and multi-modal chat
+2025-12-21 feat: implement get_random_memory and update user profile
+2025-12-21 docs: update tasklist for History v4
+2025-12-21 feat: implement manual session controls and refactor history UI
+2025-12-20 feat: enhance emotional memory with recall capability and rich logging
+2025-12-20 feat: implement MindVault Sync with Google Docs and fix auth flow
+2025-12-20 Feat: Implement Emotional Memory & Fix Startup Race Condition
+2025-12-20 Docs: Update ideas.md and version history
+2025-12-20 プロジェクト構成の整理 (Cleanup)
+2025-12-20 履歴復元安定版
+2025-12-20 履歴機能v3
+2025-12-20 履歴機能v2
+2025-12-20 feat: History UI v1 (Detailed Debug Logs & Resume Fix)
+2025-12-19 feat: Implement Independent History Window and Fix Resume Crash
+2025-12-19 feat: Implement History Viewer and Resume Logic
+2025-12-19 Refactor: Split index.ts into Managers, Improved UI/UX, and Fixed JSON/Name issues
+2025-12-19 feat: Improve Soul Bubble interaction/UI and add TTS timing logs
+2025-12-18 chore: Update ChromaDB runtime data
+2025-12-18 feat: Add Gemini 3 Flash Preview & Deep Context Injection (Amnesia Fix)
+2025-12-18 ソース構成管理直前
+2025-12-18 RAGタブ機能追加
+2025-12-18 バルーン生成機能実装、TTS改良
+2025-12-17 feat(vision): fix tool conflict, refine UI layout, and force startup resize
+2025-12-17 Fix: AI回答の長さ制限を緩和し、詳細回答を可能にする (server.py)
+2025-12-17 UI安定版: レイアウト固定化とゴミ箱配置の修正
+2025-12-17 docs: update tasklist and project features (restore on hold); fix: robust json cleanup and history parsing
+2025-12-16 Fix: キャラクター拡大バグ修正、モバイル設定UI実装完了 (v0.2.0安定版)
+2025-12-14 Initial commit: SoulMate v0.2 with Active Talk

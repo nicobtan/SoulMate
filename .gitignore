@@ -107,3 +107,5 @@ wav2vec2_checkpoints/
 *.onnx
 
 # End of file
+
+models/emotion_model/emotion.onnx.data

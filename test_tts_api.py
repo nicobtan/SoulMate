@@ -19,11 +19,11 @@ client = genai.Client(api_key=api_key)
 
 models_to_test = [
     "gemini-2.5-flash-preview-tts",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash"
+    "gemini-2.5-flash-lite-preview-tts",
+    "gemini-2.5-pro-preview-tts"
 ]
 
-text = "あいうえお、これはテストです。"
+text = "えるくん、お茶にしませんか〜？それとも、何か他にお話ししたいこと、ありますか…？"
 
 for model_id in models_to_test:
     print(f"\n--- Testing Model: {model_id} ---")
@@ -39,11 +39,7 @@ for model_id in models_to_test:
                             voice_name="Aoede"
                         )
                     )
-                ),
-                automatic_function_calling=None,
-                temperature=None,
-                top_p=None,
-                top_k=None
+                )
             )
         )
         print(f"Success! Response parts: {len(response.parts)}")

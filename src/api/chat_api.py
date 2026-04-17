@@ -517,8 +517,12 @@ You MUST output in JSON format: {{"thought": "...", "response": "...", "emotion"
             # 文字列であることを確認して渡す
             if clean.strip():
                 # generate_tts_audio 内でもクリーニングはあるが、念入りに
-                # generate_tts_audio 内でもクリーニングはあるが、念入りに
                 audio_path = self.generate_tts_audio(clean.strip())
+                
+                # TTS生成エラー時は、キャラクターの表情を「＞＜」等(error/expression8)に変更する
+                if not audio_path:
+                    emotion = "error"
+                    response_text += "\n(※音声の読み上げに失敗しました＞＜)"
 
         # Validation Log for Calendar
         if is_calendar_intent and "[ACTION:ADD_EVENT" not in response_text:

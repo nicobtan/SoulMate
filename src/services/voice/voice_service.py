@@ -97,11 +97,7 @@ class VoiceService:
                                         voice_name=voice_name
                                     )
                                 )
-                            ),
-                            automatic_function_calling=None,
-                            temperature=None,
-                            top_p=None,
-                            top_k=None
+                            )
                         )
                     )
                     break # Success

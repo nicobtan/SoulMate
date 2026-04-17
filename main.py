@@ -49,6 +49,10 @@ class Api(WindowApiMixin, SettingsApiMixin, ChatApiMixin, BubbleApi, UserApiMixi
         
         # 0. Lifecycle Flags
         self.is_cleaning_up = False
+        self._window = None
+        self._controller_window = None
+        self._live2d_window = None
+        self._live2d_visible = False
         
         # 1. Core & Services Initialization
         self._config_manager = ConfigManager()
@@ -318,6 +322,85 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
         
         # Note: active_engine.start() and diary check moved to start_services()
 
+    def start_agent(self):
+        """Called from Controller GUI"""
+        print("[System] Controller: Start Agent")
+        
+        if hasattr(self, '_active_engine') and self._active_engine:
+            self._active_engine.set_stealth_mode(True)
+            self._active_engine.start()
+            
+        if self._controller_window:
+            self._controller_window.evaluate_js("updateStatus('RUNNING (Stealth)')")
+            self._controller_window.evaluate_js("addLog('System: Agent loop started in background.')")
+
+    def stop_agent(self):
+        """Called from Controller GUI"""
+        print("[System] Controller: Stop Agent")
+        
+        if hasattr(self, '_active_engine') and self._active_engine:
+            self._active_engine.stop()
+            
+        if self._controller_window:
+            self._controller_window.evaluate_js("updateStatus('STOPPED')")
+            self._controller_window.evaluate_js("addLog('System: Agent loop stopped.')")
+
+    def toggle_live2d(self):
+        """Called from Controller GUI"""
+        if self._live2d_window:
+            if getattr(self, '_live2d_visible', False):
+                self._live2d_window.hide()
+                self._live2d_visible = False
+                print("[System] Live2D Hidden")
+                if self._controller_window:
+                    self._controller_window.evaluate_js("addLog('System: Live2D Window Hidden')")
+            else:
+                self._live2d_window.show()
+                self._live2d_visible = True
+                print("[System] Live2D Shown")
+                if self._controller_window:
+                    self._controller_window.evaluate_js("addLog('System: Live2D Shown (Stealth Mode Disabled)')")
+                
+                # Turn OFF stealth mode
+                if hasattr(self, '_active_engine') and self._active_engine:
+                    self._active_engine.set_stealth_mode(False)
+        else:
+            print("[System] Creating Live2D Window")
+            # Create Window
+            initial_width = 450 
+            initial_height = 700
+            
+            raw_x = self._config_manager.get('window_x', None)
+            raw_y = self._config_manager.get('window_y', None)
+            x = int(raw_x) if raw_x is not None else None
+            y = int(raw_y) if raw_y is not None else None
+            
+            self._live2d_window = webview.create_window(
+                'SoulMate AI', 
+                'dist/index.html',
+                js_api=self,
+                width=initial_width,
+                height=initial_height,
+                x=x,
+                y=y,
+                transparent=True,
+                frameless=True,
+                on_top=self._config_manager.get('always_on_top', True),
+                easy_drag=False
+            )
+            
+            self._window = self._live2d_window
+            self._live2d_visible = True
+            
+            self._live2d_window.events.loaded += self.on_window_loaded
+            
+            if self._controller_window:
+                 self._controller_window.evaluate_js("addLog('System: Live2D Window Created')")
+                 
+            # Turn OFF stealth mode
+            if hasattr(self, '_active_engine') and self._active_engine:
+                self._active_engine.set_stealth_mode(False)
+
     def start_services(self):
         """Initializes background services after UI is ready (Event Driven)."""
         print("[System] Starting Background Services...")
@@ -464,6 +547,13 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
 
             try:
                 data = json.loads(message)
+                
+                # Check for stealth_log
+                if "type" in data and data["type"] == "stealth_log":
+                    if self._controller_window:
+                        safe_log = data["text"].replace("'", "\\'")
+                        self._controller_window.evaluate_js(f"addLog('{safe_log}')")
+                    return
                 
                 # Check for voice_input (New)
                 if "type" in data and data["type"] == "voice_input":
@@ -678,44 +768,30 @@ def create_app():
 
     # Title Fixer moved to api.start_services()
     
-    initial_width = 450 
-    initial_height = 700
+    print(f"[Main] Starting Controller UI...")
     
-    # Load Position from Config
-    # default to None (centers window)
-    raw_x = api._config_manager.get('window_x', None)
-    raw_y = api._config_manager.get('window_y', None)
-    
-    x = int(raw_x) if raw_x is not None else None
-    y = int(raw_y) if raw_y is not None else None
-    
-    print(f"[Main] Initial Window Position: x={x}, y={y}")
-    
-    window = webview.create_window(
-        'SoulMate AI', 
-        'dist/index.html',
+    controller_window = webview.create_window(
+        'SoulMate Controller',
+        'dist/controller.html',
         js_api=api,
-        width=initial_width,
-        height=initial_height,
-        x=x,
-        y=y,
-        transparent=True,
-        frameless=True,
-        on_top=api._config_manager.get('always_on_top', True),
-        easy_drag=False
+        width=300,
+        height=180,
+        frameless=False,
+        easy_drag=True
     )
-    api.set_window(window)
+    
+    api._controller_window = controller_window
     
     # ★ Shutdown Hook
-    def on_closed():
-        print("[Main] Window closed. Triggering cleanup...")
+    def on_controller_closed():
+        print("[Main] Controller window closed. Triggering cleanup...")
         try:
             api.save_window_position()
         except: pass
         api.cleanup()
         os._exit(0) # Force kill to prevent zombies
 
-    window.events.closed += on_closed
+    controller_window.events.closed += on_controller_closed
     
     # ★ Setting API Instance for Auth Logging
     from src.services.external.google_auth_manager import GoogleAuthManager
