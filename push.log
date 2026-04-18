@@ -1,9 +1,0 @@
-POST git-receive-pack (chunked)
-remote: error: Trace: 229bf04584562b0748b3b5f6d09281d97a5ca206684659408a47b7e02bf7bba0        
-remote: error: See https://gh.io/lfs for more information.        
-remote: error: File models/emotion_model/emotion.quant.onnx is 116.48 MB; this exceeds GitHub's file size limit of 100.00 MB        
-remote: error: GH001: Large files detected. You may want to try Git Large File Storage - https://git-lfs.github.com.        
-Pushing to https://github.com/nicobtan/SoulMate.git
-To https://github.com/nicobtan/SoulMate.git
- ! [remote rejected] develop -> develop (pre-receive hook declined)
-error: failed to push some refs to 'https://github.com/nicobtan/SoulMate.git'

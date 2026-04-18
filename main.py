@@ -330,7 +330,9 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
             self._active_engine.set_stealth_mode(True)
             self._active_engine.start()
             
-        if self._controller_window:
+        if hasattr(self, '_tk_controller') and self._tk_controller:
+            self._tk_controller.add_log('System: Agent loop started in background.')
+        elif self._controller_window:
             self._controller_window.evaluate_js("updateStatus('RUNNING (Stealth)')")
             self._controller_window.evaluate_js("addLog('System: Agent loop started in background.')")
 
@@ -341,7 +343,9 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
         if hasattr(self, '_active_engine') and self._active_engine:
             self._active_engine.stop()
             
-        if self._controller_window:
+        if hasattr(self, '_tk_controller') and self._tk_controller:
+            self._tk_controller.add_log('System: Agent loop stopped.')
+        elif self._controller_window:
             self._controller_window.evaluate_js("updateStatus('STOPPED')")
             self._controller_window.evaluate_js("addLog('System: Agent loop stopped.')")
 
@@ -352,13 +356,17 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
                 self._live2d_window.hide()
                 self._live2d_visible = False
                 print("[System] Live2D Hidden")
-                if self._controller_window:
+                if hasattr(self, '_tk_controller') and self._tk_controller:
+                    self._tk_controller.add_log('System: Live2D Window Hidden')
+                elif self._controller_window:
                     self._controller_window.evaluate_js("addLog('System: Live2D Window Hidden')")
             else:
                 self._live2d_window.show()
                 self._live2d_visible = True
                 print("[System] Live2D Shown")
-                if self._controller_window:
+                if hasattr(self, '_tk_controller') and self._tk_controller:
+                    self._tk_controller.add_log('System: Live2D Shown (Stealth Mode Disabled)')
+                elif self._controller_window:
                     self._controller_window.evaluate_js("addLog('System: Live2D Shown (Stealth Mode Disabled)')")
                 
                 # Turn OFF stealth mode
@@ -550,8 +558,10 @@ Priority of Reference: [Highest] Immediate User/AI Dialogue History [Medium] Cur
                 
                 # Check for stealth_log
                 if "type" in data and data["type"] == "stealth_log":
-                    if self._controller_window:
-                        safe_log = data["text"].replace("'", "\\'")
+                    safe_log = data["text"].replace("'", "\\'")
+                    if hasattr(self, '_tk_controller') and self._tk_controller:
+                        self._tk_controller.add_log(f"Agent: {safe_log}")
+                    elif self._controller_window:
                         self._controller_window.evaluate_js(f"addLog('{safe_log}')")
                     return
                 
@@ -768,23 +778,34 @@ def create_app():
 
     # Title Fixer moved to api.start_services()
     
-    print(f"[Main] Starting Controller UI...")
+    print(f"[Main] Starting Tkinter Controller UI...")
     
+    import sys
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from gui.controller import SoulMateController
+    
+    # New Tkinter Controller
+    tk_controller = SoulMateController(api)
+    api._tk_controller = tk_controller
+    tk_controller.start() # Runs in a background thread
+
+    print(f"[Main] Starting PyWebview Backend Loop (Hidden)...")
+    
+    # We create a dummy, hidden webview to satisfy pywebview loop requirement
     controller_window = webview.create_window(
-        'SoulMate Controller',
-        'dist/controller.html',
+        'SoulMate Process Engine',
+        html='<html><body>Background Engine</body></html>',
         js_api=api,
-        width=300,
-        height=180,
-        frameless=False,
-        easy_drag=True
+        width=1,
+        height=1,
+        hidden=True # Run entirely in the background
     )
     
     api._controller_window = controller_window
     
     # ★ Shutdown Hook
     def on_controller_closed():
-        print("[Main] Controller window closed. Triggering cleanup...")
+        print("[Main] Engine window closed. Triggering cleanup...")
         try:
             api.save_window_position()
         except: pass

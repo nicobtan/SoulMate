@@ -1,0 +1,14 @@
+{
+    "auto_accept_edits": true,
+    "tools": {
+        "file_write": {
+            "auto_approve": true,
+            "allow_list": [
+                "**/*"
+            ]
+        },
+        "shell_execute": {
+            "auto_approve": false
+        }
+    }
+}

@@ -1,38 +1,48 @@
-# Development Rules
+📜 SoulMate: 開発・運用規約 (RULES.md)
 
-このファイルは、SoulMateプロジェクトにおけるコーディングスタイル、エラーハンドリング、非同期処理の原則を定義します。常にこのルールに従って実装を行ってください。
+このドキュメントは、本プロジェクトに関わるすべてのエージェントが遵守すべき絶対的な規約です。
 
-## 1. 命名規則 (Naming Conventions)
+1. コーディング規約 (Coding Standards)
 
-- **Python**
-  - 変数名 / 関数名: `snake_case` (例: `user_profile`, `get_memory_data()`)
-  - クラス名: `PascalCase` (例: `AgentController`, `Live2dManager`)
-  - 定数名: `UPPER_SNAKE_CASE` (例: `MAX_RETRIES`, `DEFAULT_TIMEOUT`)
-  - プライベート変数・メソッド: 先頭にアンダースコア `_private_var`
-- **TypeScript / JavaScript**
-  - 変数名 / 関数名: `camelCase` (例: `userProfile`, `getMemoryData()`)
-  - クラス名 / インターフェース名: `PascalCase` (例: `AgentController`, `IUserMemory`)
-  - 定数名: `UPPER_SNAKE_CASE`
-- **ファイル・ディレクトリ**
-  - 原則として `snake_case`（Pythonの場合）または `kebab-case`（Webフロントエンドなどの場合）を用い、プロジェクトの一貫性を最優先とします。
+Python 3.12+:
 
-## 2. エラーハンドリングの原則
+全ての関数・変数に型ヒント (Type Hinting) を必須とします。
 
-- **例外の握りつぶし厳禁**
-  - 空の `except:` や `except Exception as e: pass` は絶対に記述しないでください。
-  - 予期せぬエラーを防ぐため、エラーは必ず `logging` モジュールを使用して記録してください。
-- **Loggingモジュールの活用**
-  - デバッグ用の `print()` は本番コードに残さず、`logging.debug()`, `logging.info()`, `logging.warning()`, `logging.error()`, `logging.critical()` を使い分けてください。
-  - エラー時には `logging.error("エラーの文脈: %s", e, exc_info=True)` とし、スタックトレースを残すことが推奨されます。
-- **フェイルセーフな設計**
-  - 外部API(例: TTS, STT, LLM)の呼び出し時は必ずタイムアウトを設定し、失敗した場合はリトライロジックを挟むか、適切なフォールバック処理（例: エラーメッセージの読み上げ、Live2Dの固有モーション（＞＜など）の再生）を行ってください。
+mypy による静的解析をパスしないコードの提出を禁じます。
 
-## 3. 非同期処理 (Async/Await) の原則
+非同期処理 (Asynchronous):
 
-- **I/Oバウンドな処理の非同期化**
-  - ファイルの読み書き、ネットワークリクエスト、データベースへのクエリなどは、原則として `asyncio` や `aiohttp`（Python）、`fetch` / `Promise`（TS）を用いて非同期化してください。
-- **イベントループのブロッキング回避**
-  - `time.sleep()` のような同期的なブロッキング処理は避け、`await asyncio.sleep()` を使用してください。
-  - CPUバウンドの重い処理（画像処理、同期的なモデル推論など）は、`concurrent.futures.ThreadPoolExecutor` や `ProcessPoolExecutor` (`asyncio.to_thread` など)に逃がしてメインスレッドのブロッキングを防いでください。
+原則として asyncio を使用し、メインUIスレッドをブロックする処理を記述してはいけません。
 
-以上、このルールブックを順守し、プロジェクトの品質と安定性を保つように努めてください。
+ロギング (Logging):
+
+print() の使用を厳禁します。
+
+logging モジュールを用い、debug, info, warning, error を文脈に応じて適切に使い分けてください。
+
+2. エージェント運用ルール (Agent Operational Rules)
+
+破壊的変更の禁止:
+
+既存のコアロジックを大幅に変更する場合は、必ずバックアップの作成または別ブランチでの作業を提案し、ユーザーの承諾を得ること。
+
+ドキュメントの同期:
+
+ファイル構成を変更した際は、即座に .soulmate/PROJECT_MAP.md を更新すること。
+
+3. 📝 ログ更新の絶対義務 (Strict Logging Policy)
+
+エージェントのすべての活動は、以下の手順に従って記録されなければなりません。この手順の省略は、業務の未完了を意味します。
+
+作業開始時 (Pre-process):
+
+実際のコードを書き換える前に、必ず .soulmate/memories/session_log.md を読み込み、現在のタスクを [In Progress] に更新すること。
+
+作業終了時 (Post-process):
+
+変更内容の要約、実行したテストの結果、および「次にやるべき課題」を明記し、ステータスを [Completed] に更新すること。
+
+継続的な思考の共有:
+
+途中で問題が発生した場合は、速やかにログの Pending Questions セクションへ追記し、ユーザーの判断を仰ぐこと。
+

@@ -1,40 +1,39 @@
-# Project Map
+# PROJECT_MAP.md
 
-このファイルは「SoulMate」プロジェクトの全体像を把握し、エージェントが迷子にならないための道標です。各モジュール・ディレクトリの役割を理解してから開発に着手してください。
+## 概要
+SoulMateは、ユーザーのデスクトップに常駐し、Live2Dモデルを通じて能動的にコミュニケーションを行うAIエージェントアプリです。
+`pywebview` と `FastAPI` を組み合わせ、フロントエンドは `Vanilla TypeScript` を用いたアーキテクチャで構成されています。
 
-## ルートディレクトリ構成
+## ディレクトリ構造と役割
 
-- **`src/`**
-  - フロントエンドおよびバックエンドの主要なソースコードが格納されています。TypeScriptや主要モジュールの実装が含まれます。
-- **`docs/`**
-  - プロジェクトドキュメント、タスクリスト(`tasklist.md`)、システム設計などが保管されています。
-- **`Live2D/`**
-  - Live2Dモデルデータ、モーション(`*.mtn` / `*.motion3.json`)、表情データ、テクスチャアトラスなど、キャラクターのビジュアルリソースが配置されます。
-- **`models/`**
-  - TTSやSTTなどのローカルAIモデルデータ、言語モデルなどが格納される想定です。
-- **`memory/` / `chroma_db/`**
-  - 過去の会話ログやナレッジベース、ベクトルデータベースなどの「記憶」に該当するデータが保存されています。
-- **`settings/`**
-  - アプリケーション全体の環境設定や、デバッグ設定などが存在します。
-- **`tests/`**
-  - 単体テスト(`test_*.py`など)や、結合テスト用のスクリプトが格納されるディレクトリです。
-- **`tools/`**
-  - プロジェクト管理や開発に用いる各種ユーティリティスクリプトが含まれています。
-- **`.soulmate/`**
-  - プロジェクト独自の「魂（Identity）」と「技術要件（Skills）」、「記憶（Memories）」を管理するメタデータディレクトリです。
+### 🚀 ルートディレクトリ
+- **`main.py`**: アプリケーションのエントリーポイント (`pywebview` を起動し、GUIとして実行)。
+- **`server.py`**: FastAPIサーバーのエントリーポイント (バックエンドAPIとして独立動作も可能)。
 
-## 主要ファイルの役割
+### 💻 `src/` (ソースコード中核)
+フロントエンドとバックエンドのコードが混在していますが、主に以下のように分かれています。
 
-- **`main.py`**
-  - システム全体のエントリーポイント。アプリケーションの初期化、主要コンポーネント（AIエージェント、GUI等）の起動を担います。
-- **`server.py`**
-  - フロントエンドとの通信を担うバックエンドサーバー（WebSocket / HTTP APIなど）の実装ファイルです。
-- **`settings/debug_settings.py`**
-  - 開発中のデバッグフラグや各種閾値を管理するファイルです。
-- **`package.json` / `tsconfig.json`**
-  - フロントエンドやTypeScript関連のパッケージ依存関係とビルド設定です。
-- **`requirements.txt`**
-  - Pythonバックエンドコンポーネントの依存関係リストです。
+#### バックエンド (Python)
+- **/api**: `pywebview` 経由でフロントエンドから呼び出される API Mixin クラス (`chat_api.py`, `voice_api.py` 等)。
+- **/core**: システムのコアロジック (`config_manager.py`, `response_parser.py` 等)。
+- **/routers**: FastAPI 用のルーター定義 (`chat.py`, `settings.py` 等)。
+- **/services**: ドメインごとのビジネスロジック (`content`, `control`, `memory`, `voice`, `vision` など細分化されています)。
+- **/utils**: 汎用ユーティリティ (`time_utils.py` 等)。
 
-## エージェントへの指示
-新しい機能を追加する際は、このマップを参照し、適切なディレクトリ層にコードを配置すること。もし既存の構成とそぐわない場合は、チーム（ユーザー）にディレクトリ構成の変更を提案してください。
+#### フロントエンド (TypeScript / HTML / CSS)
+- **`index.html`, `settings.html`, `history.html`**: UIのエントリーポイント。
+- **`index.ts`, `settings.ts`, `history.ts`**: 各画面のメインスクリプト。
+- **/managers**: TypeScript側のコアロジック (`chat_manager.ts`, `live2d_manager.ts`, `ui_manager.ts` 等)。
+- **/css**: スタイルシート (`style.css`, `mobile.css`)。
+- **/types**: TypeScriptの型定義ファイル。
+
+### 📁 その他の主要ディレクトリ
+- **/settings**: 設定ファイル (`user_profile.yaml`, `MindVault.md`, `quick_messages.json` 等)。エージェントのプロンプトや知識ベース。
+- **/profiles**: キャラクターのプロフィール定義 (`characters.json` 等)。
+- **/assets**: 音声のフィラー(`thinking_02.wav` 等)やカーソルなどのアセット。
+- **/docs**: プロジェクトのドキュメント、仕様書、タスクリスト (`docs/spec/`, `docs/prompt/` 等)。
+- **/Live2D**: Live2Dのモデルデータ (`naya`, `fav_usaneko_alwb` 等)。
+- **/gui**: ウィンドウやGUI制御ロジック (`controller.py` 等)。
+- **/tests**: テストコード。
+- **/tools**: 開発用・デバッグ用のスクリプト群。
+- **/.soulmate**: エージェント自身のためのメタ知識とルール定義 (`GEMINI.md`, `MANAGEMENT_STRATEGY.md` 等)。

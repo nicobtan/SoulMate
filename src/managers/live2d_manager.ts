@@ -83,6 +83,7 @@ export class Live2DManager {
     private model: any; // Live2DModel
     private lipSync: LipSyncManager;
     private characterArea: HTMLElement | null = null;
+    private isStealthMode: boolean = false;
 
     // Idle Motion State
     private nextBlinkTime = 0;
@@ -137,6 +138,7 @@ export class Live2DManager {
 
         // 4. Register Ticker (LipSync & Idle)
         this.app.ticker.add(() => {
+            if (this.isStealthMode) return;
             if (this.model) {
                 this.lipSync.update(this.model);
                 this.updateIdleMotion();
@@ -167,6 +169,7 @@ export class Live2DManager {
         (window as any).live2d_manager = this;
         // Also expose as camelCase for compatibility with Python API calls
         (window as any).live2dManager = this;
+        (window as any).setLive2DStealthMode = this.setStealthMode.bind(this);
 
         // Initial Resize is handled by ResizeObserver callback, BUT we must ensure it runs after model load
         // because ResizeObserver might fire too early (while model is null).
@@ -174,6 +177,21 @@ export class Live2DManager {
 
         // 6. Setup Zoom Control
         window.addEventListener('wheel', (e) => this.handleZoom(e), { passive: false });
+    }
+
+    /**
+     * Stealth Mode Toggle
+     * Freezes rendering loop to save GPU during background run.
+     */
+    public setStealthMode(isStealth: boolean) {
+        this.isStealthMode = isStealth;
+        if (this.isStealthMode) {
+            console.log("[Live2D] Entering Stealth Mode. Rendering stopped.");
+            this.app.ticker.stop();
+        } else {
+            console.log("[Live2D] Exiting Stealth Mode. Rendering resumed.");
+            this.app.ticker.start();
+        }
     }
 
     /**

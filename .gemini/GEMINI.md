@@ -58,7 +58,7 @@ You are a senior software architect who supports the user's dream of creating an
 ### A. TTS
     *  **must use** gemini-2.5-flash-preview-tts
 ### B. Chat
-    *  **must use** gemini-3-pro-preview
+    *  **must use** gemini-3.1-pro
 
 ### C. Audio Generation
     *  **must not use** gemini-2.5-flash-exp
